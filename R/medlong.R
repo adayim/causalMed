@@ -19,7 +19,7 @@
 #' @param time Time variable of the per row observed. Only for ordering the data.
 #' @param m.family link function to be used in the mediator model.
 #' @param y.family link function to be used in the outcome model.
-#' @param mediation Use IPTW estimator or g-formula estimator or both (Default)
+#' @param estimator Use IPTW estimator or g-formula estimator or both (Default)
 #' @param R The number of bootstrap replicates. Default is 1000.
 #'
 #'
@@ -38,7 +38,7 @@ medlong <- function(data,
                     time,
                     m.family  = c("binomial", "gaussian"),
                     y.family  = c("binomial", "gaussian"),
-                    mediation = c("both", "gformula", "iptw"),
+                    estimator = c("both", "gformula", "iptw"),
                     R         = 1000) {
 
   data <- format_data(data, id, trt, time, med, y, cov)
@@ -46,15 +46,15 @@ medlong <- function(data,
   cl <- match.call()
   # args <- mget(names(formals()),sys.frame(sys.nframe()))
 
-  if(mediation[1] %in% c("gformula", "both") & is.null(y.family)){
+  if(estimator[1] %in% c("gformula", "both") & is.null(y.family)){
     stop("Link function of for g-formula ")
   }
-  if(mediation[1] == "iptw"){
+  if(estimator[1] == "iptw"){
     args$y.family <- NULL
   }
 
   # Bootstrap
-  if(mediation[1] %in% c("gformula", "both"))
+  if(estimator[1] %in% c("gformula", "both"))
     res.g    <- boot::boot(data, .calc_g,
                            R        = R,
                            trt      = trt,
@@ -65,7 +65,7 @@ medlong <- function(data,
                            y.family = y.family)
 
 
-  if(mediation[1] %in% c("iptw", "both"))
+  if(estimator[1] %in% c("iptw", "both"))
     res.iptw <- boot::boot(data, .calc_iptw,
                            R        = R,
                            trt      = trt,
@@ -75,10 +75,10 @@ medlong <- function(data,
                            m.family = m.family,
                            y.family = y.family)
 
-  if(mediation[1] == "gformula"){
+  if(estimator[1] == "gformula"){
     out <- list("call"      = cl,
                 "g-formula" = extract_boot(res.g, conf.int = T))
-  }else if (mediation[1] == "iptw"){
+  }else if (estimator[1] == "iptw"){
     out <- list("call"      = cl,
                 "iptw"      = extract_boot(res.iptw, conf.int = T))
   }else{
