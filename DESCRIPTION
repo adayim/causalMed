@@ -1,0 +1,18 @@
+Package: causalMed
+Title: Causal Mediation Analysis in Survival settings
+Version: 0.0.0.9000
+Authors@R: person("Alimu", "Dayimu", email = "alimdayim@hotmail.com", role = c("aut", "cre"))
+Description: This package mainly for analysis causal mediation in survival settings.
+    Mainly for single time point survival mediation analysis for single or multiple
+    mediator. It also can handle time-varying single mediator.
+Depends: R (>= 3.5.1)
+License: GPL (>= 2)
+Encoding: UTF-8
+LazyData: true
+Imports: dplyr,
+         tidyr,
+         boot,
+         survival
+Suggests: timereg
+BugReports: https://github.com/adayim/causalMed/issues
+RoxygenNote: 6.1.0
