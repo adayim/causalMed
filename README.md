@@ -41,3 +41,8 @@ Data structure must be in longitudinal format, and only mediator is time-varying
 - [ ] More tests is needed.
 
 
+## References
+1. Tchetgen Tchetgen, E. J. (2013). Inverse odds ratio‐weighted estimation for causal mediation analysis. Statistics in medicine, 32(26), 4567-4580. [DOI:10.1002/sim.5864](https://doi.org/10.1002/sim.5864)
+2. Lin, S. H., Young, J. G., Logan, R., & VanderWeele, T. J. (2017). Mediation analysis for a survival outcome with time‐varying exposures, mediators, and confounders. Statistics in medicine, 36(26), 4153-4166. [DOI:10.1002/sim.7426](https://doi.org/10.1002/sim.7426)
+3. Zheng, W., & van der Laan, M. (2017). Longitudinal mediation analysis with time-varying mediators and exposures, with application to survival outcomes. Journal of causal inference, 5(2). [DOI:10.1515/jci-2016-0006](https://doi.org/10.1515/jci-2016-0006)
+
