@@ -6,7 +6,7 @@
 \usage{
 medlong(data, id, trt, med, y, cov, time, m.family = c("binomial",
   "gaussian"), y.family = c("binomial", "gaussian"),
-  mediation = c("both", "gformula", "iptw"), R = 1000)
+  estimator = c("both", "gformula", "iptw"), R = 1000)
 }
 \arguments{
 \item{data}{Data set to be sued}
@@ -27,7 +27,7 @@ medlong(data, id, trt, med, y, cov, time, m.family = c("binomial",
 
 \item{y.family}{link function to be used in the outcome model.}
 
-\item{mediation}{Use IPTW estimator or g-formula estimator or both (Default)}
+\item{estimator}{Use IPTW estimator or g-formula estimator or both (Default)}
 
 \item{R}{The number of bootstrap replicates. Default is 1000.}
 }

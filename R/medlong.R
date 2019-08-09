@@ -22,6 +22,7 @@
 #' @param estimator Use IPTW estimator or g-formula estimator or both (Default)
 #' @param R The number of bootstrap replicates. Default is 1000.
 #'
+#' @importFrom boot boot
 #'
 #' @example medlong(data = dat, trt = "a", med = "mt", y = "status", id = "id", time = "tij", cov = c("w1", "w2"), m.family  = "gaussian", y.family  = "binomial")
 #'

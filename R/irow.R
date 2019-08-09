@@ -17,6 +17,8 @@
 #'
 #' @example iorw(data = dt, trt = "a", med = "mt", y = "status", time = "eventtime", family = "cox", cov = c("w1", "w2"))
 #'
+#' @importFrom boot boot
+#'
 #' @export
 #'
 
@@ -37,10 +39,6 @@ iorw <- function(data,
 
   if(family %in% c("cox", "aalen") & is.null(time)){
     stop("Time variable name must be provided for survival outcome!")
-  }
-  if(family %in% c("cox", "aalen")){
-    require(survival)
-    if(family == "aalen") require(timereg)
   }
 
   if(length(med) > 1 & !is.null(ref)){
@@ -76,6 +74,10 @@ iorw <- function(data,
 #' @param family a description of the error distribution and link function to be used in the outcome model. "cox" and "aalen" can also be added for survival outcome.
 #' @param stabilized Stabilized weights, TRUE(default) or FALSE.
 #'
+#' @importFrom stats as.formula coef dnorm glm na.omit predict qnorm sd var
+
+#' @importFrom timereg aalen const coef.aalen
+#' @importFrom survival Surv coxph
 #'
 .estirow <- function(data, index, trt, med, y, cov, time, ref, family, stabilized){
 

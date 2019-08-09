@@ -10,6 +10,9 @@
 #' @param cov A vector of the covariates' name.
 #' @param time Time variable of the per row observed.
 #'
+#' @importFrom dplyr group_by arrange ungroup select mutate
+#' @importFrom tidyr spread %>%
+#'
 #' @export
 #'
 #'
@@ -25,7 +28,6 @@ format_data <- function(data,
   data <- data[, c(id, trt, y, med, time, cov)]
   colnames(data)[1:5] <-c("id", "trt", "y", "med", "time")
 
-  #require(dplyr)
   dt_iptw <- data %>%
     group_by(id) %>%
     arrange(time) %>%
@@ -33,7 +35,7 @@ format_data <- function(data,
     ungroup() %>%
     select(-time) %>%
     mutate(tm = paste0("med_", tm)) %>%
-    tidyr::spread(tm, med)
+    spread(tm, med)
   out <- as.data.frame(dt_iptw)
   colnames(out)[1:3] <- c(id, trt, y)
   out
