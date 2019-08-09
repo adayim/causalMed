@@ -13,6 +13,10 @@ Imports: dplyr,
          tidyr,
          boot,
          survival
-Suggests: timereg
+Suggests: timereg,
+    knitr,
+    rmarkdown,
+    testthat
 BugReports: https://github.com/adayim/causalMed/issues
 RoxygenNote: 6.1.0
+VignetteBuilder: knitr

@@ -1,3 +1,8 @@
+library(testthat)
+library(causalMed)
+
+test_check("causalMed")
+
 dat <- readRDS("data/data.rds")
 dat$status <- as.numeric(dat$status)
 dt <- dat[dat$tij == 0, ]
@@ -16,5 +21,6 @@ res <- medlong(data = dat,
                cov = c("w1", "w2"),
                m.family  = "gaussian",
                y.family  = "binomial")
+
 
 

@@ -25,7 +25,7 @@ format_data <- function(data,
   data <- data[, c(id, trt, y, med, time, cov)]
   colnames(data)[1:5] <-c("id", "trt", "y", "med", "time")
 
-  require(dplyr)
+  #require(dplyr)
   dt_iptw <- data %>%
     group_by(id) %>%
     arrange(time) %>%
