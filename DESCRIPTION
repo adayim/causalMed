@@ -1,6 +1,6 @@
 Package: causalMed
 Title: Causal Mediation Analysis in Survival settings
-Version: 0.0.0.9100
+Version: 0.0.0.9900
 Authors@R: person("Alimu", "Dayimu", email = "alimdayim@hotmail.com", role = c("aut", "cre"))
 Description: This package mainly for analysis causal mediation in survival settings.
     Mainly for single time point survival mediation analysis for single or multiple
@@ -17,6 +17,7 @@ Imports: dplyr,
 Suggests:knitr,
     rmarkdown,
     testthat
+URL: https://github.com/adayim/causalMed
 BugReports: https://github.com/adayim/causalMed/issues
 RoxygenNote: 6.1.0
 VignetteBuilder: knitr

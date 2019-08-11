@@ -1,4 +1,10 @@
 
+# Extract data
+extrCall <- function (x)
+{
+  if (isS4(x)) x@call else x$call
+}
+
 
 #' Extract bootstrap Confidence interval
 extract_boot <- function(x,
@@ -66,6 +72,7 @@ extract_boot <- function(x,
   ret
 }
 
+# Extact bootstrap confidence interval
 bootci <- function (boot.out = NULL, conf = 0.95, index = 1, var.t0 = NULL,
                     t0 = NULL, t = NULL, L = NULL, h = function(t) t, hdot = function(t) 1,
                     hinv = function(t) t) {

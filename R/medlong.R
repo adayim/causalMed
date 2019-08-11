@@ -22,6 +22,10 @@
 #' @param estimator Use IPTW estimator or g-formula estimator or both (Default)
 #' @param R The number of bootstrap replicates. Default is 1000.
 #'
+#' @references
+#' Lin, S. H., Young, J. G., Logan, R., & VanderWeele, T. J. (2017). Mediation analysis for a survival outcome with time‐varying exposures, mediators, and confounders. \emph{Statistics in medicine}, 36(26), 4153-4166. DOI:10.1002/sim.7426
+#' Zheng, W., & van der Laan, M. (2017). Longitudinal mediation analysis with time-varying mediators and exposures, with application to survival outcomes. \emph{Journal of causal inference}, 5(2). DOI:10.1515/jci-2016-0006
+#'
 #' @importFrom boot boot
 #'
 #' @example medlong(data = dat, trt = "a", med = "mt", y = "status", id = "id", time = "tij", cov = c("w1", "w2"), m.family  = "gaussian", y.family  = "binomial")
@@ -78,14 +82,14 @@ medlong <- function(data,
 
   if(estimator[1] == "gformula"){
     out <- list("call"      = cl,
-                "g-formula" = extract_boot(res.g, conf.int = T))
+                "g-formula" = res.g)
   }else if (estimator[1] == "iptw"){
     out <- list("call"      = cl,
-                "iptw"      = extract_boot(res.iptw, conf.int = T))
+                "iptw"      = res.iptw)
   }else{
     out <- list("call"      = cl,
-                "g-formula" = extract_boot(res.g, conf.int = T),
-                "iptw"      = extract_boot(res.iptw, conf.int = T))
+                "g-formula" = res.g,
+                "iptw"      = res.iptw)
   }
 
   out
