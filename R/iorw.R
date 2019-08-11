@@ -4,19 +4,28 @@
 #' Output contains total effect, natrual direct effect and natural indirect effect.
 #'  The confidence interval will be calculated using 1000 bootstrap with normal approximation.
 #'
-#' @param data Data set to be sued
-#' @param trt Intervention/Exposure variable
-#' @param med Name of the mediator(s).
-#' @param time Survival time in survival analysis.
+#' @param fitY model object of the final outcome, all variables of interest should be included except mediators.
+#' @param data Data set to be sued, if NULL, the data from outcome model will be used.
+#' @param exposure Intervention/Exposure variable
+#' @param mediator Name of the mediator(s).
 #' @param ref Only for one categorical mediator, set to NULL for numerical mediator or multiple mediator. Reference value of the mediator, where the mediator is evaluated at its refrence value.
-#' @param family a description of the error distribution and link function to be used in the outcome model. "cox" and "aalen" can also be added for survival outcome.
+#' @param family a description of the error distribution and link function to be used in the exposure model. Only binomial and gaussian supported now.
 #' @param stabilized Stabilized weights, TRUE(default) or FALSE.
 #' @param R The number of bootstrap replicates. Default is 1000.
 #'
 #' @references
 #' Tchetgen Tchetgen, E. J. (2013). Inverse odds ratio‐weighted estimation for causal mediation analysis. \emph{Statistics in medicine}, 32(26), 4567-4580. DOI:10.1002/sim.5864
 #'
-#' @example iorw(data = dt, trt = "a", med = "mt", y = "status", time = "eventtime", family = "cox", cov = c("w1", "w2"))
+#' @example
+#'
+#' data(lipdat)
+#' dtbase <- lipdat[lipdat$time == 0, ]
+#' out <- iorw(coxph(Surv(os, cvd) ~ bmi + age0 + smoke, data = dtbase),
+#' exposure   = "smoke",
+#' mediator   = "hdl",
+#' family     = "binomial")
+#'
+#'
 #'
 #' @importFrom boot boot
 #'
@@ -89,14 +98,13 @@ iorw <- function(fitY,
 #'
 #' @description  Main function for Inverse odds ratio weighting, internal use.
 #'
-#' @param data Data set to be sued
-#' @param trt Intervention/Exposure variable
-#' @param med Name of the mediator(s).
-#' @param y Name of the outcome variable.
-#' @param cov A vector of the covariates' name.
-#' @param time Survival time in survival analysis.
+#' @param fitA Exposure model formula, glm will be used in this step.
+#' @param fitY model object of the final outcome, all variables of interest should be included except mediators.
+#' @param data Data set to be sued, if NULL, the data from outcome model will be used.
+#' @param exposure Intervention/Exposure variable
+#' @param mediator Name of the mediator(s).
 #' @param ref Only for one categorical mediator, set to NULL for numerical mediator or multiple mediator. Reference value of the mediator, where the mediator is evaluated at its refrence value.
-#' @param family a description of the error distribution and link function to be used in the outcome model. "cox" and "aalen" can also be added for survival outcome.
+#' @param family a description of the error distribution and link function to be used in the exposure model. Only binomial and gaussian supported now.
 #' @param stabilized Stabilized weights, TRUE(default) or FALSE.
 #'
 #' @importFrom stats as.formula coef dnorm glm na.omit predict qnorm sd var
@@ -116,7 +124,7 @@ estirow <- function(fitA,
   Afit <- glm(fitA, data = data, family = family)
 
   # Step 2: Compute IORW
-  # For categorical
+
   if(!stabilized){
     newdata <- data
     newdata$mediator <- ref
@@ -138,6 +146,7 @@ estirow <- function(fitA,
 
   fitY <- extrCall(fitY)
   fitY$data <- substitute(data)
+
   # Estimate total effect
   total <- eval(fitY)
 
