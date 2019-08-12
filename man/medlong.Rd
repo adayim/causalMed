@@ -4,24 +4,24 @@
 \alias{medlong}
 \title{Mediation analysis for time-varying mediaiton, survival and non-survival}
 \usage{
-medlong(data, id, trt, med, y, cov, time, m.family = c("binomial",
-  "gaussian"), y.family = c("binomial", "gaussian"),
-  estimator = c("both", "gformula", "iptw"), R = 1000)
+medlong(data, id.var, exposure, mediator, outcome, covariates, time.var,
+  m.family = c("binomial", "gaussian"), y.family = c("binomial",
+  "gaussian"), estimator = c("both", "gformula", "iptw"), R = 1000)
 }
 \arguments{
 \item{data}{Data set to be sued}
 
-\item{id}{ID variable per subject.}
+\item{id.var}{ID variable per subject.}
 
-\item{trt}{Intervention/Exposure variable}
+\item{exposure}{Intervention/Exposure variable}
 
-\item{med}{Name of the time-varying mediator.}
+\item{mediator}{Name of the time-varying mediator.}
 
-\item{y}{Name of the outcome variable.}
+\item{outcome}{Name of the outcome variable.}
 
-\item{cov}{A vector of the covariates' name.}
+\item{covariates}{A vector of the covariates' name.}
 
-\item{time}{Time variable of the per row observed. Only for ordering the data.}
+\item{time.var}{Time variable of the per row observed. Only for ordering the data.}
 
 \item{m.family}{link function to be used in the mediator model.}
 
@@ -42,4 +42,24 @@ Not that final outcome must be the same for in all rows per subject.
   If the dataset is  survival settings, records after the interested outcome
    must be deleted. The funciton it self do some data manupilation internally.
    Please prepare the data as longitudinal format.
+}
+\examples{
+data(lipdat)
+res <- medlong(data       = lipdat,
+exposure   = "smoke",
+mediator   = "hdl",
+outcome    = "cvd",
+id.var     = "id",
+time.var   = "time",
+covariates = c("bmi", "gender", "age0"),
+m.family   = "gaussian",
+y.family   = "binomial")
+
+summary(res)
+
+
+}
+\references{
+Lin, S. H., Young, J. G., Logan, R., & VanderWeele, T. J. (2017). Mediation analysis for a survival outcome with time‐varying exposures, mediators, and confounders. \emph{Statistics in medicine}, 36(26), 4153-4166. DOI:10.1002/sim.7426
+Zheng, W., & van der Laan, M. (2017). Longitudinal mediation analysis with time-varying mediators and exposures, with application to survival outcomes. \emph{Journal of causal inference}, 5(2). DOI:10.1515/jci-2016-0006
 }

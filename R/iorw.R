@@ -16,7 +16,7 @@
 #' @references
 #' Tchetgen Tchetgen, E. J. (2013). Inverse odds ratio‐weighted estimation for causal mediation analysis. \emph{Statistics in medicine}, 32(26), 4567-4580. DOI:10.1002/sim.5864
 #'
-#' @example
+#' @examples
 #'
 #' data(lipdat)
 #' dtbase <- lipdat[lipdat$time == 0, ]
@@ -25,7 +25,7 @@
 #' mediator   = "hdl",
 #' family     = "binomial")
 #'
-#'
+#' summary(out)
 #'
 #' @importFrom boot boot
 #'
@@ -46,6 +46,11 @@ iorw <- function(fitY,
   #some basic input checks
   if (!("exposure" %in% names(tempcall))) stop("No exposure variable specified")
   if (!("mediator" %in% names(tempcall))) stop("No mediator variable(s) specified")
+
+  dt_name <- extrCall(fitY)$data
+  if (deparse(substitute(dt_name)) != deparse(substitute(data)) & !is.null(tempcall$data))
+    stop("Data set name of the outcome model and the specified data are not the same! Make sure correct dataset is used.")
+
   if (!("family" %in% names(tempcall)) | ("family" %in% names(tempcall) & !(tempcall$family %in% c("binomial", "gaussian")))) stop("No valid family specified (\"binomial\",  \"gaussian\")")
   if (!is.null(tempcall$data)) message("Data from the model will be used!")
   if (tempcall$mediator %in% all.vars(formula(fitY))) stop("No mediators should be included in the outcome model!")
@@ -69,7 +74,7 @@ iorw <- function(fitY,
   # Model for exposure
   medform <- update(formula(fitY), paste0(exposure, " ~ . + ", paste(mediator, collapse = " + ")))
 
-  args$fitA <- medform
+  args$fitA <- substitute(medform)
   # Bootstrap
   bootFunc <- function(data, index, ...){
     d <- data[index, ]
@@ -121,7 +126,7 @@ estirow <- function(fitA,
   # Import Data
   tempcall <- match.call()
   # Step 1: fit model for exposure
-  Afit <- glm(fitA, data = data, family = family)
+  Afit <- do.call("glm", eval(list(formula = fitA, data = substitute(data), family = family)))
 
   # Step 2: Compute IORW
 
@@ -140,7 +145,7 @@ estirow <- function(fitA,
   if(family == "gaussian"){
     p1 <- predict(Afit, newdata = data, type="response")
     pt <- predict(Afit, newdata = data, type = "term")
-    pre <- rowSums(p1 * pt[mediator], na.rm = TRUE)/sd(Afit$residuals, na.rm = TRUE)
+    pre <- rowSums(p1 * pt[, mediator], na.rm = TRUE)/sd(Afit$residuals, na.rm = TRUE)
     W <- 1 / exp(pre)
   }
 
@@ -171,6 +176,7 @@ estirow <- function(fitA,
   names(res) <- c("Total effect","Natural Direct effect","Natural Indirect effect")
 
   res <- list(Afit    = Afit$call,
+              Yfit    = extrCall(tempcall$fitY),
               weights = W,
               effect  = res)
   class(res) <- "irow"
@@ -198,8 +204,12 @@ summary.iorw <- function (object, ...){
   prop.med <- coef.table[coef.table$term == "Natural Indirect effect", "statistic"] /
     coef.table[coef.table$term == "Total effect", "statistic"]
 
-  summary <- list(call = object$call, coefficients = coeftab,
-                  prop = 100 * prop.med)
+  summary <- list(call         = object$call,
+                  Acall        = object$Afit,
+                  Ycall        = object$Yfit,
+                  coefficients = coeftab,
+                  prop         = 100 * prop.med)
+
   class(summary) <- "summary.iorw"
   attr(summary, "class_object") <- class(object)
   return(summary)
@@ -210,9 +220,16 @@ summary.iorw <- function (object, ...){
 print.summary.iorw <- function (x, digits = max(3, getOption("digits") - 3), ...){
   cat("Call:\n")
   print(x$call)
+
+  cat("\nOutcome Model Call:\n")
+  print(x$Ycall)
+
+  cat("\nExposure Model Call:\n")
+  print(x$Acall)
+
   cat("------\n")
   cat("Natural effect model\n")
-  if (attr(x, "class_object")[1] == "neModelBoot") cat("with standard errors based on the non-parametric bootstrap\n---\n")
+  cat("with standard errors based on the non-parametric bootstrap\n---\n")
   cat("Exposure:", x$call$exposure, "\nMediator(s):", paste(x$call$mediator,
                                                       collapse = ", "), "\n------\n")
   cat("Parameter estimates:\n")
