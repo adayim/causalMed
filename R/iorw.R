@@ -53,8 +53,8 @@ iorw <- function(fitY,
 
   if (!("family" %in% names(tempcall)) | ("family" %in% names(tempcall) & !(tempcall$family %in% c("binomial", "gaussian")))) stop("No valid family specified (\"binomial\",  \"gaussian\")")
   if (!is.null(tempcall$data)) message("Data from the model will be used!")
-  if (tempcall$mediator %in% all.vars(formula(fitY))) stop("No mediators should be included in the outcome model!")
-  if (!tempcall$exposure %in% all.vars(formula(fitY))) stop("Exposure variable should be included in the outcome model!")
+  if (any(mediator %in% all.vars(formula(fitY)))) stop("No mediators should be included in the outcome model!")
+  if (!exposure %in% all.vars(formula(fitY))) stop("Exposure variable should be included in the outcome model!")
 
   args <- mget(names(formals()),sys.frame(sys.nframe()))
 
