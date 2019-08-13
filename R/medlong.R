@@ -59,6 +59,11 @@ medlong <- function(data,
                     estimator = c("both", "gformula", "iptw"),
                     R         = 1000) {
 
+  # Setting seeds
+  old <- .Random.seed
+  on.exit( { .Random.seed <<- old } ) # Set to it's roginal seed after exit
+  set.seed(2)
+
   cl <- match.call()
 
   if (!("m.family" %in% names(cl)) | ("m.family" %in% names(cl) & !(cl$m.family %in% c("binomial", "gaussian")))) stop("No valid family specified for mediator (\"binomial\",  \"gaussian\")")
@@ -76,16 +81,16 @@ medlong <- function(data,
   data <- data[, c(id.var, exposure, outcome, mediator, time.var, covariates)]
 
   # Get the order number of observation per subject
-  dfm <- transform(data, rank_ord = ave(1:nrow(data), eval(as.name(id.var)),
-                                        FUN = function(x)
-                                          order(eval(parse(text = paste0(time.var, "[x]"))))))
+  dfm <- base::transform(data, rank_ord = ave(1:nrow(data), eval(as.name(id.var)),
+                                              FUN = function(x)
+                                                order(eval(parse(text = paste0(time.var, "[x]"))))))
 
-  data <- reshape(dfm,
-                  drop = time.var,
-                  idvar =  c(id.var, exposure, outcome, covariates),
-                  v.names = mediator,
-                  sep = "_",
-                  timevar = "rank_ord", direction = "wide")
+  data <- stats::reshape(dfm,
+                         drop = time.var,
+                         idvar =  c(id.var, exposure, outcome, covariates),
+                         v.names = mediator,
+                         sep = "_",
+                         timevar = "rank_ord", direction = "wide")
 
 
   # Bootstrap
@@ -344,7 +349,7 @@ print.summary.medlong <- function (x, digits = max(3, getOption("digits") - 3), 
   cat("Exposure:", x$call$exposure, "\nMediator:", paste(x$call$mediator,
                                                             collapse = ", "))
 
-  cat("Estimation of standard errors based on the non-parametric bootstrap\n---\n")
+  cat("\n---\nEstimation of standard errors based on the non-parametric bootstrap")
   if (!is.null(x$coeff.gform)){
     cat("\n------\n")
     cat("Natural effect parameter estimates with G-formula estimation:\n")

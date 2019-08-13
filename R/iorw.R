@@ -6,10 +6,10 @@
 #'
 #' @param fitY model object of the final outcome, all variables of interest should be included except mediators.
 #' @param data Data set to be sued, if NULL, the data from outcome model will be used.
-#' @param exposure Intervention/Exposure variable
+#' @param exposure Intervention/Exposure variable, control or unexposure must be set to 0.
 #' @param mediator Name of the mediator(s).
 #' @param ref Only for one categorical mediator, set to NULL for numerical mediator or multiple mediator. Reference value of the mediator, where the mediator is evaluated at its refrence value.
-#' @param family a description of the error distribution and link function to be used in the exposure model. Only binomial and gaussian supported now.
+#' @param family a description of the error distribution and link function to be used in the exposure model. Only binomial, multinomial and gaussian supported now.
 #' @param stabilized Stabilized weights, TRUE(default) or FALSE.
 #' @param R The number of bootstrap replicates. Default is 1000.
 #'
@@ -41,6 +41,11 @@ iorw <- function(fitY,
                  stabilized = TRUE,
                  R          = 1000) {
 
+  # Setting seeds
+  old <- .Random.seed
+  on.exit( { .Random.seed <<- old } ) # Set to it's roginal seed after exit
+  set.seed(2)
+
   #save input
   tempcall <- match.call()
   #some basic input checks
@@ -51,7 +56,7 @@ iorw <- function(fitY,
   if (deparse(substitute(dt_name)) != deparse(substitute(data)) & !is.null(tempcall$data))
     stop("Data set name of the outcome model and the specified data are not the same! Make sure correct dataset is used.")
 
-  if (!("family" %in% names(tempcall)) | ("family" %in% names(tempcall) & !(tempcall$family %in% c("binomial", "gaussian")))) stop("No valid family specified (\"binomial\",  \"gaussian\")")
+  if (!("family" %in% names(tempcall)) | ("family" %in% names(tempcall) & !(tempcall$family %in% c("binomial", "gaussian", "multinomial")))) stop("No valid family specified (\"binomial\",  \"gaussian\",  \"multinomial\")")
   if (!is.null(tempcall$data)) message("Data from the model will be used!")
   if (any(mediator %in% all.vars(formula(fitY)))) stop("No mediators should be included in the outcome model!")
   if (!exposure %in% all.vars(formula(fitY))) stop("Exposure variable should be included in the outcome model!")
@@ -70,6 +75,8 @@ iorw <- function(fitY,
   args$data <- if (missing(data)) {
     extrCall(fitY)$data
   }
+
+  if (tempcall$family %in% c("binomial", "multinomial") & !0 %in% unique(eval(args$data)[, exposure])) stop("Exposure must include level 0 and set as control/unexposure")
 
   # Model for exposure
   medform <- update(formula(fitY), paste0(exposure, " ~ . + ", paste(mediator, collapse = " + ")))
@@ -125,24 +132,62 @@ estirow <- function(fitA,
 
   # Import Data
   tempcall <- match.call()
-  # Step 1: fit model for exposure
-  Afit <- do.call("glm", eval(list(formula = fitA, data = substitute(data), family = family)))
 
-  # Step 2: Compute IORW
+  #weights binomial
+  if(family == "binomial"){
+    Afit <- do.call("glm", eval(list(formula = fitA, data = substitute(data), family = family)))
+    # Step 2: Compute IORW
+    if(!stabilized){
+      newdata <- data
+      newdata$mediator <- ref
+      p1 <- predict(Afit, newdata = data, type="response")
+      p2 <- predict(Afit, newdata = newdata, type="response")
+      W <- ((1-p1)*p2)/(p1*(1-p2))
+      W[data$trt == 0] <- 1
 
-  if(!stabilized){
-    newdata <- data
-    newdata$mediator <- ref
-    p1 <- predict(Afit, newdata = data, type="response")
-    p2 <- predict(Afit, newdata = newdata, type="response")
-    W <- ((1-p1)*p2)/(p1*(1-p2))
-    W[data$trt == 0] <- 1
-
-  }else{
-    p1 <- predict(Afit, newdata = data, type="response")
-    W <- (1 - p1) / p1
+    }else{
+      p1 <- predict(Afit, newdata = data, type="response")
+      W <- (1 - p1) / p1
+    }
   }
+
+  #weights multinomial
+  if(family == "multinomial"){
+    tempdat <- data.frame(exposure = data[,as.character(exposure)])
+
+    Afit <- do.call("nnet::multinom", eval(list(formula = fitA, data = substitute(data))))
+    # Step 2: Compute IORW
+    if(!stabilized){
+      newdata <- data
+      newdata$mediator <- ref
+      p1 <- as.data.frame(predict(Afit, newdata = data, type="probs"))
+      for (i in 1:length(unique(tmpdat$exposure))){
+        tmpdat$p1[with(tmpdat, exposure == sort(unique(tmpdat$exposure))[i])] <-
+          p1[tmpdat$exposure == sort(unique(tmpdat$exposure))[i],i]
+      }
+      p2 <- as.data.frame(predict(Afit, newdata = newdata, type="probs"))
+      for (i in 1:length(unique(tmpdat$exposure))){
+        tmpdat$p2[with(tmpdat, exposure == sort(unique(tmpdat$exposure))[i])] <-
+          p2[tmpdat$exposure == sort(unique(tmpdat$exposure))[i],i]
+      }
+
+      W <- ((1-tmpdat$p1)*tmpdat$p2)/(tmpdat$p1*(1-tmpdat$p2))
+      W[data$trt == 0] <- 1
+
+    }else{
+      p1 <- as.data.frame(predict(Afit, newdata = data, type="probs"))
+      for (i in 1:length(unique(tmpdat$exposure))){
+        tmpdat$p1[with(tmpdat, exposure == sort(unique(tmpdat$exposure))[i])] <-
+          p1[tmpdat$exposure == sort(unique(tmpdat$exposure))[i],i]
+      }
+      W <- (1 - tmpdat$p1) / tmpdat$p1
+    }
+  }
+
+  #weights gaussian
   if(family == "gaussian"){
+    Afit <- do.call("glm", eval(list(formula = fitA, data = substitute(data), family = family)))
+
     p1 <- predict(Afit, newdata = data, type="response")
     pt <- predict(Afit, newdata = data, type = "term")
     pre <- rowSums(p1 * pt[, mediator], na.rm = TRUE)/sd(Afit$residuals, na.rm = TRUE)
