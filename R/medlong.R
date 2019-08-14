@@ -272,7 +272,7 @@ calc_g <- function(data, index, exposure, mediator,
 #' @param a.bar Counter-factual value of exposure. If NULL, original data will be used.
 
 phi <- function(fm, data, family, a.bar = NULL){
-    fit <- glm(as.formula(fm), data = data, family = m.family)
+    fit <- glm(as.formula(fm), data = data, family = family)
     dat.bar <- data
     if(!is.null(a.bar)){
       dat.bar[, exposure] <- a.bar
