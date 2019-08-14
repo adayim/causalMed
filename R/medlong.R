@@ -170,25 +170,11 @@ calc_iptw <- function(data, index, exposure, mediator, outcome,
   w <- lapply(1:tmax, function(t){
     fm <- make_form(tm = t)
     fit <- glm(as.formula(fm), data = dat, family = m.family)
+    w1 <- phi(fm = fm, data = dat, family = m.family, a.bar = 0)
+    w2 <- phi(fm = fm, data = dat, family = m.family, a.bar = 1)
+    w2 <- phi(fm = fm, data = dat, family = m.family)
 
-    dat1 <- dat
-    dat1[, exposure] <- 0
-    w1 <- predict(fit , type = "response" , newdata = dat1)
-
-    dat2 <- dat
-    dat2[, exposure] <- 1
-    w2 <- predict(fit , type = "response" , newdata = dat2)
-
-    w3 <- predict(fit , type = "response" , newdata = dat)
-
-    #
-    if(m.family == "binomial"){
-      return(cbind(w1, w2, w3))
-    }else{
-      return(cbind(dnorm(dat[, paste0(mediator, t)], w1, sd(fit$residuals, na.rm = TRUE)),
-                   dnorm(dat[, paste0(mediator, t)], w2, sd(fit$residuals, na.rm = TRUE)),
-                   dnorm(dat[, paste0(mediator, t)], w3, sd(fit$residuals, na.rm = TRUE))))
-    }
+    return(cbind(w1, w2, w3))
   })
 
   w1 <- apply(sapply(w, function(x)x[, 1]), 1, prod, na.rm = TRUE)
@@ -196,24 +182,18 @@ calc_iptw <- function(data, index, exposure, mediator, outcome,
   w3 <- apply(sapply(w, function(x)x[, 3]), 1, prod, na.rm = TRUE)
 
   fita <- glm(as.formula(paste0(exposure, " ~ ", covariates)), data = dat, family = "binomial")
-
+  wa <- predict(fita , type = "response" )
   # Natural Indirect effect
-  datnew <- dat
-  datnew[, exposure] <- 1
-  wa_nie <- predict(fita , type = "response" , newdata = datnew)
-  w <- (1 - w1 / w2) / wa_nie
+  w <- (1 - w1 / w2) / wa
+  nie <- mean(w[dat[, exposure] == 1])
 
   # Natural Direct effect
-  wa_nde <- predict(fita , type = "response" , newdata = dat)
-
-  nie <- mean(w[dat[, exposure] == 1])
-  nde <- mean((2*dat[, exposure] - 1) * (w1 / w3) /wa_nde)
+  nde <- mean((2*dat[, exposure] - 1) * (w1 / w3) /wa)
 
   c("Total effect"            = nie + nde,
     "Natural Indirect effect" = nie,
     "Natural Direct effect"   = nde)
 }
-
 
 
 # Calculate g-formula  =================
@@ -256,27 +236,10 @@ calc_g <- function(data, index, exposure, mediator,
   # Fit and calculate weight
   w <- lapply(1:tmax, function(t){
     fm <- make_form(tm = t)
-    fit.m <- glm(as.formula(fm$fm.m), data = dat, family = m.family)
-    fit.y <- glm(as.formula(fm$fm.y), data = dat, family = y.family)
-
-    dat1 <- dat
-    dat1[, exposure] <- 1
-    dat0 <- dat
-    dat0[, exposure] <- 0
-
-    p.y1 <- predict(fit.y, type = "response" , newdata = dat1) # phi 1
-    p.y0 <- predict(fit.y, type = "response" , newdata = dat0) # phi 0
-    if(y.family == "gaussian"){
-      p.y1 <- dnorm(dat[, outcome], p.y1, sd(fit.y$residuals, na.rm = TRUE))
-      p.y0 <- dnorm(dat[, outcome], p.y0, sd(fit.y$residuals, na.rm = TRUE))
-    }
-
-    p.m1 <- predict(fit.m, newdata = dat1) # phi 1
-    p.m0 <- predict(fit.m, newdata = dat0) # phi 0
-    if(m.family == "gaussian"){
-      p.m1 <- dnorm(dat[, paste0(mediator, t)], p.m1, sd(fit.m$residuals, na.rm = TRUE))
-      p.m0 <- dnorm(dat[, paste0(mediator, t)], p.m0, sd(fit.m$residuals, na.rm = TRUE))
-    }
+    p.m0 <- phi(fm = fm$fm.m, data = dat, family = m.family, a.bar = 0)
+    p.m1 <- phi(fm = fm$fm.m, data = dat, family = m.family, a.bar = 1)
+    p.y0 <- phi(fm = fm$fm.y, data = dat, family = y.family, a.bar = 0)
+    p.y1 <- phi(fm = fm$fm.y, data = dat, family = y.family, a.bar = 1)
 
     phi_11 <- apply(cbind(p.y1, p.m1), 1, prod, na.rm = TRUE)
     phi_10 <- apply(cbind(p.y1, p.m0), 1, prod, na.rm = TRUE)
@@ -296,6 +259,33 @@ calc_g <- function(data, index, exposure, mediator,
     "Natural Indirect effect" = nie,
     "Natural Direct effect"   = nde)
 }
+
+
+# Calculate phi =================
+#' phi calculater
+#'
+#' @description phi calculater for IPTW and G-formula, internal use.
+#'
+#' @param fm Formula to fit model
+#' @param data Data set to be sued
+#' @param family link function to be used in the model.
+#' @param a.bar Counter-factual value of exposure. If NULL, original data will be used.
+
+phi <- function(fm, data, family, a.bar = NULL){
+    fit <- glm(as.formula(fm), data = data, family = m.family)
+    dat.bar <- data
+    if(!is.null(a.bar)){
+      dat.bar[, exposure] <- a.bar
+    }
+    
+    if(y.family == "gaussian"){
+      resp <- deparse(as.formula(fm)[[2]])
+      dnorm(data[, resp], predict(fit, newdata = dat.bar),
+                   sd(fit$residuals, na.rm = TRUE))
+    }else{
+      predict(fit, type = "response" , newdata = dat.bar) # phi 1
+    }
+  }
 
 
 #' @rdname medlong-methods
