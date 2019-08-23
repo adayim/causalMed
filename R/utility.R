@@ -1,4 +1,31 @@
 
+
+## Code is from Hmisc package
+rMultinom <- function(probs, m)
+{
+  d <- dim(probs)
+  n <- d[1]
+  k <- d[2]
+  lev <- dimnames(probs)[[2]]
+  if(!length(lev))
+    lev <- 1:k
+
+  ran <- matrix(lev[1], ncol=m, nrow=n)
+  z <- apply(probs, 1, sum)
+  if(any(abs(z-1) > .00001))
+    stop('error in multinom: probabilities do not sum to 1')
+
+  U <- apply(probs, 1, cumsum)
+  for(i in 1:m)
+  {
+    un <- rep(runif(n), rep(k,n))
+    ran[,i] <- lev[1 + apply(un > U, 2, sum)]
+  }
+
+  ran
+}
+
+
 # Extract data
 extrCall <- function (x)
 {

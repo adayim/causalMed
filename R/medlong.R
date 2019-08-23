@@ -12,281 +12,343 @@
 #'
 #' @param data Data set to be sued
 #' @param id.var ID variable per subject.
+#' @param base.vars A vector of time fixed baseline variables.
 #' @param exposure Intervention/Exposure variable
-#' @param mediator Name of the time-varying mediator.
 #' @param outcome Name of the outcome variable.
-#' @param covariates A vector of the covariates' name.
-#' @param time.var Time variable of the per row observed. Only for ordering the data.
-#' @param m.family link function to be used in the mediator model.
-#' @param y.family link function to be used in the outcome model.
-#' @param estimator Use IPTW estimator or g-formula estimator or both (Default)
-#' @param R The number of bootstrap replicates. Default is 1000.
+#' @param time.var Time variable.
+#' @param models A list of models for the G-formula, including exposure model,
+#'  covariate model (if any), mediator model (if any), outcome model or
+#'  censoring model (if any). See details in \code{\link[causalMed]{spec_model}}.
+#' @param mc.sample Sample size of Monte Carlo simulation.
 #'
 #' @references
 #' Lin, S. H., Young, J. G., Logan, R., & VanderWeele, T. J. (2017). Mediation analysis for a survival outcome with time‐varying exposures, mediators, and confounders. \emph{Statistics in medicine}, 36(26), 4153-4166. DOI:10.1002/sim.7426
 #' Zheng, W., & van der Laan, M. (2017). Longitudinal mediation analysis with time-varying mediators and exposures, with application to survival outcomes. \emph{Journal of causal inference}, 5(2). DOI:10.1515/jci-2016-0006
 #'
-#' @importFrom boot boot
 #'
-#' @examples
-#' data(lipdat)
-#' res <- medlong(data       = lipdat,
-#' exposure   = "smoke",
-#' mediator   = "hdl",
-#' outcome    = "cvd",
-#' id.var     = "id",
-#' time.var   = "time",
-#' covariates = c("bmi", "gender", "age0"),
-#' m.family   = "gaussian",
-#' y.family   = "binomial")
+#' TODO: weights, time varying intervention
+
+Gformula <- function(data,
+                     id.var,
+                     base.vars,
+                     exposure,
+                     outcome,
+                     time.var,
+                     models,
+                     mc.sample = 10000){
+
+  tpcall <- match.call()
+
+  if(!unique(na.omit(data[[exposure]])) %in% c(0, 1))
+    stop('Only binary treatments/exposures are currently implemented, and must be set to 0 and 1.')
+
+  if(!unique(na.omit(data[[outcome]])) %in% c(0, 1))
+    # TODO: competing risk
+    stop('Only binary outcomes are currently supported, and must be set to 0 and 1.')
+
+  # TODO: weights
+  # if(!is.null(weights))
+  #   stop('Weights currently not supported')
+
+  # The following are model checking and model evaluations
+
+  # Models checking
+  if(class(models) != "g.model" & !is.list(models))
+    stop("Models must be given as a list")
+  if(class(models) != "g.model"){
+    mods <- list()
+    for (indx in seq_along(models)) {
+      mods[[indx]] <- do.call(spec_model, list(models[[indx]]))
+    }
+    models <- mods
+  }
+
+  # Run along the models
+  # TODO: Do need to consider the same ordering??
+  if(!is.null(models)){
+    fit_covs <- vector("list", length = length(models))
+    for(indx_mod in seq_along(models)){
+      mods <- models[[indx_mod]]
+      # Check for model recode
+      if(!is.null(mods$recode)){
+        for(indx_rec in seq_along(mods$recode)){
+          data <- within(data, eval(mods$recode[[indx_rec]]))
+        }
+      }
+      ord <- mods$order
+      mods$call$data <- data
+
+      fit_mods[[ord]] <- list(mods    = eval(mods$call),
+                              recodes = mods$recode,
+                              subset  = mods$subset,
+                              family  = mods$family,
+                              type    = mods$type)
+
+    }
+  }
+
+  # Baseline variables for Monte Carlo Sampling
+  base_dat <- unique(data[, unique(c(id.var, base.vars))])
+  df_mc <- base_dat[sample(1:nrow(base_dat), mc.sample, replace = TRUE), ]
+  res <- monte_g(data = df_mc, time.var = time.var, models = fit_mods)
+
+  # For mediation analysis
+  if("mediator" %in% names(res)){
+    nie   <- mean(res$always[[outcome]], na.rm = T) - mean(res$mediator[[outcome]], na.rm = T)
+    nde   <- mean(res$mediator[[outcome]], na.rm = T) - mean(res$never[[outcome]], na.rm = T)
+    total <- mean(res$always[[outcome]], na.rm = T) - mean(res$never[[outcome]], na.rm = T)
+    res$mediation_effect <- c("Total effect"    = total,
+                              "Indirect effect" = nie,
+                              "Direct effect"   = nde)
+  }
+
+  return(res)
+
+}
+
+#' Monte Carlo simulation
 #'
-#' summary(res)
+#' @description
+#'  Internal use only. Monte Carlo simulation.
 #'
+#' @param data a data frame in which to look for variables with which to predict.
+#'
+#' @param time.var Time varaible.
+#'
+#' @param models fitted objects.
+#'
+#' @param intervention Intervention vector.
+#'
+
+monte_g <- function(data, time.var, models, intervention = NULL){
+
+  # TODO: Time varying intervention
+
+  # Get the position of exposure
+  exp_flag <- sapply(models, function(mods) as.numeric(mods$type == "exposure"))
+  exp_flag <- which(exp_flag == 1)
+
+  # Get the position of the mediator
+  med_flag <- sapply(models, function(mods) as.numeric(mods$type == "mediator"))
+  med_flag <- which(med_flag == 1)
+
+  # Get the position of the outcome
+  out_flag <- sapply(models, function(mods) as.numeric(mods$type == "outcome"))
+  out_flag <- which(out_flag == 1)
+
+  # Get the position of the censor
+  cen_flag <- sapply(models, function(mods) as.numeric(mods$type == "censor"))
+  cen_flag <- which(cen_flag == 1)
+
+  # Get the variable name of exposure, outcome and censor
+  exposure <- all.vars(formula(models[[exp_flag]]$mods)[[2]])
+  outcome  <- all.vars(formula(models[[out_flag]]$mods)[[2]])
+  if(cen_flag != 0){
+    censor <- all.vars(formula(models[[cen_flag]]$mods)[[2]])
+  }
+
+  # Simulate
+  max_time <- max(data[[time.var]], na.rm = TRUE)
+  min_time <- min(data[[time.var]], na.rm = TRUE)
+  dat_y11  <- data  # Always interven
+  dat_y10  <- data  # Mediator intervention to 0, others to 1
+  dat_y00  <- data  # Never interven
+  dat_ynat <- data  # Natrual
+
+  for(t in min_time:max_time){
+    dat_y11[[time.var]] <- t
+    dat_y10[[time.var]] <- t
+    dat_y00[[time.var]] <- t
+    dat_ynat[[time.var]] <- t
+
+    for(indx in seq_along(models)){
+      resp_var <- all.vars(formula(models[[indx]]$mods)[[2]])
+      if(indx >= exp_flag){
+        interv1 <- parse(text = paste0(exposure, " = 1"))
+        interv0 <- parse(text = paste0(exposure, " = 0"))
+      }else{
+        interv1 <- interv0 <- NULL
+      }
+      for(indx_rec in seq_along(models[[indx]]$recode)){
+        dat_y11 <- within(dat_y11, eval(models[[indx]]$recode[[indx_rec]]))
+        dat_y00 <- within(dat_y00, eval(models[[indx]]$recode[[indx_rec]]))
+        dat_ynat <- within(dat_ynat, eval(models[[indx]]$recode[[indx_rec]]))
+        dat_y10 <- within(dat_y10, eval(models[[indx]]$recode[[indx_rec]]))
+      }
+      dat_y11[[resp_var]] <- monte_sim(dat_y11, models[[indx]]$mods, interv1)
+      dat_y00[[resp_var]] <- monte_sim(dat_y00, models[[indx]]$mods, interv0)
+      dat_ynat[[resp_var]] <- monte_sim(dat_ynat, models[[indx]]$mods)
+
+      # For mediator.
+      # All the variables between exposure and mediator are set to 0, else to 1
+      if(med_flag != 0){
+        if(indx <= med_flag){
+          dat_y10[[resp_var]] <- monte_sim(dat_y10, models[[indx]]$mods, interv0)
+        }else{
+          dat_y10[[resp_var]] <- monte_sim(dat_y10, models[[indx]]$mods, interv1)
+        }
+      }
+      # End for mediator
+    }
+
+    # output censoring and death
+    if(t == min_time){
+      out_y11 <- dat_y11[dat_y11[[outcome]] == 1, ]
+      out_y10 <- dat_y10[dat_y10[[outcome]] == 1, ]
+      out_y00 <- dat_y00[dat_y00[[outcome]] == 1, ]
+      if(cen_flag != 0){
+        out_ynat <- dat_ynat[dat_ynat[[outcome]] == 1 | dat_ynat[[censor]] == 1, ]
+      }else{
+        out_ynat <- dat_ynat[dat_ynat[[outcome]] == 1, ]
+      }
+    }else{
+      out_y11 <- rbind(out_y11, dat_y11[dat_y11[[outcome]] == 1, ])
+      out_y10 <- rbind(out_y10, dat_y10[dat_y10[[outcome]] == 1, ])
+      out_y00 <- rbind(out_y00, dat_y00[dat_y00[[outcome]] == 1, ])
+      if(cen_flag != 0){
+        out_ynat <- rbind(out_ynat, dat_ynat[dat_ynat[[outcome]] == 1 | dat_ynat[[censor]] == 1, ])
+      }else{
+        out_ynat <- rbind(out_ynat, dat_ynat[dat_ynat[[outcome]] == 1, ])
+      }
+    }
+
+    # loop not censored and dead
+    dat_y11 <- dat_y11[dat_y11[[outcome]] != 1, ]
+    dat_y10 <- dat_y10[dat_y10[[outcome]] != 1, ]
+    dat_y00 <- dat_y00[dat_y00[[outcome]] != 1, ]
+
+    if(cen_flag != 0){
+      dat_ynat <- dat_ynat[dat_ynat[[outcome]] != 1 & dat_ynat[[censor]] != 1, ]
+    }else{
+      dat_ynat <- dat_ynat[dat_ynat[[outcome]] != 1, ]
+    }
+
+    # if loop ends
+    if(nrow(next_y11) == 0 & nrow(next_y10) == 0 & nrow(next_y00) == 0)
+      break
+    if(t == max_time){
+      out_y11 <- rbind(out_y11, dat_y11)
+      out_y10 <- rbind(out_y10, dat_y10)
+      out_y00 <- rbind(out_y00, dat_y00)
+      out_ynat <- rbind(out_ynat, dat_ynat)
+    }
+  }
+  # loop ends here
+
+  if(med_flag != 0){
+    return(list(natural  = out_ynat,
+                never    = out_y00,
+                always   = out_y11,
+                mediator = out_y10))
+  }else{
+    return(list(natural  = out_ynat,
+                never    = out_y00,
+                always   = out_y11))
+  }
+
+}
+
+#' Random data simulation from predicted value.
+#'
+#' @description
+#'  Internal use only. Predict response and generate random data.
+#'
+#' @param data a data frame in which to look for variables with which to predict.
+#'
+#' @param models fitted objects.
+#'
+#' @param intervention Intervention.
+#'
+
+
+monte_sim <- function(data, models, intervention = NULL){
+
+  family <- models$family
+  fit <- models$mods
+
+  # Intervein
+  if(is.null(intervention)){
+    newdt <- data
+  }else{
+    newdt <- within(data, eval(intervention))
+  }
+
+  # Randomg number generation for Monte Carlo simulation
+  if(family == "multinomial"){
+    pred <- predict(fit, newdata = newdt, type =  "probs")
+    rMultinom(pred, 1)
+  }else if(family == "binomial"){
+    pred <- predict(fit, newdata = newdt, type = "response")
+    rbinom(nrow(data), 1, pred)
+  }else{
+    pred <- predict(fit, newdata = newdt, type = "response")
+    rnorm(nrow(data), pred, sd(fit$residuals, na.rm = TRUE))
+  }
+}
+
+#' Model specification for G-formula
+#'
+#' @description
+#'  Add a specified regression model for the exposure. This is used for natural course estimation
+#'  of the Monte Carlo g-formula. This must be specified before calling the fit function.
+#'
+#' @param model Formula for specified models passed to \code{\link[stats]{glm}}.
+#' Must be contained within the input  dataframe when initialized.
+#'
+#' @param subset an optional vector specifying a subset of observations to be used
+#'  in the fitting process (see \code{\link[stats]{glm}}).
+#'
+#' @param family A description of the error distribution and link function to be used in the \code{glm} model.
+#'
+#' @param order Numeric, temporal ordering of the Covariates.
+#'
+#' @param type Model type. Exposure model (\code{exposure}), covariate model (\code{covriate}), mediator model (\code{mediator}), outcome model (\code{outcome}) or censoring model (\code{censor})
+#'
+#' @param recode Optional, recoding expression list. Used for dynamic recoding for Monte Carlo simulation.
+#'
+#' @import nnet multinom
 #'
 #' @export
-#'
-#'
 
-medlong <- function(data,
-                    id.var,
-                    exposure,
-                    mediator,
-                    outcome,
-                    covariates,
-                    time.var,
-                    m.family  = c("binomial", "gaussian"),
-                    y.family  = c("binomial", "gaussian"),
-                    estimator = c("both", "gformula", "iptw"),
-                    R         = 1000) {
+spec_model <- function(model,
+                       subset   = NULL,
+                       family   = "gaussian",
+                       order,
+                       type     = c("exposure", "covriate", "mediator", "outcome", "censor"),
+                       recode   = NULL){
 
-  # Setting seeds
-  old <- .Random.seed
-  on.exit( { .Random.seed <<- old } ) # Set to it's roginal seed after exit
-  set.seed(2)
+  if (!family %in% c("binomial", "multinomial", "gaussian"))
+    stop("No valid family specified (\"binomial\", \"multinomial\", \"gaussian\")")
 
-  cl <- match.call()
+  if(type %in% c("exposure", "outcome", "censor") & family != "binomial")
+    stop("Only binomial family supported for (\"exposure\", \"outcome\", \"censor\")")
 
-  if (!("m.family" %in% names(cl)) | ("m.family" %in% names(cl) & !(cl$m.family %in% c("binomial", "gaussian")))) stop("No valid family specified for mediator (\"binomial\",  \"gaussian\")")
-  if (!("y.family" %in% names(cl)) | ("y.family" %in% names(cl) & !(cl$y.family %in% c("binomial", "gaussian")))) stop("No valid family specified for outcome (\"binomial\",  \"gaussian\")")
+  if(!is.null(recode) & !is.list(recode))
+    stop("Recode must be provided as list!")
 
-  if(estimator[1] %in% c("gformula", "both") & is.null(y.family)){
-    stop("Link function of for g-formula ")
-  }
-  if(estimator[1] == "iptw"){
-    y.family <- NULL
-  }
+  if(!is.numeric(order))
+    stop("Order must be numeric!")
 
-  # args <- mget(names(formals()),sys.frame(sys.nframe()))
-  # Reformat Data
-  data <- data[, c(id.var, exposure, outcome, mediator, time.var, covariates)]
-
-  # Get the order number of observation per subject
-  dfm <- base::transform(data, rank_ord = ave(1:nrow(data), eval(as.name(id.var)),
-                                              FUN = function(x)
-                                                order(eval(parse(text = paste0(time.var, "[x]"))))))
-
-  data <- stats::reshape(dfm,
-                         drop = time.var,
-                         idvar =  c(id.var, exposure, outcome, covariates),
-                         v.names = mediator,
-                         sep = "_",
-                         timevar = "rank_ord", direction = "wide")
-
-
-  # Bootstrap
-  if(estimator[1] %in% c("gformula", "both"))
-    res.g    <- boot::boot(data, calc_g,
-                           R          = R,
-                           exposure   = exposure,
-                           mediator   = paste0(mediator, "_"),
-                           outcome    = outcome,
-                           covariates = covariates,
-                           m.family   = m.family,
-                           y.family   = y.family)
-
-
-  if(estimator[1] %in% c("iptw", "both"))
-    res.iptw <- boot::boot(data, calc_iptw,
-                           R          = R,
-                           exposure   = exposure,
-                           mediator   = paste0(mediator, "_"),
-                           outcome    = outcome,
-                           covariates = covariates,
-                           m.family   = m.family,
-                           y.family   = y.family)
-
-  if(estimator[1] == "gformula"){
-    out <- list("call"      = cl,
-                "g-formula" = res.g)
-  }else if (estimator[1] == "iptw"){
-    out <- list("call"      = cl,
-                "iptw"      = res.iptw)
+  if(family == "multinomial"){
+    out_model <- quote(nnet::multinom())
   }else{
-    out <- list("call"      = cl,
-                "g-formula" = res.g,
-                "iptw"      = res.iptw)
+    out_model <- quote(glm())
+    out_model$family <- substitute(family)
   }
+  out_model$formula <- substitute(model)
+  out_model$subset  <- substitute(subset)
 
-  class(out) <- "medlong"
+  out <- list(call   = out_model,
+              order  = order,
+              type   = type,
+              recode = recode)
+
+  class(out) <- "g.model"
+
   return(out)
 }
 
-
-# Calculate IPTW ======================
-#' IPTW estimator
-#'
-#' @description IPTW estimator, internal use.
-#'
-#' @param data Data set to be sued
-#' @param exposure Intervention/Exposure variable
-#' @param mediator Prefix of the time-varying mediator.
-#' @param outcome Name of the outcome variable.
-#' @param covariates A vector of the covariates' name.
-#' @param m.family link function to be used in the mediator model.
-#' @param y.family link function to be used in the outcome model.
-
-
-calc_iptw <- function(data, index, exposure, mediator, outcome,
-                      covariates, m.family, y.family = NULL){
-
-  dat <- data[index, ]
-
-  # Make formula, regress on mediator
-  make_form <- function(tm){
-    if(tm > 1){
-      fm <- c(exposure, covariates, paste0(mediator, 1:(tm - 1)))
-    }else{
-      fm <- c(exposure, covariates)
-    }
-    fm <- paste(fm, collapse = " + ")
-    paste0(paste0(mediator, tm), " ~ ", fm)
-  }
-
-  # Extract maximum time
-  tmax <- names(dat)[grep(mediator, names(dat))]
-  tmax <- max(as.numeric(gsub(mediator, "", tmax)))
-
-  # Fit and calculate weight
-  w <- lapply(1:tmax, function(t){
-    fm <- make_form(tm = t)
-    fit <- glm(as.formula(fm), data = dat, family = m.family)
-    w1 <- phi(fm = fm, data = dat, family = m.family, a.bar = 0)
-    w2 <- phi(fm = fm, data = dat, family = m.family, a.bar = 1)
-    w2 <- phi(fm = fm, data = dat, family = m.family)
-
-    return(cbind(w1, w2, w3))
-  })
-
-  w1 <- apply(sapply(w, function(x)x[, 1]), 1, prod, na.rm = TRUE)
-  w2 <- apply(sapply(w, function(x)x[, 2]), 1, prod, na.rm = TRUE)
-  w3 <- apply(sapply(w, function(x)x[, 3]), 1, prod, na.rm = TRUE)
-
-  fita <- glm(as.formula(paste0(exposure, " ~ ", covariates)), data = dat, family = "binomial")
-  wa <- predict(fita , type = "response" )
-  # Natural Indirect effect
-  w <- (1 - w1 / w2) / wa
-  nie <- mean(w[dat[, exposure] == 1])
-
-  # Natural Direct effect
-  nde <- mean((2*dat[, exposure] - 1) * (w1 / w3) /wa)
-
-  c("Total effect"            = nie + nde,
-    "Natural Indirect effect" = nie,
-    "Natural Direct effect"   = nde)
-}
-
-
-# Calculate g-formula  =================
-#' G-formula estimator
-#'
-#' @description G-formula estimator, internal use.
-#'
-#' @param data Data set to be sued
-#' @param exposure Intervention/Exposure variable
-#' @param mediator Prefix of the time-varying mediator.
-#' @param outcome Name of the outcome variable.
-#' @param covariates A vector of the covariates' name.
-#' @param m.family link function to be used in the mediator model.
-#' @param y.family link function to be used in the outcome model.
-
-
-calc_g <- function(data, index, exposure, mediator,
-                   outcome, covariates, m.family, y.family){
-
-  dat <- data[index, ]
-  # Make formula
-  make_form <- function(tm){
-    if(tm > 1){
-      fm.m <- c(exposure, covariates, paste0(mediator, 1:(tm - 1)))
-      fm.y <- c(exposure, covariates, paste0(mediator, 1:tm))
-    }else{
-      fm.m <- c(exposure, covariates)
-      fm.y <- c(exposure, covariates, paste0(mediator, 1))
-    }
-
-    fm.m <- paste0(paste0(mediator, tm), " ~ ", paste(fm.m, collapse = " + "))
-    fm.y <- paste0(outcome, " ~ ", paste(fm.y, collapse = " + "))
-    list("fm.m" = fm.m, "fm.y" = fm.y)
-  }
-
-  # Extract maximum time
-  tmax <- names(dat)[grep(mediator, names(dat))]
-  tmax <- max(as.numeric(gsub(mediator, "", tmax)))
-
-  # Fit and calculate weight
-  w <- lapply(1:tmax, function(t){
-    fm <- make_form(tm = t)
-    p.m0 <- phi(fm = fm$fm.m, data = dat, family = m.family, a.bar = 0)
-    p.m1 <- phi(fm = fm$fm.m, data = dat, family = m.family, a.bar = 1)
-    p.y0 <- phi(fm = fm$fm.y, data = dat, family = y.family, a.bar = 0)
-    p.y1 <- phi(fm = fm$fm.y, data = dat, family = y.family, a.bar = 1)
-
-    phi_11 <- apply(cbind(p.y1, p.m1), 1, prod, na.rm = TRUE)
-    phi_10 <- apply(cbind(p.y1, p.m0), 1, prod, na.rm = TRUE)
-    phi_00 <- apply(cbind(p.y0, p.m0), 1, prod, na.rm = TRUE)
-
-    cbind(phi_11, phi_10, phi_00)
-  })
-
-  phi_11 <- apply(sapply(w, function(x)x[, 1]), 1, prod, na.rm = TRUE)
-  phi_10 <- apply(sapply(w, function(x)x[, 2]), 1, prod, na.rm = TRUE)
-  phi_00 <- apply(sapply(w, function(x)x[, 3]), 1, prod, na.rm = TRUE)
-
-  nie <- sum(phi_11) - sum(phi_10)
-  nde <- sum(phi_10) - sum(phi_00)
-
-  c("Total effect"            = nie + nde,
-    "Natural Indirect effect" = nie,
-    "Natural Direct effect"   = nde)
-}
-
-
-# Calculate phi =================
-#' phi calculater
-#'
-#' @description phi calculater for IPTW and G-formula, internal use.
-#'
-#' @param fm Formula to fit model
-#' @param data Data set to be sued
-#' @param family link function to be used in the model.
-#' @param a.bar Counter-factual value of exposure. If NULL, original data will be used.
-
-phi <- function(fm, data, family, a.bar = NULL){
-    fit <- glm(as.formula(fm), data = data, family = family)
-    dat.bar <- data
-    if(!is.null(a.bar)){
-      dat.bar[, exposure] <- a.bar
-    }
-    
-    if(y.family == "gaussian"){
-      resp <- deparse(as.formula(fm)[[2]])
-      dnorm(data[, resp], predict(fit, newdata = dat.bar),
-                   sd(fit$residuals, na.rm = TRUE))
-    }else{
-      predict(fit, type = "response" , newdata = dat.bar) # phi 1
-    }
-  }
-
+###### TODO Below ============
 
 #' @rdname medlong-methods
 #' @method summary medlong
@@ -337,7 +399,7 @@ print.summary.medlong <- function (x, digits = max(3, getOption("digits") - 3), 
 
   cat("------\n")
   cat("Exposure:", x$call$exposure, "\nMediator:", paste(x$call$mediator,
-                                                            collapse = ", "))
+                                                         collapse = ", "))
 
   cat("\n---\nEstimation of standard errors based on the non-parametric bootstrap")
   if (!is.null(x$coeff.gform)){
