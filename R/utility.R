@@ -1,8 +1,7 @@
 
 
-## Code is from Hmisc package
-rMultinom <- function(probs, m)
-{
+## Code is derived from Hmisc package
+rMultinom <- function(probs, m){
   d <- dim(probs)
   n <- d[1]
   k <- d[2]
