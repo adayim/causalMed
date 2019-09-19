@@ -8,7 +8,9 @@
 #' @param data Data set to be sued, if NULL, the data from outcome model will be used.
 #' @param exposure Intervention/Exposure variable, control or unexposure must be set to 0.
 #' @param mediator Name of the mediator(s).
-#' @param ref Only for one categorical mediator, set to NULL for numerical mediator or multiple mediator. Reference value of the mediator, where the mediator is evaluated at its refrence value.
+#' @param ref Only for one categorical mediator, set to NULL for numerical mediator or
+#'  multiple mediator. Reference value of the mediator, where the mediator is
+#'  evaluated at its refrence value.
 #' @param family a description of the error distribution and link function to be used in the exposure model. Only binomial, multinomial and gaussian supported now.
 #' @param stabilized Stabilized weights, TRUE(default) or FALSE.
 #' @param R The number of bootstrap replicates. Default is 1000.
@@ -184,13 +186,13 @@ estirow <- function(fitA,
     }
   }
 
-  #weights gaussian
+  # weights gaussian
   if(family == "gaussian"){
     Afit <- do.call("glm", eval(list(formula = fitA, data = substitute(data), family = family)))
 
-    p1 <- predict(Afit, newdata = data, type="response")
+    #p1 <- predict(Afit, newdata = data, type="response")
     pt <- predict(Afit, newdata = data, type = "term")
-    pre <- rowSums(p1 * pt[, mediator], na.rm = TRUE)/sd(Afit$residuals, na.rm = TRUE)
+    pre <- rowSums(data[,as.character(exposure)] * pt[, mediator], na.rm = TRUE)/sd(Afit$residuals, na.rm = TRUE)
     W <- 1 / exp(pre)
   }
 

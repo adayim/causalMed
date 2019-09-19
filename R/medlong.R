@@ -59,8 +59,8 @@ Gformula <- function(data,
                      time.var,
                      models,
                      intervention = NULL,
-                     out.recode = NULL,
                      init.recode = NULL,
+                     out.recode = NULL,
                      mc.sample = 10000){
 
   tpcall <- match.call()
@@ -70,7 +70,7 @@ Gformula <- function(data,
   on.exit( { .Random.seed <<- old } ) # Set to it's roginal seed after exit
   set.seed(2)
 
-  if(!all.equal(sort(unique(na.omit(data[[outcome]]))), c(0, 1)))
+  if(!all.equal(sort(unique(na.omit(data[[exposure]]))), c(0, 1)))
     stop('Only binary treatments/exposures are currently implemented, and must be set to 0 and 1.')
 
   if(!all.equal(sort(unique(na.omit(data[[outcome]]))), c(0, 1)))
@@ -116,9 +116,12 @@ Gformula <- function(data,
   # The following are model checking and model evaluations
 
   # Models checking
-  # if(class(models) != "g.model" & !is.list(models))
-  #   stop("Models must be given as a list")
-  # if(class(models) != "g.model"){
+  if(!is.list(models))
+    stop("Models must be provided as a list")
+  cls <- sapply(models, function(x)class(x) != "gmodel")
+  if(any(cls))
+    stop("Models in the list must be gmodel object, please use spec_model to create!")
+  # if(class(models) != "gmodel"){
   #   mods <- list()
   #   for (indx in seq_along(models)) {
   #     mods[[indx]] <- do.call(spec_model, list(models[[indx]]))
@@ -132,13 +135,6 @@ Gformula <- function(data,
     fit_mods <- vector("list", length = length(models))
     for(indx_mod in seq_along(models)){
       mods <- models[[indx_mod]]
-      # Check for model recode
-      # No need for recode during the modelling process.
-      # if(!is.null(mods$recode)){
-      #   for(indx_rec in seq_along(mods$recode)){
-      #     data <- within(data, eval(mods$recode[[indx_rec]]))
-      #   }
-      # }
       ord <- mods$order
       mods$call$data <- data
 
@@ -303,23 +299,26 @@ monte_g <- function(data, time.seq, time.var, models,
 
     }
 
-
     if(!is.null(out.recode)){
       for(i in seq_along(out.recode)){
         dat_y <- within(dat_y, eval(parse(text = out.recode[i])))
       }
     }
 
+    if(!is.null(interv)){
+      dat_y[[censor]] <- 0
+    }
+
     # Output censoring and death, only the not intervened have censoring
     if(t == min_time){
-      if(cen_flag != 0 & !is.null(interv)){
-        out_y <- dat_y[dat_y[[outcome]] == 1 | dat_ynat[[censor]] == 1, ]
+      if(cen_flag != 0){
+        out_y <- dat_y[dat_y[[outcome]] == 1 | dat_y[[censor]] == 1, ]
       }else{
         out_y <- dat_y[dat_y[[outcome]] == 1, ]
       }
 
     }else{
-      if(cen_flag != 0 & !is.null(interv)){
+      if(cen_flag != 0){
         out_y <- rbind(out_y, dat_y[dat_y[[outcome]] == 1 | dat_y[[censor]] == 1, ])
       }else{
         out_y <- rbind(out_y, dat_y[dat_y[[outcome]] == 1, ])
@@ -401,7 +400,7 @@ monte_sim <- function(data, models, intervention = NULL){
 #'
 #' @param order Numeric, temporal ordering of the Covariates.
 #'
-#' @param type Model type. Exposure model (\code{exposure}), covariate model (\code{covriate}), mediator model (\code{mediator}), outcome model (\code{outcome}) or censoring model (\code{censor})
+#' @param type Model type. Exposure model (\code{exposure}), covariate model (\code{covariate}), mediator model (\code{mediator}), outcome model (\code{outcome}) or censoring model (\code{censor})
 #'
 #' @param recode Optional, recoding expression list. Used for dynamic recoding for Monte Carlo simulation.
 #'  This is executed at after model predicted simulation.
@@ -414,7 +413,7 @@ spec_model <- function(formula,
                        subset   = NULL,
                        family   = "gaussian",
                        order,
-                       type     = c("exposure", "covriate", "mediator", "outcome", "censor"),
+                       type     = c("exposure", "covariate", "mediator", "outcome", "censor"),
                        recode   = NULL){
 
   tmpcall <- match.call()
@@ -446,10 +445,92 @@ spec_model <- function(formula,
               family = tmpcall$family,
               recode = tmpcall$recode)
 
-  class(out) <- "g.model"
+  class(out) <- "gmodel"
 
   return(out)
 }
+
+# Calculate mediation analysis confidence interval
+#'
+#' @description Used to calculate confidence interval using non-parametric bootstrap methods.
+#'
+#' @param object Object returned from Gformula function (see \code{\link[calsalMed]{Gformula}}).
+#'
+#' @param R The number of bootstrap replicates, default is 500. Same with \code{boot}, see \code{\link[boot]{boot}} for detail.
+#'
+#' @param ... Other named arguments for \strong{\code{boot}}, see \code{\link[boot]{boot}} for detail.
+#' \strong{NOTE:} this is different from \code{boot}.
+#'
+#' @export
+#'
+gformula_med_ci <- function(object, R = 500, ...){
+  if(as.character(object$call[[1]]) != "Gformula")
+    stop("Object must be an Gformula!")
+  if(!names(object$res) %in% c("always", "never", "mediator"))
+    stop("Only mediation analysis supported!")
+
+  tmpcall <- match.call()
+
+  obj_call <- object$call
+
+  # Calculate proportion mediated
+  out_come <- as.character(obj_call$outcome)
+
+  nde <- mean(object$res$mediator[, out_come], na.rm = TRUE) -
+    mean(object$res$never[, out_come])
+
+  nie <- mean(object$res$always[, out_come], na.rm = TRUE) -
+    mean(object$res$mediator[, out_come])
+
+  prop_med <- nie/(nie + nde)
+
+  # Get original data from call
+  data <- eval(obj_call$data)
+
+  # Create bootstrap function
+  boot_func <- function(data, index){
+    dat <- data[index, ]
+    obj_call$data <- substitute(dat)
+    out_come <- as.character(obj_call$outcome)
+    out <- eval(obj_call)
+    nde <- mean(out$res$mediator[, out_come], na.rm = TRUE) -
+      mean(out$res$never[, out_come])
+    nie <- mean(out$res$always[, out_come], na.rm = TRUE) -
+      mean(out$res$mediator[, out_come])
+    res <- c("Total Effect"   = nde + nie,
+             "Direct Effect"  = nde,
+             "Indirect Effct" = nie)
+    return(res)
+  }
+
+  boot_res <- boot::boot(data = data, statistic = boot_func, R = R, ...)
+  conf <- extract_boot(boot_res)
+  out <- list(call     = tmpcall,
+              boot.res = boot_res,
+              confint  = conf,
+              prop_med = 100 * prop_med)
+  call(out) <- 'gmodel_mediation'
+  return(out)
+}
+
+
+#' @method print med_ci.gmodel_mediation
+#' @export
+print.gmodel_mediation <- function (x, digits = max(3, getOption("digits") - 3), ...){
+  cat("Call:\n")
+  print(x$call)
+
+  cat("------\n")
+  cat("Natural effect model\n")
+  cat("with standard errors based on the non-parametric bootstrap\n---\n")
+  cat("Parameter estimates:\n")
+  print(round(x$confint, digits = digits))
+
+  cat(paste0("------\nProportion Mediated: ", round(x$prop_med, digits), "%"))
+}
+
+
+
 
 
 

@@ -4,6 +4,7 @@ df <- read.csv("data-raw/gvhd_data.csv")
 
 devtools::load_all()
 
+set.seed(12131231)
 
 mod_exp <- spec_model(gvhd ~ all + cmv + male + age + agecurs1 + agecurs2 +
                       platnormm1 + daysnoplatnorm + relapsem1 + daysnorelapse
@@ -57,7 +58,7 @@ mod_out <- spec_model(d ~ gvhd + cmv + male + age  + agesq + day + daysq +
 # debug(Gformula)
 # debug(monte_g)
 # debug(monte_sim)
-tmp <- Gformula(df,
+natural <- Gformula(df,
                 id.var = "id",
                 base.vars = c("age", "agesq", "agecurs1", "agecurs2", "male",
                               "cmv", "all", "wait"),
@@ -72,6 +73,37 @@ tmp <- Gformula(df,
                 out.recode = c('platnormm1 = platnorm', 'relapsem1 = relapse', 'gvhdm1 = gvhd'),
                 mc.sample = 13700)
 
+always <- Gformula(df,
+                id.var = "id",
+                base.vars = c("age", "agesq", "agecurs1", "agecurs2", "male",
+                              "cmv", "all", "wait"),
+                exposure = "gvhd",
+                outcome = "d",
+                time.var = "day",
+                intervention = 1,
+                models = list(mod_exp, mod_cov1, mod_cov2, mod_cens, mod_out),
+                init.recode = c("daysq = day^2", "daycu = day^3", "relapse=0", "gvhd=0",
+                                "platnorm=0", "gvhdm1=0", "relapsem1=0", "platnormm1=0",
+                                "daysnorelapse=0", "daysnoplatnorm=0", "daysnogvhd=0",
+                                "daysrelapse=0", "daysplatnorm=0", "daysgvhd=0"),
+                out.recode = c('platnormm1 = platnorm', 'relapsem1 = relapse', 'gvhdm1 = gvhd'),
+                mc.sample = 13700)
+
+never <- Gformula(df,
+                id.var = "id",
+                base.vars = c("age", "agesq", "agecurs1", "agecurs2", "male",
+                              "cmv", "all", "wait"),
+                exposure = "gvhd",
+                outcome = "d",
+                time.var = "day",
+                intervention = 0,
+                models = list(mod_exp, mod_cov1, mod_cov2, mod_cens, mod_out),
+                init.recode = c("daysq = day^2", "daycu = day^3", "relapse=0", "gvhd=0",
+                                "platnorm=0", "gvhdm1=0", "relapsem1=0", "platnormm1=0",
+                                "daysnorelapse=0", "daysnoplatnorm=0", "daysnogvhd=0",
+                                "daysrelapse=0", "daysplatnorm=0", "daysgvhd=0"),
+                out.recode = c('platnormm1 = platnorm', 'relapsem1 = relapse', 'gvhdm1 = gvhd'),
+                mc.sample = 13700)
 
 library(survminer)
 library(survival)
@@ -94,9 +126,16 @@ fit <- survfit(Surv(day, d) ~ group,
 ggsurvplot(fit)
 
 
+# Compare
+out_dat <- always$out %>%
+  select(id, day, d) %>%
+  mutate(gvhd = 1) %>%
+  bind_rows(., never$out %>%
+              select(id, day, d) %>%
+              mutate(gvhd = 0))
 
-
-
+res_cox <- coxph(Surv(day, d) ~ gvhd, data = out_dat, ties = "efron")
+summary(res_cox)
 
 
 
