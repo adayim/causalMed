@@ -18,7 +18,9 @@ iorw(fitY, data = NULL, exposure, mediator, family, ref = NULL,
 
 \item{family}{a description of the error distribution and link function to be used in the exposure model. Only binomial, multinomial and gaussian supported now.}
 
-\item{ref}{Only for one categorical mediator, set to NULL for numerical mediator or multiple mediator. Reference value of the mediator, where the mediator is evaluated at its refrence value.}
+\item{ref}{Only for one categorical mediator, set to NULL for numerical mediator or
+multiple mediator. Reference value of the mediator, where the mediator is
+evaluated at its refrence value.}
 
 \item{stabilized}{Stabilized weights, TRUE(default) or FALSE.}
 

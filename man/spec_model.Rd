@@ -5,7 +5,7 @@
 \title{Model specification for G-formula}
 \usage{
 spec_model(formula, subset = NULL, family = "gaussian", order,
-  type = c("exposure", "covriate", "mediator", "outcome", "censor"),
+  type = c("exposure", "covariate", "mediator", "outcome", "censor"),
   recode = NULL)
 }
 \arguments{
@@ -19,7 +19,7 @@ in the fitting process (see \code{\link[stats]{glm}}).}
 
 \item{order}{Numeric, temporal ordering of the Covariates.}
 
-\item{type}{Model type. Exposure model (\code{exposure}), covariate model (\code{covriate}), mediator model (\code{mediator}), outcome model (\code{outcome}) or censoring model (\code{censor})}
+\item{type}{Model type. Exposure model (\code{exposure}), covariate model (\code{covariate}), mediator model (\code{mediator}), outcome model (\code{outcome}) or censoring model (\code{censor})}
 
 \item{recode}{Optional, recoding expression list. Used for dynamic recoding for Monte Carlo simulation.
 This is executed at after model predicted simulation.}

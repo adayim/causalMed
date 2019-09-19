@@ -263,7 +263,9 @@ summary.iorw <- function (object, ...){
 }
 
 #' @method print summary.iorw
+#'
 #' @export
+#'
 print.summary.iorw <- function (x, digits = max(3, getOption("digits") - 3), ...){
   cat("Call:\n")
   print(x$call)

@@ -5,7 +5,7 @@
 \title{Mediation analysis for time-varying mediaiton, survival and non-survival}
 \usage{
 Gformula(data, id.var, base.vars, exposure, outcome, time.var, models,
-  intervention = NULL, out.recode = NULL, init.recode = NULL,
+  intervention = NULL, init.recode = NULL, out.recode = NULL,
   mc.sample = 10000)
 }
 \arguments{
@@ -28,14 +28,14 @@ censoring model (if any). See details in \code{\link[causalMed]{spec_model}}.}
 \item{intervention}{A vector or a value of intervention on exposure. if kept as NULL (default),
 the natrual intervention cousre will be calculated.}
 
+\item{init.recode}{optional, recoding of variables done at the
+begaining of the Monte Carlo loop. Needed for operations initalize baseline variables.
+This is executed at begaining of the Monte Carlo g-formula, excuted only once.}
+
 \item{out.recode}{optional, On the fly recoding of variables done at the
 end of the Monte Carlo loop. Needed for operations like counting the number of
 days with a treatment or creating lagged variables. This is executed at each end
  of the Monte Carlo g-formula time steps.}
-
-\item{init.recode}{optional, recoding of variables done at the
-begaining of the Monte Carlo loop. Needed for operations initalize baseline variables.
-This is executed at begaining of the Monte Carlo g-formula, excuted only once.}
 
 \item{mc.sample}{Sample size of Monte Carlo simulation.}
 }
