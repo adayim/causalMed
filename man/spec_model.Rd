@@ -22,7 +22,7 @@ in the fitting process (see \code{\link[stats]{glm}}).}
 \item{type}{Model type. Exposure model (\code{exposure}), covariate model (\code{covariate}), mediator model (\code{mediator}), outcome model (\code{outcome}) or censoring model (\code{censor})}
 
 \item{recode}{Optional, recoding expression list. Used for dynamic recoding for Monte Carlo simulation.
-This is executed at after model predicted simulation.}
+This is executed at just before model predicted simulation.}
 }
 \description{
 Add a specified regression model for the exposure. This is used for natural course estimation

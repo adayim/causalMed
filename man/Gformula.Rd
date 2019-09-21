@@ -2,7 +2,7 @@
 % Please edit documentation in R/medlong.R
 \name{Gformula}
 \alias{Gformula}
-\title{Mediation analysis for time-varying mediaiton, survival and non-survival}
+\title{G-formula Analysis}
 \usage{
 Gformula(data, id.var, base.vars, exposure, outcome, time.var, models,
   intervention = NULL, init.recode = NULL, out.recode = NULL,
@@ -41,9 +41,8 @@ days with a treatment or creating lagged variables. This is executed at each end
 }
 \description{
 Mediation analysis for time varying mediator, estimation based
- on g-formula and IPTW. Output contains total effect,
-natrual direct effect and natural indirect effect. The confidence interval will
-be calculated using 1000 bootstrap with normal approximation.
+ on g-formula. Output contains total effect, #' natrual direct effect and natural
+  indirect effect for mediation or regular g-formula. data.frame will be returned.
 }
 \note{
 Not that final outcome must be the same for in all rows per subject.
