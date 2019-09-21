@@ -5,7 +5,7 @@
 \title{Monte Carlo simulation}
 \usage{
 monte_g(data, time.seq, time.var, models, intervention = NULL,
-  mediation = FALSE, out.recode = NULL, init.recode = NULL)
+  in.recode = NULL, out.recode = NULL, init.recode = NULL)
 }
 \arguments{
 \item{data}{a data frame in which to look for variables with which to predict.}
@@ -18,6 +18,10 @@ monte_g(data, time.seq, time.var, models, intervention = NULL,
 
 \item{intervention}{A vector, intervention treatment per time.}
 
+\item{in.recode}{optional, On the fly recoding of variables done before the Monte
+Carlo loop starts. Needed to do any kind of functional forms for entry times.
+ This is executed at each start of the Monte Carlo g-formula time steps}
+
 \item{out.recode}{optional, On the fly recoding of variables done at the
 end of the Monte Carlo loop. Needed for operations like counting the number of
 days with a treatment or creating lagged variables. This is executed at each end
@@ -25,7 +29,7 @@ days with a treatment or creating lagged variables. This is executed at each end
 
 \item{init.recode}{optional, recoding of variables done at the
 begaining of the Monte Carlo loop. Needed for operations initalize baseline variables.
-This is executed at begaining of the Monte Carlo g-formula, excuted only once.}
+This is executed at begaining of the Monte Carlo g-formula, excuted only once at time 0.}
 }
 \description{
 Internal use only. Monte Carlo simulation.

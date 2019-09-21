@@ -5,8 +5,8 @@
 \title{G-formula Analysis}
 \usage{
 Gformula(data, id.var, base.vars, exposure, outcome, time.var, models,
-  intervention = NULL, init.recode = NULL, out.recode = NULL,
-  mc.sample = 10000)
+  intervention = NULL, init.recode = NULL, in.recode = NULL,
+  out.recode = NULL, mc.sample = 10000)
 }
 \arguments{
 \item{data}{Data set to be sued}
@@ -25,12 +25,17 @@ Gformula(data, id.var, base.vars, exposure, outcome, time.var, models,
 covariate model (if any), mediator model (if any), outcome model or
 censoring model (if any). See details in \code{\link[causalMed]{spec_model}}.}
 
-\item{intervention}{A vector or a value of intervention on exposure. if kept as NULL (default),
-the natrual intervention cousre will be calculated.}
+\item{intervention}{A named list with a value of intervention on exposure.
+if kept as NULL (default), the natrual intervention cousre will be calculated.
+ eg: list(natural = NULL, always = 1, never = 0)}
 
 \item{init.recode}{optional, recoding of variables done at the
 begaining of the Monte Carlo loop. Needed for operations initalize baseline variables.
-This is executed at begaining of the Monte Carlo g-formula, excuted only once.}
+This is executed at begaining of the Monte Carlo g-formula, excuted only once at time 0.}
+
+\item{in.recode}{optional, On the fly recoding of variables done before the Monte
+Carlo loop starts. Needed to do any kind of functional forms for entry times.
+ This is executed at each start of the Monte Carlo g-formula time steps}
 
 \item{out.recode}{optional, On the fly recoding of variables done at the
 end of the Monte Carlo loop. Needed for operations like counting the number of

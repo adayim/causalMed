@@ -5,8 +5,7 @@
 \title{Model specification for G-formula}
 \usage{
 spec_model(formula, subset = NULL, family = "gaussian", order,
-  type = c("exposure", "covariate", "mediator", "outcome", "censor"),
-  recode = NULL)
+  type = c("exposure", "covariate", "mediator", "outcome", "censor"))
 }
 \arguments{
 \item{formula}{Formula for specified models passed to \code{\link[stats]{glm}}.
@@ -15,14 +14,14 @@ Must be contained within the input  dataframe when initialized.}
 \item{subset}{an optional vector specifying a subset of observations to be used
 in the fitting process (see \code{\link[stats]{glm}}).}
 
-\item{family}{A description of the error distribution and link function to be used in the \code{glm} model.}
+\item{family}{A description of the error distribution and link function
+to be used in the \code{glm} model.}
 
 \item{order}{Numeric, temporal ordering of the Covariates.}
 
-\item{type}{Model type. Exposure model (\code{exposure}), covariate model (\code{covariate}), mediator model (\code{mediator}), outcome model (\code{outcome}) or censoring model (\code{censor})}
-
-\item{recode}{Optional, recoding expression list. Used for dynamic recoding for Monte Carlo simulation.
-This is executed at just before model predicted simulation.}
+\item{type}{Model type. Exposure model (\code{exposure}), covariate
+model (\code{covariate}), mediator model (\code{mediator}), outcome
+ model (\code{outcome}) or censoring model (\code{censor})}
 }
 \description{
 Add a specified regression model for the exposure. This is used for natural course estimation

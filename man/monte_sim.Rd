@@ -4,14 +4,12 @@
 \alias{monte_sim}
 \title{Random data simulation from predicted value.}
 \usage{
-monte_sim(data, models, intervention = NULL)
+monte_sim(newdt, models)
 }
 \arguments{
-\item{data}{a data frame in which to look for variables with which to predict.}
+\item{newdt}{a data frame in which to look for variables with which to predict.}
 
 \item{models}{fitted objects.}
-
-\item{intervention}{Intervention.}
 }
 \description{
 Internal use only. Predict response and generate random data.

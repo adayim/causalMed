@@ -46,51 +46,13 @@ For time fixed mediation analysis:
     ## ------
     ## Parameter estimates:
     ##                         Estimate    Bias Std.error conf.low conf.high
-    ## Total effect              0.3136 -0.0183    0.4208  -0.4928    1.1566
-    ## Natural Direct effect    -0.2574 -0.0011    0.5076  -1.2512    0.7386
-    ## Natural Indirect effect   0.5710 -0.0172    0.2633   0.0720    1.1043
+    ## Total effect              0.3136 -0.0177    0.4038  -0.4602    1.1228
+    ## Natural Direct effect    -0.2574  0.0026    0.4639  -1.1692    0.6492
+    ## Natural Indirect effect   0.5710 -0.0203    0.2561   0.0894    1.0932
     ## ------
     ## Proportion Mediated: 182.0809%
 
 For time-varying mediator:
-
-    res <- medlong(data       = lipdat,
-                   exposure   = "smoke",
-                   mediator   = "hdl",
-                   outcome    = "cvd",
-                   id.var     = "id",
-                   time.var   = "time",
-                   covariates = c("bmi", "gender", "age0"),
-                   m.family   = "gaussian",
-                   y.family   = "binomial")
-    summary(res)
-
-    ## Call:
-    ## medlong(data = lipdat, id.var = "id", exposure = "smoke", mediator = "hdl", 
-    ##     outcome = "cvd", covariates = c("bmi", "gender", "age0"), 
-    ##     time.var = "time", m.family = "gaussian", y.family = "binomial")
-    ## ------
-    ## Exposure: smoke 
-    ## Mediator: hdlEstimation of standard errors based on the non-parametric bootstrap
-    ## ---
-    ## 
-    ## ------
-    ## Natural effect parameter estimates with G-formula estimation:
-    ##                         Estimate    Bias Std.error conf.low conf.high
-    ## Total effect              0.5828  0.0478    1.9370  -3.2614    4.3315
-    ## Natural Indirect effect  -0.0033 -0.0433    0.8210  -1.5691    1.6490
-    ## Natural Direct effect     0.5861  0.0910    2.1687  -3.7556    4.7457
-    ## ------
-    ## Proportion Mediated: -0.5701%
-    ## ------
-    ## 
-    ## Natural effect parameter estimates with IPTW estimation:
-    ##                         Estimate    Bias Std.error conf.low conf.high
-    ## Total effect             -2.3198 -0.0575    0.4931  -3.2288   -1.2958
-    ## Natural Indirect effect   0.2988  0.0199    0.2202  -0.1527    0.7104
-    ## Natural Direct effect    -2.6185 -0.0774    0.4864  -3.4946   -1.5877
-    ## ------
-    ## Proportion Mediated: -12.8799%
 
 Data structure must be in longitudinal format, and only mediator is
 time-varying.

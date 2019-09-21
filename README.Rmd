@@ -38,16 +38,7 @@ summary(out)
 
 For time-varying mediator:
 ```{r time-varying, echo=TRUE, warning=FALSE}
-res <- medlong(data       = lipdat,
-               exposure   = "smoke",
-               mediator   = "hdl",
-               outcome    = "cvd",
-               id.var     = "id",
-               time.var   = "time",
-               covariates = c("bmi", "gender", "age0"),
-               m.family   = "gaussian",
-               y.family   = "binomial")
-summary(res)
+
 ```
 Data structure must be in longitudinal format, and only mediator is time-varying.
 
