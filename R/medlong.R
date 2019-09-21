@@ -26,8 +26,9 @@
 #'  covariate model (if any), mediator model (if any), outcome model or
 #'  censoring model (if any). See details in \code{\link[causalMed]{spec_model}}.
 #'
-#' @param intervention A vector or a value of intervention on exposure. if kept as NULL (default),
-#' the natrual intervention cousre will be calculated.
+#' @param intervention A named list with a value of intervention on exposure.
+#' if kept as NULL (default), the natrual intervention cousre will be calculated.
+#'  eg: list(natural = NULL, always = 1, never = 0)
 #'
 #' @param init.recode optional, recoding of variables done at the
 #' begaining of the Monte Carlo loop. Needed for operations initalize baseline variables.
