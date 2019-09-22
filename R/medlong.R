@@ -263,8 +263,12 @@ monte_g <- function(data, time.seq, time.var, models,
         }else{
           cond <- rep(TRUE, nrow(dat_y))
         }
+        if(sum(cond) != 0){
+          dat_y[[resp_var]][cond] <- monte_sim(dat_y[cond, ], models[[indx]])
+        }else{
+          next
+        }
 
-        dat_y[[resp_var]][cond] <- monte_sim(dat_y[cond, ], models[[indx]])
       }
 
       if(!is.null(out.recode)){
@@ -361,12 +365,16 @@ monte_g <- function(data, time.seq, time.var, models,
           cond <- rep(TRUE, nrow(dat_y))
         }
 
-        dat_m[[resp_var]][cond] <- monte_sim(dat_m[cond, ], models[[indx]])
+        if(sum(cond) != 0){
+          dat_m[[resp_var]][cond] <- monte_sim(dat_m[cond, ], models[[indx]])
 
-        if(indx == med_flag){
-          dat_y[[resp_var]][cond] <- dat_m[[resp_var]][cond]
+          if(indx == med_flag){
+            dat_y[[resp_var]][cond] <- dat_m[[resp_var]][cond]
+          }else{
+            dat_y[[resp_var]][cond] <- monte_sim(dat_y[cond, ], models[[indx]])
+          }
         }else{
-          dat_y[[resp_var]][cond] <- monte_sim(dat_y[cond, ], models[[indx]])
+          next
         }
 
       }
@@ -559,7 +567,7 @@ gformula_med_ci <- function(object, R = 500, ...){
   }
 
   boot_res <- boot::boot(data = data, statistic = boot_func, R = R, ...)
-  conf <- extract_boot(boot_res)
+  conf <- extract_boot(boot_res, conf.method = "perc")
   out <- list(call     = tmpcall,
               boot.res = boot_res,
               confint  = conf,
