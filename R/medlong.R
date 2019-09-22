@@ -521,7 +521,7 @@ spec_model <- function(formula,
 gformula_med_ci <- function(object, R = 500, ...){
   if(as.character(object$call[[1]]) != "Gformula")
     stop("Object must be an Gformula!")
-  if(!names(object$res) %in% c("always", "never", "mediator"))
+  if(!names(object$res) %in% c("always", "never", "mediation"))
     stop("Only mediation analysis supported!")
 
   tmpcall <- match.call()
@@ -531,11 +531,11 @@ gformula_med_ci <- function(object, R = 500, ...){
   # Calculate proportion mediated
   out_come <- as.character(obj_call$outcome)
 
-  nde <- mean(object$res$mediator[, out_come], na.rm = TRUE) -
+  nde <- mean(object$res$mediation[, out_come], na.rm = TRUE) -
     mean(object$res$never[, out_come])
 
   nie <- mean(object$res$always[, out_come], na.rm = TRUE) -
-    mean(object$res$mediator[, out_come])
+    mean(object$res$mediation[, out_come])
 
   prop_med <- nie/(nie + nde)
 
@@ -548,10 +548,10 @@ gformula_med_ci <- function(object, R = 500, ...){
     obj_call$data <- substitute(dat)
     out_come <- as.character(obj_call$outcome)
     out <- eval(obj_call)
-    nde <- mean(out$res$mediator[, out_come], na.rm = TRUE) -
+    nde <- mean(out$res$mediation[, out_come], na.rm = TRUE) -
       mean(out$res$never[, out_come])
     nie <- mean(out$res$always[, out_come], na.rm = TRUE) -
-      mean(out$res$mediator[, out_come])
+      mean(out$res$mediation[, out_come])
     res <- c("Total Effect"   = nde + nie,
              "Direct Effect"  = nde,
              "Indirect Effct" = nie)
