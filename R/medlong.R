@@ -120,7 +120,7 @@ Gformula <- function(data,
     for(indx_mod in seq_along(models)){
       mods <- models[[indx_mod]]
       ord <- mods$order
-      mods$call$data <- data
+      mods$call$data <- substitute(data)
 
       fit_mods[[ord]] <- list(mods    = eval(mods$call),
                               recodes = mods$recode,
