@@ -34,10 +34,10 @@ extrCall <- function (x)
 
 #' Extract bootstrap Confidence interval
 extract_boot <- function(x,
-                      conf.int = TRUE,
-                      conf.level = 0.95,
-                      conf.method = c("perc", "bca", "basic", "norm"),
-                      ...) {
+                         conf.int = TRUE,
+                         conf.level = 0.95,
+                         conf.method = c("perc", "bca", "basic", "norm"),
+                         ...) {
 
   conf.method <- rlang::arg_match(conf.method)
 
@@ -87,7 +87,7 @@ extract_boot <- function(x,
   }
 
   # bring in rownames as "term" column, and turn into a data.frame
-  ret <- cbind.data.frame(term = rownames(op), op)
+  ret <- cbind.data.frame(op, stringsAsFactors = FALSE)
 
   if (conf.int) {
     ci.list <- lapply(seq_along(x$t0),
@@ -111,3 +111,37 @@ extract_boot <- function(x,
   }
   ret
 }
+
+#' Higher order function to display progress.
+#'
+#' @param total Number of total runs in bootstrap
+#'
+#' @param nBars Number of bars to generate, default is 100.
+#'
+#' @param f Function used for progress bar.
+#'
+#' @param ... functions to be passed to function f.
+#'
+#' @references
+#' https://stackoverflow.com/questions/27019190/txtprogressbar-for-parallel-bootstrap-not-displaying-properly
+#'
+#' @examples
+#'  \dontrun{
+#'  boot_res <- boot::boot(data = data, statistic =
+#'  progressReporter(500, nBars=100, f = boot_func), R = 500)
+#'  }
+#'
+progressReporter <- function(total, nBars = 100, f, ...) {
+  count <- 1
+  step <- ceiling(total/nBars)
+  cat(paste(rep("|", nBars), collapse=""), "\r")
+  flush.console()
+  function(...) {
+    if (count %% step==0) {
+      cat(".")
+    }
+    count <<- count + 1
+    f(...)
+  }
+}
+

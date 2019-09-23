@@ -6,7 +6,7 @@
 \usage{
 Gformula(data, id.var, base.vars, exposure, outcome, time.var, models,
   intervention = NULL, init.recode = NULL, in.recode = NULL,
-  out.recode = NULL, mc.sample = 10000)
+  out.recode = NULL, mc.sample = 10000, verbose = TRUE)
 }
 \arguments{
 \item{data}{Data set to be sued}
@@ -43,6 +43,8 @@ days with a treatment or creating lagged variables. This is executed at each end
  of the Monte Carlo g-formula time steps.}
 
 \item{mc.sample}{Sample size of Monte Carlo simulation.}
+
+\item{verbose}{Print intervention information during calculation.}
 }
 \description{
 Mediation analysis for time varying mediator, estimation based

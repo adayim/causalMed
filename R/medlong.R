@@ -44,6 +44,8 @@
 #'  of the Monte Carlo g-formula time steps.
 
 #' @param mc.sample Sample size of Monte Carlo simulation.
+#' 
+#' @param verbose Print intervention information during calculation.
 #'
 #' @references
 #' Lin, S. H., Young, J. G., Logan, R., & VanderWeele, T. J. (2017). Mediation analysis for a survival outcome with time‐varying exposures, mediators, and confounders. \emph{Statistics in medicine}, 36(26), 4153-4166. DOI:10.1002/sim.7426
@@ -67,7 +69,8 @@ Gformula <- function(data,
                      init.recode = NULL,
                      in.recode = NULL,
                      out.recode = NULL,
-                     mc.sample = 10000){
+                     mc.sample = 10000,
+                     verbose  = TRUE){
 
   tpcall <- match.call()
 
@@ -140,7 +143,8 @@ Gformula <- function(data,
     monte_g(data = df_mc, time.var = time.var, time.seq = unique(data[[time.var]]),
             models = fit_mods, intervention = i,
             in.recode = in.recode,
-            out.recode = out.recode, init.recode = init.recode)
+            out.recode = out.recode, init.recode = init.recode,
+            verbose = verbose)
   }, simplify = FALSE)
 
   return(list(call          = tpcall,
@@ -177,13 +181,15 @@ Gformula <- function(data,
 #' days with a treatment or creating lagged variables. This is executed at each end
 #'  of the Monte Carlo g-formula time steps.
 #'
+#' @param verbose Print intervention information during calculation.
 #'
 #' @export
 #'
 monte_g <- function(data, time.seq, time.var, models,
                     intervention = NULL,
                     in.recode = NULL,
-                    out.recode = NULL, init.recode = NULL){
+                    out.recode = NULL, init.recode = NULL,
+                    verbose = TRUE){
 
   # Time varying intervention
   # if(!is.null(intervention) & length(intervention) == 1){
@@ -216,9 +222,11 @@ monte_g <- function(data, time.seq, time.var, models,
     censor <- all.vars(formula(models[[cen_flag]]$mods)[[2]])
   }
 
-  cat("\n=============\n")
-  cat(paste0("Intervention: ", intervention))
-
+  if(verbose){
+    cat("\n=============\n")
+    cat(paste0("Intervention: ", intervention))
+  }
+  
   # Simulate
   max_time <- max(time.seq, na.rm = TRUE)
   min_time <- min(time.seq, na.rm = TRUE)
@@ -265,8 +273,6 @@ monte_g <- function(data, time.seq, time.var, models,
         }
         if(sum(cond) != 0){
           dat_y[[resp_var]][cond] <- monte_sim(dat_y[cond, ], models[[indx]])
-        }else{
-          next
         }
 
       }
@@ -373,8 +379,6 @@ monte_g <- function(data, time.seq, time.var, models,
           }else{
             dat_y[[resp_var]][cond] <- monte_sim(dat_y[cond, ], models[[indx]])
           }
-        }else{
-          next
         }
 
       }
@@ -413,7 +417,7 @@ monte_g <- function(data, time.seq, time.var, models,
   }
   # Here ends the mediation
 
-  return(out_y)
+  return(as.data.frame(out_y))
 }
 
 #' Random data simulation from predicted value.
@@ -540,15 +544,16 @@ gformula_med_ci <- function(object, R = 500, ...){
   out_come <- as.character(obj_call$outcome)
 
   nde <- mean(object$gform.data$mediation[, out_come], na.rm = TRUE) -
-    mean(object$gform.data$never[, out_come])
+    mean(object$gform.data$never[, out_come], na.rm = TRUE)
 
   nie <- mean(object$gform.data$always[, out_come], na.rm = TRUE) -
-    mean(object$gform.data$mediation[, out_come])
+    mean(object$gform.data$mediation[, out_come], na.rm = TRUE)
 
   prop_med <- nie/(nie + nde)
 
   # Get original data from call
   data <- eval(obj_call$data)
+  obj_call$verbose <- FALSE
 
   # Create bootstrap function
   boot_func <- function(data, index){
@@ -557,22 +562,26 @@ gformula_med_ci <- function(object, R = 500, ...){
     out_come <- as.character(obj_call$outcome)
     out <- eval(obj_call)
     nde <- mean(out$gform.data$mediation[, out_come], na.rm = TRUE) -
-      mean(out$gform.data$never[, out_come])
+      mean(out$gform.data$never[, out_come], na.rm = TRUE)
     nie <- mean(out$gform.data$always[, out_come], na.rm = TRUE) -
-      mean(out$gform.data$mediation[, out_come])
+      mean(out$gform.data$mediation[, out_come], na.rm = TRUE)
     res <- c("Total Effect"   = nde + nie,
              "Direct Effect"  = nde,
              "Indirect Effct" = nie)
     return(res)
   }
 
-  boot_res <- boot::boot(data = data, statistic = boot_func, R = R, ...)
+  cat("Be patient, bootstrap is running...\n")
+  boot_res <- boot::boot(data = data, 
+                         statistic = progressReporter(R, nBars=100, f = boot_func),
+                         R = R, ...)
+
   conf <- extract_boot(boot_res, conf.method = "perc")
   out <- list(call     = tmpcall,
-              boot.res = boot_res,
+              #boot.res = boot_res,
               confint  = conf,
               prop_med = 100 * prop_med)
-  call(out) <- 'gmed_boot'
+  class(out) <- 'gmed_boot'
   return(out)
 }
 
