@@ -261,7 +261,7 @@ monte_g <- function(data, time.seq, time.var, models,
     }
 
     # Intervention
-    if(!is.null(intervention) & !mediaiton){
+    if(!is.null(intervention) & !mediation){
       dat_y[[exposure]] <- intervention
     }
 
