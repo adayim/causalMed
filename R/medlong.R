@@ -44,7 +44,7 @@
 #'  of the Monte Carlo g-formula time steps.
 
 #' @param mc.sample Sample size of Monte Carlo simulation.
-#' 
+#'
 #' @param verbose Print intervention information during calculation.
 #'
 #' @references
@@ -118,15 +118,20 @@ Gformula <- function(data,
   if(!is.null(models)){
     fit_mods <- vector("list", length = length(models))
     for(indx_mod in seq_along(models)){
+
       mods <- models[[indx_mod]]
       ord <- mods$order
       mods$call$data <- substitute(data)
 
-      fit_mods[[ord]] <- list(mods    = eval(mods$call),
-                              recodes = mods$recode,
-                              subset  = mods$subset,
-                              family  = mods$family,
-                              type    = mods$type)
+      # Check for models contain any exposure, used in mediaiton
+      dep_vars <- all.vars(mods$call$formula[[3]])
+
+      fit_mods[[ord]] <- list(mods     = eval(mods$call),
+                              recodes  = mods$recode,
+                              subset   = mods$subset,
+                              family   = mods$family,
+                              type     = mods$type,
+                              with.exp = exposure %in% dep_vars)
 
     }
   }
@@ -226,7 +231,7 @@ monte_g <- function(data, time.seq, time.var, models,
     cat("\n=============\n")
     cat(paste0("Intervention: ", intervention))
   }
-  
+
   # Simulate
   max_time <- max(time.seq, na.rm = TRUE)
   min_time <- min(time.seq, na.rm = TRUE)
@@ -381,6 +386,11 @@ monte_g <- function(data, time.seq, time.var, models,
           }
         }
 
+        # If no exposure variables included, then value should be equals to original
+        if(!models[[indx]]$with.exp){
+          dat_m[[resp_var]][cond] <- dat_y[[resp_var]][cond]
+        }
+
       }
 
       if(!is.null(out.recode)){
@@ -390,19 +400,14 @@ monte_g <- function(data, time.seq, time.var, models,
         }
       }
 
-      # No censoring, and if censored outcome equals to 0
-      if(cen_flag != 0){
-        dat_y[[censor]] <- 0
-      }
-
-      # Output censoring and death, only the not intervened have censoring
+      # Output death
       if(t == min_time){
         out_y <- dat_y[dat_y[[outcome]] == 1, ]
       }else{
         out_y <- rbind(out_y, dat_y[dat_y[[outcome]] == 1, ])
       }
 
-      # loop not censored and dead, only the not intervened have censoring
+      # loop not dead
       dat_y <- dat_y[dat_y[[outcome]] != 1, ]
       dat_m <- dat_m[dat_y[[outcome]] != 1, ]
 
@@ -572,7 +577,7 @@ gformula_med_ci <- function(object, R = 500, ...){
   }
 
   cat("Be patient, bootstrap is running...\n")
-  boot_res <- boot::boot(data = data, 
+  boot_res <- boot::boot(data = data,
                          statistic = progressReporter(R, nBars=100, f = boot_func),
                          R = R, ...)
 
