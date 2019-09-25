@@ -197,18 +197,9 @@ monte_g <- function(data, time.seq, time.var, models,
   #   intervention <- rep(intervention, length(unique(na.omit(data[[time.var]]))))
   # }
 
-  # Check mediation
-  if(!is.null(intervention)){
-    mediation <- ifelse(as.character(intervention) == "mediation", TRUE, FALSE)
-  }else{
-    mediation <- FALSE
-  }
-
   # Get the position of the mediator
-  if(mediation){
-    med_flag <- sapply(models, function(mods) as.numeric(mods$type == "mediator"))
-    med_flag <- which(med_flag == 1)
-  }
+  med_flag <- sapply(models, function(mods) as.numeric(mods$type == "mediator"))
+  med_flag <- which(med_flag == 1)
 
   # Get the position of exposure
   exp_flag <- sapply(models, function(mods) as.numeric(mods$type == "exposure"))
@@ -261,12 +252,12 @@ monte_g <- function(data, time.seq, time.var, models,
     }
 
     # Intervention
-    if(!is.null(intervention) & !mediation){
+    if(!is.null(intervention) & med_flag == 0){
       dat_y[[exposure]] <- intervention
     }
 
     # For mediation
-    if(mediation){
+    if(med_flag != 0){
       dat_y[[exposure]] <- 1
       interv0 <- parse(text = paste0(exposure, " = 0"))
     }
