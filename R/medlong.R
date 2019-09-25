@@ -123,15 +123,11 @@ Gformula <- function(data,
       ord <- mods$order
       mods$call$data <- substitute(data)
 
-      # Check for models contain any exposure, used in mediaiton
-      dep_vars <- all.vars(mods$call$formula[[3]])
-
       fit_mods[[ord]] <- list(mods     = eval(mods$call),
                               recodes  = mods$recode,
                               subset   = mods$subset,
                               family   = mods$family,
-                              type     = mods$type,
-                              with.exp = exposure %in% dep_vars)
+                              type     = mods$type)
 
     }
   }
@@ -208,6 +204,12 @@ monte_g <- function(data, time.seq, time.var, models,
     mediation <- FALSE
   }
 
+  # Get the position of the mediator
+  if(mediation){
+    med_flag <- sapply(models, function(mods) as.numeric(mods$type == "mediator"))
+    med_flag <- which(med_flag == 1)
+  }
+
   # Get the position of exposure
   exp_flag <- sapply(models, function(mods) as.numeric(mods$type == "exposure"))
   exp_flag <- which(exp_flag == 1)
@@ -237,190 +239,109 @@ monte_g <- function(data, time.seq, time.var, models,
   min_time <- min(time.seq, na.rm = TRUE)
   dat_y  <- data
 
-  if(!mediation){
-    # If not mediation, run normal g-formula
-    for(t in min_time:max_time){
-      dat_y[[time.var]] <- t
 
-      # Recode baseline variables
-      if(t == min_time){
-        if(!is.null(init.recode)){
-          for(i in seq_along(init.recode)){
-            dat_y <- within(dat_y, eval(parse(text = init.recode[i])))
-          }
+  # Run normal g-formula
+  for(t in min_time:max_time){
+    dat_y[[time.var]] <- t
+
+    # Recode baseline variables
+    if(t == min_time){
+      if(!is.null(init.recode)){
+        for(i in seq_along(init.recode)){
+          dat_y <- within(dat_y, eval(parse(text = init.recode[i])))
         }
-      }
-
-      # Recode data before simulating
-      if(!is.null(in.recode)){
-        for(i in seq_along(in.recode)){
-          dat_y <- within(dat_y, eval(parse(text = in.recode[i])))
-        }
-      }
-
-      # Intervention
-      if(!is.null(intervention)){
-        dat_y[[exposure]] <- intervention
-      }
-
-      # Loop through variables
-      for(indx in seq_along(models)){
-        resp_var <- all.vars(formula(models[[indx]]$mods)[[2]])
-
-        if(resp_var == exposure & !is.null(intervention))
-          next   # Skip if variable is treatment
-
-        # If condition has been defined
-        if(!is.null(models[[indx]]$subset)){
-          cond <- with(dat_y, eval(models[[indx]]$subset))
-        }else{
-          cond <- rep(TRUE, nrow(dat_y))
-        }
-        if(sum(cond) != 0){
-          dat_y[[resp_var]][cond] <- monte_sim(dat_y[cond, ], models[[indx]])
-        }
-
-      }
-
-      if(!is.null(out.recode)){
-        for(i in seq_along(out.recode)){
-          dat_y <- within(dat_y, eval(parse(text = out.recode[i])))
-        }
-      }
-
-      if(!is.null(intervention) & cen_flag != 0){
-        dat_y[[censor]] <- 0
-      }
-
-      # If censored outcome equals to 0
-      if(cen_flag != 0){
-        dat_y[[outcome]] <- ifelse(dat_y[[censor]] == 1, 0, dat_y[[outcome]])
-      }
-
-      # Output censoring and death, only the not intervened have censoring
-      if(t == min_time){
-        if(cen_flag != 0){
-          out_y <- dat_y[dat_y[[outcome]] == 1 | dat_y[[censor]] == 1, ]
-        }else{
-          out_y <- dat_y[dat_y[[outcome]] == 1, ]
-        }
-
-      }else{
-        if(cen_flag != 0){
-          out_y <- rbind(out_y, dat_y[dat_y[[outcome]] == 1 | dat_y[[censor]] == 1, ])
-        }else{
-          out_y <- rbind(out_y, dat_y[dat_y[[outcome]] == 1, ])
-        }
-      }
-
-      # loop not censored and dead, only the not intervened have censoring
-      if(cen_flag != 0){
-        dat_y <- dat_y[dat_y[[outcome]] != 1 & dat_y[[censor]] != 1, ]
-      }else{
-        dat_y <- dat_y[dat_y[[outcome]] != 1, ]
-      }
-
-      # if loop ends
-      if(nrow(dat_y) == 0)
-        break
-      if(t == max_time){
-        out_y <- rbind(out_y, dat_y)
       }
     }
-    # loop ends here
-  }else{
-    # Mediation starts from here
-    # Get the position of the mediator
-    med_flag <- sapply(models, function(mods) as.numeric(mods$type == "mediator"))
-    med_flag <- which(med_flag == 1)
 
-    dat_m <- dat_y # Create data for mediator
-
-    for(t in min_time:max_time){
-      dat_y[[time.var]] <- t
-      dat_m[[time.var]] <- t
-
-      # Recode baseline variables
-      if(t == min_time){
-        if(!is.null(init.recode)){
-          for(i in seq_along(init.recode)){
-            dat_y <- within(dat_y, eval(parse(text = init.recode[i])))
-            dat_m <- within(dat_m, eval(parse(text = init.recode[i])))
-          }
-        }
+    # Recode data before simulating
+    if(!is.null(in.recode)){
+      for(i in seq_along(in.recode)){
+        dat_y <- within(dat_y, eval(parse(text = in.recode[i])))
       }
+    }
 
-      # Recode data before simulating
-      if(!is.null(in.recode)){
-        for(i in seq_along(in.recode)){
-          dat_y <- within(dat_y, eval(parse(text = in.recode[i])))
-          dat_m <- within(dat_m, eval(parse(text = in.recode[i])))
-        }
+    # Intervention
+    if(!is.null(intervention) & !mediaiton){
+      dat_y[[exposure]] <- intervention
+    }
+
+    # For mediation
+    if(mediation){
+      dat_y[[exposure]] <- 1
+      interv0 <- parse(text = paste0(exposure, " = 0"))
+    }
+
+    # Loop through variables
+    for(indx in seq_along(models)){
+      resp_var <- all.vars(formula(models[[indx]]$mods)[[2]])
+
+      if(resp_var == exposure & !is.null(intervention))
+        next   # Skip if variable is treatment
+
+      # If condition has been defined
+      if(!is.null(models[[indx]]$subset)){
+        cond <- with(dat_y, eval(models[[indx]]$subset))
+      }else{
+        cond <- rep(TRUE, nrow(dat_y))
       }
-
-      # Intervention
-      dat_y[[exposure]] <- 1 # Intervention for outcome kept as 1
-      dat_m[[exposure]] <- 0 # Intervention for mediator kept as 0
-
-      # Loop through variables
-      for(indx in seq_along(models)){
-        resp_var <- all.vars(formula(models[[indx]]$mods)[[2]])
-
-        if(resp_var == exposure)
-          next   # Skip if variable is treatment
-
-        # If condition has been defined
-        if(!is.null(models[[indx]]$subset)){
-          cond <- with(dat_y, eval(models[[indx]]$subset))
+      if(sum(cond) != 0){
+        if(med_flag == indx){
+          # Set the mediator's intervention to 0
+          dat_y[[resp_var]][cond] <- monte_sim(transform(dat_y[cond, ], eval(interv0)),
+                                               models[[indx]])
         }else{
-          cond <- rep(TRUE, nrow(dat_y))
-        }
-
-        if(sum(cond) != 0){
-          dat_m[[resp_var]][cond] <- monte_sim(dat_m[cond, ], models[[indx]])
-
-          if(indx == med_flag){
-            dat_y[[resp_var]][cond] <- dat_m[[resp_var]][cond]
-          }else{
-            dat_y[[resp_var]][cond] <- monte_sim(dat_y[cond, ], models[[indx]])
-          }
-        }
-
-        # If no exposure variables included, then value should be equals to original
-        if(!models[[indx]]$with.exp){
-          dat_m[[resp_var]][cond] <- dat_y[[resp_var]][cond]
-        }
-
-      }
-
-      if(!is.null(out.recode)){
-        for(i in seq_along(out.recode)){
-          dat_y <- within(dat_y, eval(parse(text = out.recode[i])))
-          dat_m <- within(dat_m, eval(parse(text = out.recode[i])))
+          dat_y[[resp_var]][cond] <- monte_sim(dat_y[cond, ], models[[indx]])
         }
       }
 
-      # Output death
-      if(t == min_time){
+    }
+
+    if(!is.null(out.recode)){
+      for(i in seq_along(out.recode)){
+        dat_y <- within(dat_y, eval(parse(text = out.recode[i])))
+      }
+    }
+
+    if(!is.null(intervention) & cen_flag != 0){
+      dat_y[[censor]] <- 0
+    }
+
+    # If censored outcome equals to 0
+    if(cen_flag != 0){
+      dat_y[[outcome]] <- ifelse(dat_y[[censor]] == 1, 0, dat_y[[outcome]])
+    }
+
+    # Output censoring and death, only the not intervened have censoring
+    if(t == min_time){
+      if(cen_flag != 0){
+        out_y <- dat_y[dat_y[[outcome]] == 1 | dat_y[[censor]] == 1, ]
+      }else{
         out_y <- dat_y[dat_y[[outcome]] == 1, ]
+      }
+
+    }else{
+      if(cen_flag != 0){
+        out_y <- rbind(out_y, dat_y[dat_y[[outcome]] == 1 | dat_y[[censor]] == 1, ])
       }else{
         out_y <- rbind(out_y, dat_y[dat_y[[outcome]] == 1, ])
       }
-
-      # loop not dead
-      dat_y <- dat_y[dat_y[[outcome]] != 1, ]
-      dat_m <- dat_m[dat_y[[outcome]] != 1, ]
-
-      # if loop ends
-      if(nrow(dat_y) == 0)
-        break
-      if(t == max_time){
-        out_y <- rbind(out_y, dat_y)
-      }
     }
-    # loop ends here
+
+    # loop not censored and dead, only the not intervened have censoring
+    if(cen_flag != 0){
+      dat_y <- dat_y[dat_y[[outcome]] != 1 & dat_y[[censor]] != 1, ]
+    }else{
+      dat_y <- dat_y[dat_y[[outcome]] != 1, ]
+    }
+
+    # if loop ends
+    if(nrow(dat_y) == 0)
+      break
+    if(t == max_time){
+      out_y <- rbind(out_y, dat_y)
+    }
   }
-  # Here ends the mediation
+  # loop ends here
 
   return(as.data.frame(out_y))
 }
@@ -608,7 +529,6 @@ print.gmed_boot <- function (x, digits = max(3, getOption("digits") - 3), ...){
 
   cat(paste0("------\nProportion Mediated: ", round(x$prop_med, digits), "%"))
 }
-
 
 
 
