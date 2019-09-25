@@ -200,6 +200,9 @@ monte_g <- function(data, time.seq, time.var, models,
   # Get the position of the mediator
   med_flag <- sapply(models, function(mods) as.numeric(mods$type == "mediator"))
   med_flag <- which(med_flag == 1)
+  if(as.character(intervention) != "mediation"){
+    med_flag <- 0
+  }
 
   # Get the position of exposure
   exp_flag <- sapply(models, function(mods) as.numeric(mods$type == "exposure"))
@@ -278,7 +281,7 @@ monte_g <- function(data, time.seq, time.var, models,
       if(sum(cond) != 0){
         if(med_flag == indx){
           # Set the mediator's intervention to 0
-          dat_y[[resp_var]][cond] <- monte_sim(transform(dat_y[cond, ], eval(interv0)),
+          dat_y[[resp_var]][cond] <- monte_sim(within(dat_y[cond,  ], eval(interv0)),
                                                models[[indx]])
         }else{
           dat_y[[resp_var]][cond] <- monte_sim(dat_y[cond, ], models[[indx]])
