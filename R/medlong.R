@@ -200,7 +200,7 @@ monte_g <- function(data, time.seq, time.var, models,
   # Get the position of the mediator
   med_flag <- sapply(models, function(mods) as.numeric(mods$type == "mediator"))
   med_flag <- which(med_flag == 1)
-  if(as.character(intervention) != "mediation"){
+  if(is.null(intervention) | as.character(intervention) != "mediation"){
     med_flag <- 0
   }
 
