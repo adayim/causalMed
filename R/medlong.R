@@ -445,12 +445,13 @@ spec_model <- function(formula,
 #'
 #' @param R The number of bootstrap replicates, default is 500. Same with \code{boot}, see \code{\link[boot]{boot}} for detail.
 #'
-#' @param ... Other named arguments for \strong{\code{boot}}, see \code{\link[boot]{boot}} for detail.
-#' \strong{NOTE:} this is different from \code{boot}.
+#' @param parallel Parallel computing with \code{\link[parallel]{mclapply}}.
+#'
+#' @param ncores The number of cores to use. See \code{\link[parallel]{mclapply}} for detail.
 #'
 #' @export
 #'
-gformula_med_ci <- function(object, R = 500, ...){
+gformula_med_ci <- function(object, R = 500, parallel = FALSE, ncores){
   if(as.character(object$call[[1]]) != "Gformula")
     stop("Object must be an Gformula!")
   if(!names(object$gform.data) %in% c("always", "never", "mediation"))
@@ -463,11 +464,15 @@ gformula_med_ci <- function(object, R = 500, ...){
   # Calculate proportion mediated
   out_come <- as.character(obj_call$outcome)
 
-  nde <- mean(object$gform.data$mediation[, out_come], na.rm = TRUE) -
-    mean(object$gform.data$never[, out_come], na.rm = TRUE)
+  nde <- mean(object$gform.data$mediation[, out_come]) -
+    mean(object$gform.data$never[, out_come])
 
-  nie <- mean(object$gform.data$always[, out_come], na.rm = TRUE) -
-    mean(object$gform.data$mediation[, out_come], na.rm = TRUE)
+  nie <- mean(object$gform.data$always[, out_come]) -
+    mean(object$gform.data$mediation[, out_come])
+
+  res <- c("Total Effect"   = nde + nie,
+           "Direct Effect"  = nde,
+           "Indirect Effct" = nie)
 
   prop_med <- nie/(nie + nde)
 
@@ -476,7 +481,7 @@ gformula_med_ci <- function(object, R = 500, ...){
   obj_call$verbose <- FALSE
 
   # Create bootstrap function
-  boot_func <- function(data, index){
+  boot_func <- function(data){
     dat <- data[index, ]
     obj_call$data <- substitute(dat)
     out_come <- as.character(obj_call$outcome)
@@ -492,15 +497,27 @@ gformula_med_ci <- function(object, R = 500, ...){
   }
 
   cat("Be patient, bootstrap is running...\n")
-  boot_res <- boot::boot(data = data,
-                         statistic = progressReporter(R, nBars=100, f = boot_func),
-                         R = R, ...)
+  dfm <- lapply(1:R, function(x)data[sample(1:nrow(data), nrow(data), replace = TRUE), ])
+  if(parallel){
+    boot_res <- mclapply(X = dfm, FUN = boot_func, mc.cores = ncpus)
+  }else{
+    boot_res <- lapply(dfm, boot_func)
+  }
 
-  conf <- extract_boot(boot_res, conf.method = "perc")
-  out <- list(call     = tmpcall,
-              #boot.res = boot_res,
-              confint  = conf,
-              prop_med = 100 * prop_med)
+  conf <- do.call("rbind", boot_res)
+  conf <- sapply(1:3, function(i){
+    c(quantile(conf[, i], prob=0.025),
+      quantile(conf[, i], prob=0.075))
+  })
+
+  conf <- t(conf)
+  row.names(conf) <- c("Total Effect", "Direct Effect", "Indirect Effct")
+  colnames(conf) <- c("LCL", "UCL")
+
+  out <- list(call      = tmpcall,
+              estimated = res,
+              confint   = conf,
+              prop_med  = 100 * prop_med)
   class(out) <- 'gmed_boot'
   return(out)
 }
@@ -519,7 +536,9 @@ print.gmed_boot <- function (x, digits = max(3, getOption("digits") - 3), ...){
   cat("Natural effect model\n")
   cat("with standard errors based on the non-parametric bootstrap\n---\n")
   cat("Parameter estimates:\n")
-  print(round(x$confint, digits = digits))
+  out <- cbind(x$estimated, x$confint)
+  colnames(out)[1] <- "Estimated"
+  print(round(out, digits = digits))
 
   cat(paste0("------\nProportion Mediated: ", round(x$prop_med, digits), "%"))
 }
