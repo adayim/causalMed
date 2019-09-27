@@ -4,15 +4,16 @@
 \alias{gformula_med_ci}
 \title{Calculate mediation analysis confidence interval}
 \usage{
-gformula_med_ci(object, R = 500, ...)
+gformula_med_ci(object, R = 500, parallel = FALSE, ncores)
 }
 \arguments{
 \item{object}{Object returned from Gformula function (see \code{\link[calsalMed]{Gformula}}).}
 
 \item{R}{The number of bootstrap replicates, default is 500. Same with \code{boot}, see \code{\link[boot]{boot}} for detail.}
 
-\item{...}{Other named arguments for \strong{\code{boot}}, see \code{\link[boot]{boot}} for detail.
-\strong{NOTE:} this is different from \code{boot}.}
+\item{parallel}{Parallel computing with \code{\link[parallel]{mclapply}}.}
+
+\item{ncores}{The number of cores to use. See \code{\link[parallel]{mclapply}} for detail.}
 }
 \description{
 Used to calculate confidence interval using non-parametric bootstrap methods.

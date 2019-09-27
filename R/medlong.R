@@ -355,6 +355,7 @@ monte_sim <- function(newdt, models){
 
   family <- models$family
   fit <- models$mods
+  rmse <- sqrt(mean((stats::fitted(fit) - fit$y)^2, na.rm = TRUE))
 
   # Randomg number generation for Monte Carlo simulation
   if(family == "multinomial"){
@@ -365,7 +366,8 @@ monte_sim <- function(newdt, models){
     rbinom(nrow(newdt), 1, pred)
   }else{
     pred <- predict(fit, newdata = newdt, type = "response")
-    rnorm(nrow(newdt), pred, sd(fit$residuals, na.rm = TRUE))
+    # rnorm(nrow(newdt), pred, sd(fit$residuals, na.rm = TRUE))
+    rnorm(nrow(newdt), pred, rmse)
   }
 }
 
