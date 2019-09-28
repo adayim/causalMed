@@ -72,7 +72,6 @@ Gformula <- function(data,
                      in.recode = NULL,
                      out.recode = NULL,
                      mc.sample = 10000,
-                     is.survival = FALSE,
                      verbose  = TRUE){
 
   tpcall <- match.call()
@@ -82,8 +81,9 @@ Gformula <- function(data,
   on.exit( { .Random.seed <<- old } ) # Set to it's roginal seed after exit
   set.seed(2)
 
-  cen_flag <- sapply(models, function(mods) as.numeric(mods$type == "censor"))
-  if(!all(cen_flag == 0)){
+  cen_flag  <- sapply(models, function(mods) as.numeric(mods$type == "censor"))
+  surv_flag <- sapply(models, function(mods) as.numeric(mods$type == "survival"))
+  if(!all(cen_flag == 0) | !all(surv_flag == 0)){
     is.survival <- TRUE
   }
 
@@ -151,7 +151,7 @@ Gformula <- function(data,
   res <- sapply(intervention, function(i){
     monte_g(data = df_mc, time.var = time.var, time.seq = unique(data[[time.var]]),
             models = fit_mods, intervention = i,
-            in.recode = in.recode, is.survival = is.survival,
+            in.recode = in.recode,
             out.recode = out.recode, init.recode = init.recode,
             verbose = verbose)
   }, simplify = FALSE)
@@ -190,8 +190,6 @@ Gformula <- function(data,
 #' days with a treatment or creating lagged variables. This is executed at each end
 #'  of the Monte Carlo g-formula time steps.
 #'
-#' @param is.survival Is the data survival data, defalt is FALSE.
-#'
 #' @param verbose Print intervention information during calculation.
 #'
 #' @export
@@ -200,7 +198,7 @@ monte_g <- function(data, time.seq, time.var, models,
                     intervention = NULL,
                     in.recode = NULL,
                     out.recode = NULL, init.recode = NULL,
-                    verbose = TRUE, is.survival = FALSE){
+                    verbose = TRUE){
 
   # Time varying intervention
   # if(!is.null(intervention) & length(intervention) == 1){
@@ -223,7 +221,13 @@ monte_g <- function(data, time.seq, time.var, models,
 
   # Get the position of the censor
   cen_flag <- sapply(models, function(mods) as.numeric(mods$type == "censor"))
+  surv_flag <- sapply(models, function(mods) as.numeric(mods$type == "survival"))
+  if(!all(cen_flag == 0) | !all(surv_flag == 0)){
+    is.survival <- TRUE
+  }
+
   cen_flag <- which(cen_flag == 1)
+
 
   # Get the variable name of exposure, outcome and censor
   exposure <- all.vars(formula(models[[exp_flag]]$mods)[[2]])
@@ -404,7 +408,7 @@ monte_sim <- function(newdt, models){
 #'
 #' @param type Model type. Exposure model (\code{exposure}), covariate
 #'  model (\code{covariate}), mediator model (\code{mediator}), outcome
-#'   model (\code{outcome}) or censoring model (\code{censor})
+#'   model (\code{outcome}), mediator model (\code{survival}) or censoring model (\code{censor})
 #'
 #' @import nnet
 #'
@@ -415,7 +419,8 @@ spec_model <- function(formula,
                        family   = "gaussian",
                        order,
                        #recode   = NULL,
-                       type     = c("exposure", "covariate", "mediator", "outcome", "censor")){
+                       type     = c("exposure", "covariate", "mediator",
+                                    "outcome", "censor", "survival")){
 
   tmpcall <- match.call()
 
