@@ -70,6 +70,7 @@ Gformula <- function(data,
                      in.recode = NULL,
                      out.recode = NULL,
                      mc.sample = 10000,
+                     is.survival = FALSE,
                      verbose  = TRUE){
 
   tpcall <- match.call()
@@ -79,12 +80,17 @@ Gformula <- function(data,
   on.exit( { .Random.seed <<- old } ) # Set to it's roginal seed after exit
   set.seed(2)
 
+  cen_flag <- sapply(models, function(mods) as.numeric(mods$type == "censor"))
+  if(!all(cen_flag == 0)){
+    is.survival <- TRUE
+  }
+
   if(!all.equal(sort(unique(na.omit(data[[exposure]]))), c(0, 1)))
     stop('Only binary treatments/exposures are currently implemented, and must be set to 0 and 1.')
 
-  if(!all.equal(sort(unique(na.omit(data[[outcome]]))), c(0, 1)))
+  if(is.survival & !all.equal(sort(unique(na.omit(data[[outcome]]))), c(0, 1)))
     # TODO: competing risk
-    stop('Only binary outcomes are currently supported, and must be set to 0 and 1.')
+    stop('Only binary outcomes for survival are currently supported, and must be set to 0 and 1.')
 
   # TODO: weights
   # if(!is.null(weights))
@@ -143,7 +149,7 @@ Gformula <- function(data,
   res <- sapply(intervention, function(i){
     monte_g(data = df_mc, time.var = time.var, time.seq = unique(data[[time.var]]),
             models = fit_mods, intervention = i,
-            in.recode = in.recode,
+            in.recode = in.recode, is.survival = is.survival,
             out.recode = out.recode, init.recode = init.recode,
             verbose = verbose)
   }, simplify = FALSE)
@@ -190,7 +196,7 @@ monte_g <- function(data, time.seq, time.var, models,
                     intervention = NULL,
                     in.recode = NULL,
                     out.recode = NULL, init.recode = NULL,
-                    verbose = TRUE){
+                    verbose = TRUE, is.survival = FALSE){
 
   # Time varying intervention
   # if(!is.null(intervention) & length(intervention) == 1){
@@ -295,43 +301,47 @@ monte_g <- function(data, time.seq, time.var, models,
       }
     }
 
-    if(!is.null(intervention) & cen_flag != 0){
-      dat_y[[censor]] <- 0
-    }
-
-    # If censored outcome equals to 0
-    if(cen_flag != 0){
-      dat_y[[outcome]] <- ifelse(dat_y[[censor]] == 1, 0, dat_y[[outcome]])
-    }
-
-    # Output censoring and death, only the not intervened have censoring
-    if(t == min_time){
-      if(cen_flag != 0){
-        out_y <- dat_y[dat_y[[outcome]] == 1 | dat_y[[censor]] == 1, ]
-      }else{
-        out_y <- dat_y[dat_y[[outcome]] == 1, ]
+    if(is.survival){
+      if(!is.null(intervention) & cen_flag != 0){
+        dat_y[[censor]] <- 0
       }
 
-    }else{
+      # If censored outcome equals to 0
       if(cen_flag != 0){
-        out_y <- rbind(out_y, dat_y[dat_y[[outcome]] == 1 | dat_y[[censor]] == 1, ])
-      }else{
-        out_y <- rbind(out_y, dat_y[dat_y[[outcome]] == 1, ])
+        dat_y[[outcome]] <- ifelse(dat_y[[censor]] == 1, 0, dat_y[[outcome]])
       }
-    }
 
-    # loop not censored and dead, only the not intervened have censoring
-    if(cen_flag != 0){
-      dat_y <- dat_y[dat_y[[outcome]] != 1 & dat_y[[censor]] != 1, ]
+      # Output censoring and death, only the not intervened have censoring
+      if(t == min_time){
+        if(cen_flag != 0){
+          out_y <- dat_y[dat_y[[outcome]] == 1 | dat_y[[censor]] == 1, ]
+        }else{
+          out_y <- dat_y[dat_y[[outcome]] == 1, ]
+        }
+
+      }else{
+        if(cen_flag != 0){
+          out_y <- rbind(out_y, dat_y[dat_y[[outcome]] == 1 | dat_y[[censor]] == 1, ])
+        }else{
+          out_y <- rbind(out_y, dat_y[dat_y[[outcome]] == 1, ])
+        }
+      }
+
+      # loop not censored and dead, only the not intervened have censoring
+      if(cen_flag != 0){
+        dat_y <- dat_y[dat_y[[outcome]] != 1 & dat_y[[censor]] != 1, ]
+      }else{
+        dat_y <- dat_y[dat_y[[outcome]] != 1, ]
+      }
+
+      # if loop ends
+      if(nrow(dat_y) == 0)
+        break
+      if(t == max_time){
+        out_y <- rbind(out_y, dat_y)
+      }
     }else{
-      dat_y <- dat_y[dat_y[[outcome]] != 1, ]
-    }
-
-    # if loop ends
-    if(nrow(dat_y) == 0)
-      break
-    if(t == max_time){
-      out_y <- rbind(out_y, dat_y)
+      out_y <- dat_y
     }
   }
   # loop ends here
