@@ -42,7 +42,9 @@
 #' end of the Monte Carlo loop. Needed for operations like counting the number of
 #' days with a treatment or creating lagged variables. This is executed at each end
 #'  of the Monte Carlo g-formula time steps.
-
+#'
+#'  @param is.survival Is the data survival data, defalt is FALSE.
+#'
 #' @param mc.sample Sample size of Monte Carlo simulation.
 #'
 #' @param verbose Print intervention information during calculation.
@@ -187,6 +189,8 @@ Gformula <- function(data,
 #' end of the Monte Carlo loop. Needed for operations like counting the number of
 #' days with a treatment or creating lagged variables. This is executed at each end
 #'  of the Monte Carlo g-formula time steps.
+#'
+#' @param is.survival Is the data survival data, defalt is FALSE.
 #'
 #' @param verbose Print intervention information during calculation.
 #'
