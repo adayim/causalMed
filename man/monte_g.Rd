@@ -6,7 +6,7 @@
 \usage{
 monte_g(data, time.seq, time.var, models, intervention = NULL,
   in.recode = NULL, out.recode = NULL, init.recode = NULL,
-  verbose = TRUE, is.survival = FALSE)
+  verbose = TRUE)
 }
 \arguments{
 \item{data}{a data frame in which to look for variables with which to predict.}
@@ -26,9 +26,7 @@ Carlo loop starts. Needed to do any kind of functional forms for entry times.
 \item{out.recode}{optional, On the fly recoding of variables done at the
 end of the Monte Carlo loop. Needed for operations like counting the number of
 days with a treatment or creating lagged variables. This is executed at each end
- of the Monte Carlo g-formula time steps.
-
- @param is.survival Is the data survival data, defalt is FALSE.}
+ of the Monte Carlo g-formula time steps.}
 
 \item{init.recode}{optional, recoding of variables done at the
 begaining of the Monte Carlo loop. Needed for operations initalize baseline variables.

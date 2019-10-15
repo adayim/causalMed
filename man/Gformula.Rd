@@ -6,8 +6,7 @@
 \usage{
 Gformula(data, id.var, base.vars, exposure, outcome, time.var, models,
   intervention = NULL, init.recode = NULL, in.recode = NULL,
-  out.recode = NULL, mc.sample = 10000, is.survival = FALSE,
-  verbose = TRUE)
+  out.recode = NULL, mc.sample = 10000, verbose = TRUE)
 }
 \arguments{
 \item{data}{Data set to be sued}

@@ -5,7 +5,8 @@
 \title{Model specification for G-formula}
 \usage{
 spec_model(formula, subset = NULL, family = "gaussian", order,
-  type = c("exposure", "covariate", "mediator", "outcome", "censor"))
+  type = c("exposure", "covariate", "mediator", "outcome", "censor",
+  "survival"))
 }
 \arguments{
 \item{formula}{Formula for specified models passed to \code{\link[stats]{glm}}.
@@ -21,7 +22,7 @@ to be used in the \code{glm} model.}
 
 \item{type}{Model type. Exposure model (\code{exposure}), covariate
 model (\code{covariate}), mediator model (\code{mediator}), outcome
- model (\code{outcome}) or censoring model (\code{censor})}
+ model (\code{outcome}), mediator model (\code{survival}) or censoring model (\code{censor})}
 }
 \description{
 Add a specified regression model for the exposure. This is used for natural course estimation
