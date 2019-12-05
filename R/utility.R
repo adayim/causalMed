@@ -112,6 +112,25 @@ extract_boot <- function(x,
   ret
 }
 
+bound <- function(obj, trunc = 0.01) {
+  if(!is.matrix(obj)){
+    quant1 <- quantile(obj, 0 + trunc, na.rm = TRUE)
+    quant2 <- quantile(obj, 1 - trunc, na.rm = TRUE)
+    obj[obj <= quant1] <- quant1
+    obj[obj >  quant2] <- quant2
+    obj
+  }else{
+    apply(obj, 2, function(x){
+      quant1 <- quantile(x, 0 + trunc, na.rm = TRUE)
+      quant2 <- quantile(x, 1 - trunc, na.rm = TRUE)
+      x[x <= quant1] <- quant1
+      x[x >  quant2] <- quant2
+      x
+    })
+  }
+}
+
+
 #' Higher order function to display progress.
 #'
 #' @param total Number of total runs in bootstrap

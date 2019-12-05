@@ -77,9 +77,8 @@ Gformula <- function(data,
   tpcall <- match.call()
 
   # Setting seeds
-  old <- .Random.seed
-  on.exit( { .Random.seed <<- old } ) # Set to it's roginal seed after exit
-  set.seed(2)
+  if (!exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)) runif(1)
+  seed <- get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
 
   cen_flag  <- sapply(models, function(mods) as.numeric(mods$type == "censor"))
   surv_flag <- sapply(models, function(mods) as.numeric(mods$type == "survival"))
@@ -465,19 +464,35 @@ spec_model <- function(formula,
 #'
 #' @param R The number of bootstrap replicates, default is 500. Same with \code{boot}, see \code{\link[boot]{boot}} for detail.
 #'
-#' @param parallel Parallel computing with \code{\link[parallel]{mclapply}}.
+#' @param parallel If parallel operation to be used, the default is FALSE.
 #'
-#' @param ncores The number of cores to use. See \code{\link[parallel]{mclapply}} for detail.
+#' @param ncores integer: number of processes to be used in parallel operation: typically one would chose this to the number of available CPUs.
 #'
 #' @export
 #'
-gformula_med_ci <- function(object, R = 500, parallel = FALSE, ncores){
+gformula_med_ci <- function(object, R = 500,
+                            parallel = FALSE,
+                            ncpus = 1L){
+
   if(as.character(object$call[[1]]) != "Gformula")
     stop("Object must be an Gformula!")
   if(!names(object$gform.data) %in% c("always", "never", "mediation"))
     stop("Only mediation analysis supported!")
 
   tmpcall <- match.call()
+
+  # Check parallel
+  if (parallel && ncpus > 1L) {
+    if (.Platform$OS.type != "windows") {
+      have_mc <- TRUE
+    }else{
+      have_mc <- FALSE
+    }
+    loadNamespace("parallel") # get this out of the way before recording seed
+  }
+
+  if (!exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)) runif(1)
+  seed <- get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
 
   obj_call <- object$call
 
@@ -510,6 +525,7 @@ gformula_med_ci <- function(object, R = 500, parallel = FALSE, ncores){
       mean(out$gform.data$never[, out_come], na.rm = TRUE)
     nie <- mean(out$gform.data$always[, out_come], na.rm = TRUE) -
       mean(out$gform.data$mediation[, out_come], na.rm = TRUE)
+
     res <- c("Total Effect"   = nde + nie,
              "Direct Effect"  = nde,
              "Indirect Effct" = nie)
@@ -518,11 +534,26 @@ gformula_med_ci <- function(object, R = 500, parallel = FALSE, ncores){
 
   cat("Be patient, bootstrap is running...\n")
   dfm <- lapply(1:R, function(x)data[sample(1:nrow(data), nrow(data), replace = TRUE), ])
-  if(parallel){
-    boot_res <- mclapply(X = dfm, FUN = boot_func, mc.cores = ncpus)
-  }else{
-    boot_res <- lapply(dfm, boot_func)
-  }
+
+  boot_res <- if (parallel && ncpus > 1L) {
+    if (have_mc) {
+      parallel::mclapply(dfm, boot_func, mc.cores = ncpus)
+    } else {
+      list(...) # evaluate any promises
+      cl <- parallel::makePSOCKcluster(rep("localhost", ncpus))
+      if(RNGkind()[1L] == "L'Ecuyer-CMRG")
+        parallel::clusterSetRNGStream(cl)
+      res <- parallel::parLapply(cl, dfm, boot_func)
+      parallel::stopCluster(cl)
+      res
+    }
+  } else lapply(dfm, boot_func)
+
+  # if(parallel){
+  #   boot_res <- mclapply(X = dfm, FUN = boot_func, mc.cores = ncpus)
+  # }else{
+  #   boot_res <- lapply(dfm, boot_func)
+  # }
 
   conf <- do.call("rbind", boot_res)
   conf <- sapply(1:3, function(i){

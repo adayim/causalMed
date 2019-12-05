@@ -10,18 +10,19 @@ dt$C <- ifelse(is.na(dt$C), NA,
 
 source("R/iptw.R")
 # devtools::load_all()
-debug(calc_iptw)
-res <- calc_iptw(data = dt,
-                 id.vars = "id",
-                 time.var = "time",
-                 baseline.vars = c("W1", "W2"),
-                 exposure.model = "A ~ W2 + lag_A + lag_LZ",
-                 mediator.model = "Z ~ W2 + A + LA",
-                 mediator.family = "binomial",
-                 exposure.vars = c("A", "lag_A"),
-                 outcome = "Y",
-                 censor.model = "C ~ W2 + lag_A +lag_LZ",
-                 bound.value = c(0.01, 0.99))
+debug(iptw_med)
+res <- iptw_med(data = dt,
+                id.vars = "id",
+                time.var = "time",
+                baseline.vars = c("W1", "W2"),
+                exposure.model = "A ~ W2 + lag_A + lag_LZ",
+                mediator.model = "Z ~ W2 + A + LA",
+                mediator.family = "binomial",
+                exposure.vars = c("A", "lag_A"),
+                outcome = "Y",
+                censor.model = "C ~ W2 + lag_A +lag_LZ",
+                bound.value = 0.01,
+                R = 10)
 
 
 

@@ -1,4 +1,72 @@
 
+iptw_med <- function(data,
+                     id.vars,
+                     time.var,
+                     baseline.vars,
+                     exposure.model,
+                     exposure.vars,
+                     mediator.model,
+                     mediator.family,
+                     outcome,
+                     is.expL      = TRUE,
+                     censor.model = NULL,
+                     bound.value  = 0,
+                     R            = 500){
+
+  tpcall <- match.call()
+
+  args <- mget(names(formals()),sys.frame(sys.nframe()))
+
+  if(length(bound.value) > 1)
+    stop("bound.value should be length of one!")
+  if(bound.value <0 | bound.value > 0.5)
+    stop("bound.value should be between 0 and 0.5!")
+
+  id.vars <- substitute(id.vars)
+  time.var <- substitute(time.var)
+  outcome <- substitute(outcome)
+
+  dfm <- data.table(data)
+  dfm[order(get(time.var)), cum_Y := get(outcome) + shift(get(outcome), fill = 0), by = id.vars]
+
+  splited <- split(dfm, f = dfm[[id.vars]])
+
+  sample_id <- unique(dfm[[id.vars]])
+
+  args$data <- substitute(sample_id)
+
+  bootFunc <- function(data, index, ...){
+    smp_id <- data[index]
+    samp_df <- lapply(seq_along(smp_id), function(x){
+      res <- splited[[as.character(smp_id[x])]]
+      res$newID <- x
+      return(res)
+    })
+    samp_df <- do.call(rbind, samp_df)
+
+    cl <- list(...)
+    cl$data <- substitute(samp_df)
+    cl$id.vars <- "newID"
+    cl$R <- NULL
+    res <- do.call(calc_iptw, cl)
+    res$iptw.med
+  }
+  boot.res <- do.call(boot::boot, c(list(statistic = bootFunc), args))
+
+  cls <- tpcall
+  cls[[1]] <- substitute(calc_iptw)
+  cls$data <- substitute(dfm)
+  cls$R <- NULL
+
+  out <- list(call = tpcall,
+              boot.res = list(boot.res),
+              confint = extract_boot(boot.res))
+
+  out <- append(out, res)
+  class(out) <- "iptw_med"
+  return(out)
+}
+
 
 ################################
 # calc_iptw()
@@ -36,62 +104,12 @@ calc_iptw <- function(data,
                       censor.model = NULL,
                       bound.value = 0){
 
-  tpcall <- match.call()
-
-  if(bound.value <0 | bound.value > 0.5)
-    stop("bound.value should be between 0 and 0.5!")
-
   id.vars <- substitute(id.vars)
   time.var <- substitute(time.var)
   outcome <- substitute(outcome)
 
-  # Select all variables
-  all_vars <- unique(c(id.vars, baseline.vars, time.var,
-                       all.vars(as.formula(exposure.model)),
-                       all.vars(as.formula(mediator.model)),
-                       all.vars(as.formula(censor.model)),
-                       outcome))
-
-  # Fill data, let all subjects has same time.
-  # base_dt <- data.table(data)
-  # base_dt <- base_dt[, .(max_time = max(get(time.var), na.rm = TRUE)),
-  #                    by = c(id.vars, baseline.vars)]
-  # base_dt <- unique(base_dt[, c(id.vars, baseline.vars, "max_time"), with = F])
-  #
-  # dfm <- expand.grid(id = unique(data[[id.vars]]),
-  #                    sort(unique(data[[time.var]])))
-  # colnames(dfm)[2] <- time.var
-  #
-  # dfm <- merge(dfm,
-  #              base_dt,
-  #              by = id.vars, all = TRUE)
-  #
-  # dfm <- merge(dfm, data, by = c(id.vars, time.var, baseline.vars), all = TRUE)
-  #
-  # dfm <- data.table::data.table(dfm[, c(all_vars, "max_time")])
-  # data.table::setkeyv(dfm, c(id.vars, time.var))
-  #
-  # # Censor indication
-  # dfm[[censor]] <- as.numeric(dfm[[censor]])
-  # dfm[[outcome]] <- as.numeric(dfm[[outcome]])
-  #
-  # dfm[, c(censor, outcome) := list(ifelse(!is.na(get(outcome)), 0,
-  #                                         ifelse(max(get(outcome), na.rm = TRUE) == 0 & is.na(get(outcome)),
-  #                                                1, NA)),
-  #                                  # If outcome then carry on
-  #                                  ifelse(is.na(get(outcome)) & max(get(outcome), na.rm = TRUE) == 1,
-  #                                         1, get(outcome))),
-  #     by = id.vars]
-  #
-  # # Keep as missing for those before censor or outcome.
-  # dfm[, c(censor, outcome) := list(ifelse(get(time.var) < max_time & is.na(get(censor)),
-  #                                         NA, get(censor)),
-  #                                  ifelse(get(time.var) < max_time & is.na(get(outcome)),
-  #                                         NA, get(outcome)))]
-  # # Outcome indication
-  # dfm <- data.table(as.data.frame(dfm))
-  # dfm[order(get(time.var)), cum_Y := get(outcome) + shift(get(outcome), fill = 0), by = id.vars]
   dfm <- data.table(data)
+  dfm <- dfm[order(get(id.vars)), ]
 
   fit_mods <- lapply(sort(unique(data[[time.var]])), function(t){
     dt <- dfm[get(time.var) == t, ]
@@ -133,16 +151,16 @@ calc_iptw <- function(data,
 
   final_node <- length(unique(data[[time.var]]))
 
-  cum_a0 <- lapply(fit_mods, function(x)x[, 1:2])
-  cum_a0 <- do.call("cbind", cum_a0)
-  cum_a0 <- bound(t(apply(cum_a0, 1, cumprod)), bound.value)
+  calc_prod <- function(obj, pos){
+    res <- lapply(obj, function(x)x[, pos])
+    res <- do.call("cbind", res)
+    bound(t(apply(res, 1, cumprod)), bound.value)
+  }
 
-  cum_a1 <- lapply(fit_mods, function(x)x[, 3:4])
-  cum_a1 <- do.call("cbind", cum_a1)
-  cum_a1 <- bound(t(apply(cum_a1, 1, cumprod)), bound.value)
-
-  cum_m0 <-  bound(t(apply(sapply(fit_mods, function(x)x[, 5]), 1, cumprod)), bound.value)
-  cum_m1 <-  bound(t(apply(sapply(fit_mods, function(x)x[, 6]), 1, cumprod)), bound.value)
+  cum_a0 <- calc_prod(fit_mods, 1:2)
+  cum_a1 <- calc_prod(fit_mods, 3:4)
+  cum_m0 <-  calc_prod(fit_mods, 5)
+  cum_m1 <-  calc_prod(fit_mods, 6)
 
   if(is.expL){
     a_0 <- cum_a0[, 2*final_node]
@@ -159,14 +177,19 @@ calc_iptw <- function(data,
 
   dt <- dfm[get(time.var) == max(unique(data[[time.var]])), ]
   dt <- dt[order(get(id.vars)), ]
-  index1 <- dt[[exposure]] == 1 & dt[[censor]] == 1
-  index1[is.na(index1)] <- FALSE
-  index0 <- dt[[exposure]] == 0 & dt[[censor]] == 1
-  index0[is.na(index0)] <- FALSE
 
-  phi11 <- (m_1/m_1)/a_1
+  #Returns the intervention match for the closest A node.
+  #It will carry forward from the last A point if not available at the next
+  interv1 <- calc_match(dfm, 1, "A")
+  interv0 <- calc_match(dfm, 0, "A")
+  #Check censoring for the closest
+  uncens <- calc_match(dfm, 1, names(dfm)[grep('C_',names(dfm))], is_censor = TRUE)
+  indx1 <- interv1 &  uncens[, max_time]
+  indx0 <- interv0 &  uncens[, max_time]
+
+  phi11 <- 1/a_1
   phi10 <- (m_0/m_1)/a_1
-  phi00 <- (m_0/m_0)/a_0
+  phi00 <- 1/a_0
 
   phi11 <- weighted.mean(dt[index1, get(outcome)], phi11[index1], na.rm = TRUE)
   phi10 <- weighted.mean(dt[index1, get(outcome)], phi10[index1], na.rm = TRUE)
@@ -175,8 +198,7 @@ calc_iptw <- function(data,
   nie <- phi11 - phi10
   nde <- phi10 - phi00
 
-  list(call = tpcall,
-       weights = list(cum.m0 = cum_m0,
+  list(weights = list(cum.m0 = cum_m0,
                       cum.m1 = cum_m1,
                       cum.a0 = cum_a0,
                       cum.a1 = cum_a1),
@@ -186,6 +208,45 @@ calc_iptw <- function(data,
                     "Indirect effect" = nie,
                     "Direct effect"   = nde))
 
+}
+
+################################
+# calc_match()
+################################
+
+#' calc_match
+#'
+#' Determine which patients are uncensored or treatment equals to some value.
+#' The none-missing value will be carried forward.
+#'
+#' @param data Dataset.
+#' @param vals Values to be used to determine.
+#' @param nodes Varaibles to be used to determine the value.
+#' @param is_censor Is the nodes is censoring nodes.
+#'
+#' @return Returns vector of [numDataRows x 1] I(nodes = vals) from
+#' nodes[1] to the nodes just before pernodes.
+#'
+
+calc_match <- function(data, vals, nodes, is_censor = FALSE){
+  calc <- matrix(nrow=nrow(data), ncol=length(nodes))
+  cum_calc <- rep(TRUE, nrow(data))
+  
+  if(is_censor & length(nodes) == 1){
+    return(rep(TRUE, nrow(data)))
+  }else{
+    if(length(nodes) == 1){
+      res <- data[[nodes]] == vals
+      res[is.na(res)] <- FALSE
+      return(res)
+    }else{
+      df <- t(apply(data[, nodes], 1, function(x){
+        v <- !is.na(x)
+        c(NA, x[v])[cumsum(v)+1]
+      }))
+      return(df == vals)
+    }
+  }
 }
 
 
@@ -263,10 +324,16 @@ fit_and_predict <- function(data, a_bar = NULL, exposure.var, family, mod, is_af
 
 }
 
-bound <- function(x, bounds) {
-  bounds <- c(bounds, 1 - bounds)
-  stopifnot(length(bounds) == 2 && !anyNA(bounds))
-  x[x < min(bounds)] <- min(bounds)
-  x[x > max(bounds)] <- max(bounds)
-  return(x)
+#' @method print print.iptw_med
+#'
+#' @export
+#'
+print.iptw_med <- function (x, digits = max(3, getOption("digits") - 3), ...){
+  cat("Call:\n")
+  print(x$call)
+
+  cat("------\n")
+  cat("with standard errors based on the non-parametric bootstrap\n---\n")
+  cat("Parameter estimates:\n")
+  print(round(x$confint, digits = digits))
 }
