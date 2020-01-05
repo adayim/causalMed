@@ -128,14 +128,37 @@ Gformula <- function(data,
 
       mods <- models[[indx_mod]]
       ord <- mods$order
-      mods$call$data <- substitute(data)
 
-      fit_mods[[ord]] <- list(mods     = eval(mods$call),
-                              recodes  = mods$recode,
-                              subset   = mods$subset,
-                              family   = mods$family,
-                              type     = mods$type)
+      if(mods$family == "lcmm"){
+        if(!"class" %in% names(data))
+          stop("Variable 'class' indicating object membership must be included in the data if lcmm model provided!")
 
+        if(!"class" %in% base.vars)
+          base.vars <- c(base.vars, "class")
+
+        rsp_vars <- all.vars(mods$call$fixed[[2]])
+
+        # Observed values
+        val_ran <- sapply(rsp_vars, function(x)unique(na.omit(data[[x]])))
+
+        fit_mods[[ord]] <- list(mods     = mods$call,
+                                # recodes  = mods$recode,
+                                subset   = mods$subset,
+                                family   = mods$family,
+                                type     = mods$type,
+                                val_ran  = val_ran)
+      }else{
+        mods$call$data <- substitute(data)
+
+        rsp_vars <- all.vars(formula(mods$call)[[2]])
+
+        fit_mods[[ord]] <- list(mods     = eval(mods$call),
+                                # recodes  = mods$recode,
+                                subset   = mods$subset,
+                                family   = mods$family,
+                                type     = mods$type,
+                                val_ran  = unique(na.omit(data[[rsp_vars]]))) # Observed values
+      }
     }
   }
 
@@ -279,10 +302,15 @@ monte_g <- function(data, time.seq, time.var, models,
 
     # Loop through variables
     for(indx in seq_along(models)){
-      resp_var <- all.vars(formula(models[[indx]]$mods)[[2]])
+      if(models[[indx]]$family == "lcmm"){
+        resp_var <- all.vars(models[[indx]]$mods$call$fixed[[2]])
 
-      if(resp_var == exposure & !is.null(intervention))
-        next   # Skip if variable is treatment
+      }else{
+        resp_var <- all.vars(formula(models[[indx]]$mods)[[2]])
+
+        if(resp_var == exposure & !is.null(intervention))
+          next   # Skip if variable is treatment
+      }
 
       # If condition has been defined
       if(!is.null(models[[indx]]$subset)){
@@ -293,13 +321,19 @@ monte_g <- function(data, time.seq, time.var, models,
       if(sum(cond) != 0){
         if(med_flag == indx){
           # Set the mediator's intervention to 0
-          dat_y[[resp_var]][cond] <- monte_sim(within(dat_y[cond,  ], eval(interv0)),
-                                               models[[indx]])
+          if(models[[indx]]$family == "lcmm"){
+            dat_y <- monte_sim.lcmm(within(dat_y[cond,  ], eval(interv0)),
+                                    models[[indx]], time.var = time.var)
+
+          }else{
+            dat_y[[resp_var]][cond] <- monte_sim(within(dat_y[cond,  ], eval(interv0)),
+                                                 models[[indx]])
+          }
+
         }else{
           dat_y[[resp_var]][cond] <- monte_sim(dat_y[cond, ], models[[indx]])
         }
       }
-
     }
 
     if(!is.null(out.recode)){
@@ -383,9 +417,54 @@ monte_sim <- function(newdt, models){
     rbinom(nrow(newdt), 1, pred)
   }else{
     pred <- predict(fit, newdata = newdt, type = "response")
-    # rnorm(nrow(newdt), pred, sd(fit$residuals, na.rm = TRUE))
-    rnorm(nrow(newdt), pred, rmse)
+    out <- rnorm(nrow(newdt), pred, rmse)
+
+    # Limit the predicted values within observed range.
+    out <- pmax(out, min(models$val_ran))
+    out <- pmin(out, max(models$val_ran))
+    out
   }
+}
+
+monte_sim.lcmm <- function(newdt, models, time.var){
+
+  fit <- models$mods
+  resp_vars <- all.vars(fit$call$fixed[[2]])
+
+  pred <- predictY(fit, newdata = newdt, draws = FALSE, var.time = time.var)$pred
+
+  if(length(resp_vars) == 1){
+    for(i in 1:ncol(pred)){
+      newdt[newdt$class == i, resp_vars] <- pred[newdt$class == i, i]
+    }
+
+    newdt[[resp_vars]] <- newdt[[resp_vars]] + rnorm(length(newdt[[resp_vars]]))*fit$best["stderr"]
+
+    # Limit the predicted values within observed range.
+    newdt[[resp_vars]] <- pmax(newdt[[resp_vars]], min(models$val_ran[[resp_vars]]))
+    newdt[[resp_vars]] <- pmin(newdt[[resp_vars]], max(models$val_ran[[resp_vars]]))
+
+  }else{
+    for(vars in resp_vars){
+      for(i in 2:ncol(pred)){
+        newdt[newdt$class == i-1, vars] <- pred[pred$Yname == vars & newdt$class == i-1, i]
+      }
+    }
+
+    std_err <- fit$best[grepl("std.err", names(fit$best))]
+
+    for(i in seq_along(resp_vars)){
+      newdt[[resp_vars[i]]] <- newdt[[resp_vars[i]]] +
+        rnorm(length(newdt[[resp_vars[i]]]))*std_err[i]
+
+      # Limit the predicted values within observed range.
+      newdt[[resp_vars[i]]] <- pmax(newdt[[resp_vars[i]]], min(models$val_ran[[resp_vars[i]]]))
+      newdt[[resp_vars[i]]] <- pmin(newdt[[resp_vars[i]]], max(models$val_ran[[resp_vars[i]]]))
+    }
+  }
+
+  return(newdt)
+
 }
 
 #' Model specification for G-formula
@@ -423,33 +502,47 @@ spec_model <- function(formula,
 
   tmpcall <- match.call()
 
-  if (!tmpcall$family %in% c("binomial", "multinomial", "gaussian"))
-    stop("No valid family specified (\"binomial\", \"multinomial\", \"gaussian\")")
-
   if(tmpcall$type %in% c("exposure", "outcome", "censor") & tmpcall$family != "binomial")
     stop("Only binomial family supported for (\"exposure\", \"outcome\", \"censor\")")
-
-  # if(!is.null(tmpcall$recode) & !is.list(tmpcall$recode))
-  #   stop("Recode must be provided as list!")
 
   if(!is.numeric(tmpcall$order))
     stop("Order must be numeric!")
 
-  if(family == "multinomial"){
-    out_model <- quote(multinom())
-  }else{
-    out_model <- quote(glm())
-    out_model$family <- substitute(family)
-  }
-  out_model$formula <- substitute(formula)
-  out_model$subset  <- substitute(subset)
+  if(tmpcall$type != "mediator" & class(tmpcall$formula) %in% c("lcmm", "hlme", "multlcmm"))
+    stop("LCMM object only supported for mediator model!")
 
-  out <- list(call   = out_model,
-              subset = tmpcall$subset,
-              order  = tmpcall$order,
-              type   = tmpcall$type,
-              #recode = tmpcall$recode,
-              family = tmpcall$family)
+  # For LCMM models
+  if(class(tmpcall$formula) %in% c("lcmm", "hlme", "multlcmm")){
+    out <- list(call   = tmpcall$formula,
+                subset = tmpcall$formula$subset,
+                order  = tmpcall$order,
+                type   = tmpcall$type,
+                #recode = tmpcall$recode,
+                family = "lcmm")
+  }else{
+    # For none LCMM models
+    if (!tmpcall$family %in% c("binomial", "multinomial", "gaussian"))
+      stop("No valid family specified (\"binomial\", \"multinomial\", \"gaussian\")")
+
+    # if(!is.null(tmpcall$recode) & !is.list(tmpcall$recode))
+    #   stop("Recode must be provided as list!")
+
+    if(family == "multinomial"){
+      out_model <- quote(multinom())
+    }else{
+      out_model <- quote(glm())
+      out_model$family <- substitute(family)
+    }
+    out_model$formula <- substitute(formula)
+    out_model$subset  <- substitute(subset)
+
+    out <- list(call   = out_model,
+                subset = tmpcall$subset,
+                order  = tmpcall$order,
+                type   = tmpcall$type,
+                #recode = tmpcall$recode,
+                family = tmpcall$family)
+  }
 
   class(out) <- "gmodel"
 
@@ -496,24 +589,41 @@ gformula_med_ci <- function(object, R = 500,
 
   obj_call <- object$call
 
-  # Calculate proportion mediated
-  out_come <- as.character(obj_call$outcome)
-
-  nde <- mean(object$gform.data$mediation[, out_come]) -
-    mean(object$gform.data$never[, out_come])
-
-  nie <- mean(object$gform.data$always[, out_come]) -
-    mean(object$gform.data$mediation[, out_come])
-
-  res <- c("Total Effect"   = nde + nie,
-           "Direct Effect"  = nde,
-           "Indirect Effct" = nie)
-
-  prop_med <- nie/(nie + nde)
-
   # Get original data from call
   data <- eval(obj_call$data)
   obj_call$verbose <- FALSE
+
+  # Calculate proportion mediated
+  out_come <- as.character(obj_call$outcome)
+
+  if("class" %in% obj_call$base.vars){
+    out.res <- lapply(unique(data[["class"]]), function(i){
+      med <- mean(object$gform.data$mediation[object$gform.data$mediation$class == i, out_come])
+      y11 <- mean(object$gform.data$always[object$gform.data$always$class == i, out_come])
+      y00 <- mean(object$gform.data$never[object$gform.data$never$class == i, out_come])
+      nde <- med - y00
+      nie <- y11 - med
+
+      c("Class"          = i,
+        "Total Effect"   = nde + nie,
+        "Direct Effect"  = nde,
+        "Indirect Effct" = nie)
+    })
+    out.res <- do.call("rbind", out.res)
+
+  }else{
+    nde <- mean(object$gform.data$mediation[, out_come]) -
+      mean(object$gform.data$never[, out_come])
+
+    nie <- mean(object$gform.data$always[, out_come]) -
+      mean(object$gform.data$mediation[, out_come])
+
+    out.res <- c("Total Effect"   = nde + nie,
+                 "Direct Effect"  = nde,
+                 "Indirect Effct" = nie)
+
+    # prop_med <- nie/(nie + nde)
+  }
 
   # Create bootstrap function
   boot_func <- function(data){
@@ -521,14 +631,33 @@ gformula_med_ci <- function(object, R = 500,
     obj_call$data <- substitute(dat)
     out_come <- as.character(obj_call$outcome)
     out <- eval(obj_call)
-    nde <- mean(out$gform.data$mediation[, out_come], na.rm = TRUE) -
-      mean(out$gform.data$never[, out_come], na.rm = TRUE)
-    nie <- mean(out$gform.data$always[, out_come], na.rm = TRUE) -
-      mean(out$gform.data$mediation[, out_come], na.rm = TRUE)
 
-    res <- c("Total Effect"   = nde + nie,
-             "Direct Effect"  = nde,
-             "Indirect Effct" = nie)
+    if("class" %in% obj_call$base.vars){
+      res <- lapply(unique(data[["class"]]), function(i){
+        med <- mean(object$gform.data$mediation[object$gform.data$mediation$class == i, out_come])
+        y11 <- mean(object$gform.data$always[object$gform.data$always$class == i, out_come])
+        y00 <- mean(object$gform.data$never[object$gform.data$never$class == i, out_come])
+        nde <- med - y00
+        nie <- y11 - med
+
+        c("Class"          = i,
+          "Total Effect"   = nde + nie,
+          "Direct Effect"  = nde,
+          "Indirect Effct" = nie)
+      })
+      res <- do.call("rbind", res)
+
+    }else{
+      nde <- mean(object$gform.data$mediation[, out_come]) -
+        mean(object$gform.data$never[, out_come])
+
+      nie <- mean(object$gform.data$always[, out_come]) -
+        mean(object$gform.data$mediation[, out_come])
+
+      res <- c("Total Effect"   = nde + nie,
+               "Direct Effect"  = nde,
+               "Indirect Effct" = nie)
+    }
     return(res)
   }
 
@@ -549,26 +678,37 @@ gformula_med_ci <- function(object, R = 500,
     }
   } else lapply(dfm, boot_func)
 
-  # if(parallel){
-  #   boot_res <- mclapply(X = dfm, FUN = boot_func, mc.cores = ncpus)
-  # }else{
-  #   boot_res <- lapply(dfm, boot_func)
-  # }
-
   conf <- do.call("rbind", boot_res)
-  conf <- sapply(1:3, function(i){
-    c(quantile(conf[, i], prob=0.025),
-      quantile(conf[, i], prob=0.075))
-  })
 
-  conf <- t(conf)
-  row.names(conf) <- c("Total Effect", "Direct Effect", "Indirect Effct")
-  colnames(conf) <- c("LCL", "UCL")
+  if("class" %in% obj_call$base.vars){
+    conf <- lapply(unique(data[["class"]]), function(j){
+      conf <- sapply(2:4, function(i){
+        c(quantile(conf[conf$Class== j, i], prob=0.025),
+          quantile(conf[conf$Class== j, i], prob=0.075))
+      })
+      conf <- t(conf)
+      row.names(conf) <- c("Total Effect", "Direct Effect", "Indirect Effct")
+      colnames(conf) <- c("LCL", "UCL")
+
+      conf[, "Class"] <- j
+      return(conf)
+    })
+    conf <- do.call("rbind", conf)
+
+  }else{
+    conf <- sapply(1:3, function(i){
+      c(quantile(conf[, i], prob=0.025),
+        quantile(conf[, i], prob=0.075))
+    })
+
+    conf <- t(conf)
+    row.names(conf) <- c("Total Effect", "Direct Effect", "Indirect Effct")
+    colnames(conf) <- c("LCL", "UCL")
+  }
 
   out <- list(call      = tmpcall,
-              estimated = res,
-              confint   = conf,
-              prop_med  = 100 * prop_med)
+              estimated = out.res,
+              confint   = conf)
   class(out) <- 'gmed_boot'
   return(out)
 }
@@ -591,7 +731,7 @@ print.gmed_boot <- function (x, digits = max(3, getOption("digits") - 3), ...){
   colnames(out)[1] <- "Estimated"
   print(round(out, digits = digits))
 
-  cat(paste0("------\nProportion Mediated: ", round(x$prop_med, digits), "%"))
+  # cat(paste0("------\nProportion Mediated: ", round(x$prop_med, digits), "%"))
 }
 
 
