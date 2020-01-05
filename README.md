@@ -1,8 +1,12 @@
 causalMed
 =========
 
-Causal Mediation analysis for time fixed and time-varying mediator. This
-package is currently in development, please use with caution.
+Causal Mediation analysis for time fixed and time-varying mediator. 
+
+* IORW estimation method was implemented for time-fixed mediation anlaysis.
+* G-formula and IPTW was implemented for time-varying treatment, mediator, confounders.
+
+This package is currently in development, please use with caution.
 
 Installation
 ------------
@@ -54,8 +58,8 @@ For time fixed mediation analysis:
 
 For time-varying mediator:
 
-Data structure must be in longitudinal format, and only mediator is
-time-varying.
+Data structure must be in longitudinal format. 
+Need to add the usage of the time-varying mediation analysis usage in the document.
 
 TODO
 ----
