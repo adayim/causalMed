@@ -60,9 +60,9 @@ time-varying.
 TODO
 ----
 
--   ☐ Time-varying treatment and covariates.
--   ☐ More documentations.
--   ☐ More tests is needed.
+-   [x] Time-varying treatment and covariates.
+-   [ ] More documentations.
+-   [ ] More tests is needed.
 
 References
 ----------
