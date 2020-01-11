@@ -8,6 +8,12 @@ Causal Mediation analysis for time fixed and time-varying mediator.
 
 This package is currently in development, please use with caution.
 
+Note
+------------
+This package was developed for my thesis, titled as *Trajectory Modelling Based Mediation Analysis in Heterogeneous Longitudinal Survival Data*
+
+?????????????????????????????????????????????
+
 Installation
 ------------
 
@@ -71,12 +77,12 @@ TODO
 References
 ----------
 
-1.  Tchetgen Tchetgen, E. J. (2013). Inverse odds ratio‐weighted
+1.  Tchetgen Tchetgen, E. J. (2013). Inverse odds ratio”weighted
     estimation for causal mediation analysis. Statistics in medicine,
     32(26), 4567-4580.
     [DOI:10.1002/sim.5864](https://doi.org/10.1002/sim.5864)
 2.  Lin, S. H., Young, J. G., Logan, R., & VanderWeele, T. J. (2017).
-    Mediation analysis for a survival outcome with time‐varying
+    Mediation analysis for a survival outcome with time”varying
     exposures, mediators, and confounders. Statistics in medicine,
     36(26), 4153-4166.
     [DOI:10.1002/sim.7426](https://doi.org/10.1002/sim.7426)
