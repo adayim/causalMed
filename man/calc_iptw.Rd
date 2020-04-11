@@ -4,9 +4,20 @@
 \alias{calc_iptw}
 \title{Calculate total effect, natural direct and indirect effect.}
 \usage{
-calc_iptw(data, id.vars, time.var, baseline.vars, exposure.model,
-  exposure.vars, mediator.model, mediator.family, outcome,
-  is.expL = TRUE, censor.model = NULL, bound.value = 0)
+calc_iptw(
+  data,
+  id.vars,
+  time.var,
+  baseline.vars,
+  exposure.model,
+  exposure.vars,
+  mediator.model,
+  mediator.family,
+  outcome,
+  is.expL = TRUE,
+  censor.model = NULL,
+  bound.value = 0
+)
 }
 \arguments{
 \item{data}{Data to be used to ceate matrix.}

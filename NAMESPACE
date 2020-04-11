@@ -2,7 +2,7 @@
 
 S3method(coef,irow)
 S3method(print,gmed_boot)
-S3method(print,print.iptw_med)
+S3method(print,iptw_med)
 S3method(print,summary.iorw)
 S3method(summary,iorw)
 export(Gformula)

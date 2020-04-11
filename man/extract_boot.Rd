@@ -4,8 +4,13 @@
 \alias{extract_boot}
 \title{Extract bootstrap Confidence interval}
 \usage{
-extract_boot(x, conf.int = TRUE, conf.level = 0.95,
-  conf.method = c("perc", "bca", "basic", "norm"), ...)
+extract_boot(
+  x,
+  conf.int = TRUE,
+  conf.level = 0.95,
+  conf.method = c("perc", "bca", "basic", "norm"),
+  ...
+)
 }
 \description{
 Extract bootstrap Confidence interval

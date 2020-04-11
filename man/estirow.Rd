@@ -4,8 +4,16 @@
 \alias{estirow}
 \title{Inverse odds ratio weighting}
 \usage{
-estirow(fitA, fitY, data, exposure, mediator, family, ref = NULL,
-  stabilized = TRUE)
+estirow(
+  fitA,
+  fitY,
+  data,
+  exposure,
+  mediator,
+  family,
+  ref = NULL,
+  stabilized = TRUE
+)
 }
 \arguments{
 \item{fitA}{Exposure model formula, glm will be used in this step.}

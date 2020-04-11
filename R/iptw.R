@@ -231,7 +231,7 @@ calc_iptw <- function(data,
 calc_match <- function(data, vals, nodes, is_censor = FALSE){
   calc <- matrix(nrow=nrow(data), ncol=length(nodes))
   cum_calc <- rep(TRUE, nrow(data))
-  
+
   if(is_censor & length(nodes) == 1){
     return(rep(TRUE, nrow(data)))
   }else{
@@ -324,7 +324,7 @@ fit_and_predict <- function(data, a_bar = NULL, exposure.var, family, mod, is_af
 
 }
 
-#' @method print print.iptw_med
+#' @method print iptw_med
 #'
 #' @export
 #'

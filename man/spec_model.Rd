@@ -4,9 +4,13 @@
 \alias{spec_model}
 \title{Model specification for G-formula}
 \usage{
-spec_model(formula, subset = NULL, family = "gaussian", order,
-  type = c("exposure", "covariate", "mediator", "outcome", "censor",
-  "survival"))
+spec_model(
+  formula,
+  subset = NULL,
+  family = "gaussian",
+  order,
+  type = c("exposure", "covariate", "mediator", "outcome", "censor", "survival")
+)
 }
 \arguments{
 \item{formula}{Formula for specified models passed to \code{\link[stats]{glm}}.

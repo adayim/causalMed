@@ -4,9 +4,17 @@
 \alias{monte_g}
 \title{Monte Carlo simulation}
 \usage{
-monte_g(data, time.seq, time.var, models, intervention = NULL,
-  in.recode = NULL, out.recode = NULL, init.recode = NULL,
-  verbose = TRUE)
+monte_g(
+  data,
+  time.seq,
+  time.var,
+  models,
+  intervention = NULL,
+  in.recode = NULL,
+  out.recode = NULL,
+  init.recode = NULL,
+  verbose = TRUE
+)
 }
 \arguments{
 \item{data}{a data frame in which to look for variables with which to predict.}

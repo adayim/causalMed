@@ -4,8 +4,16 @@
 \alias{iorw}
 \title{Inverse odds ratio weighting.}
 \usage{
-iorw(fitY, data = NULL, exposure, mediator, family, ref = NULL,
-  stabilized = TRUE, R = 1000)
+iorw(
+  fitY,
+  data = NULL,
+  exposure,
+  mediator,
+  family,
+  ref = NULL,
+  stabilized = TRUE,
+  R = 1000
+)
 }
 \arguments{
 \item{fitY}{model object of the final outcome, all variables of interest should be included except mediators.}

@@ -50,6 +50,7 @@ iorw <- function(fitY,
 
   #save input
   tempcall <- match.call()
+
   #some basic input checks
   if (!("exposure" %in% names(tempcall))) stop("No exposure variable specified")
   if (!("mediator" %in% names(tempcall))) stop("No mediator variable(s) specified")
@@ -101,7 +102,7 @@ iorw <- function(fitY,
 
   res <- do.call(estirow, args)
 
-  out <- c(call  = match.call(iorw),
+  out <- c(call  = list(args),
            res,
            boots = list(boot.res))
   class(out) <- "iorw"
@@ -132,7 +133,6 @@ estirow <- function(fitA,
                      ref        = NULL,
                      stabilized = TRUE){
 
-  # Import Data
   tempcall <- match.call()
 
   #weights binomial
@@ -244,12 +244,12 @@ coef.irow <- function (object, ...)
 summary.iorw <- function (object, ...){
   coef.table <- extract_boot(object$boots, ...)
 
-  coeftab <- as.matrix(coef.table[, -1])
-  dimnames(coeftab) <- list(coef.table$term,
-                               c("Estimate", "Bias", "Std.error", "conf.low", "conf.high"))
+  coeftab <- as.matrix(coef.table)
+  dimnames(coeftab) <- list(row.names(coef.table),
+                            c("Estimate", "Bias", "Std.error", "conf.low", "conf.high"))
 
-  prop.med <- coef.table[coef.table$term == "Natural Indirect effect", "statistic"] /
-    coef.table[coef.table$term == "Total effect", "statistic"]
+  prop.med <- coef.table[row.names(coef.table) == "Natural Indirect effect", "statistic"] /
+    coef.table[row.names(coef.table) == "Total effect", "statistic"]
 
   summary <- list(call         = object$call,
                   Acall        = object$Afit,

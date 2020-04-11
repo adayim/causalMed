@@ -16,5 +16,5 @@ Suggests: knitr,
     testthat
 URL: https://github.com/adayim/causalMed
 BugReports: https://github.com/adayim/causalMed/issues
-RoxygenNote: 6.1.1
+RoxygenNote: 7.0.2
 VignetteBuilder: knitr

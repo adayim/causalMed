@@ -4,8 +4,14 @@
 \alias{fit_and_predict}
 \title{Calculate predicted value for weights.}
 \usage{
-fit_and_predict(data, a_bar = NULL, exposure.var, family, mod,
-  is_aform = FALSE)
+fit_and_predict(
+  data,
+  a_bar = NULL,
+  exposure.var,
+  family,
+  mod,
+  is_aform = FALSE
+)
 }
 \arguments{
 \item{data}{Data to be used to fit model.}
