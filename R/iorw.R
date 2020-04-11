@@ -102,7 +102,7 @@ iorw <- function(fitY,
 
   res <- do.call(estirow, args)
 
-  out <- c(call  = list(args),
+  out <- c(call  = tempcall,
            res,
            boots = list(boot.res))
   class(out) <- "iorw"
@@ -279,7 +279,7 @@ print.summary.iorw <- function (x, digits = max(3, getOption("digits") - 3), ...
   cat("------\n")
   cat("Natural effect model\n")
   cat("with standard errors based on the non-parametric bootstrap\n---\n")
-  cat("Exposure:", x$call$exposure, "\nMediator(s):", paste(x$call$mediator,
+  cat("Exposure:", x$call$exposure, "\nMediator(s):", paste(eval(x$call$mediator),
                                                       collapse = ", "), "\n------\n")
   cat("Parameter estimates:\n")
   print(round(x$coefficients, digits = digits))
