@@ -41,7 +41,8 @@ iorw <- function(fitY,
                  family,
                  ref        = NULL,
                  stabilized = TRUE,
-                 R          = 1000) {
+                 R          = 1000,
+                 envir = parent.frame()) {
 
   # Setting seeds
   old <- .Random.seed
@@ -76,15 +77,24 @@ iorw <- function(fitY,
   }
 
   args$data <- if (missing(data)) {
-    extrCall(fitY)$data
+    # extrCall(fitY)$data
+    eval(extrCall(fitY)$data, envir = envir) # Extract data
   }
 
-  if (tempcall$family %in% c("binomial", "multinomial") & !0 %in% unique(eval(args$data)[, exposure])) stop("Exposure must include level 0 and set as control/unexposure")
+  # Check formula
+  if(fitY$call$formula != formula(fitY)){
+    args$fitY$call$formula <- formula(fitY)
+  }
+
+  if (tempcall$family %in% c("binomial", "multinomial") &
+      !0 %in% unique(eval(args$data, envir = envir)[, exposure]))
+    stop("Exposure must include level 0 and set as control/unexposure")
 
   # Model for exposure
   medform <- update(formula(fitY), paste0(exposure, " ~ . + ", paste(mediator, collapse = " + ")))
 
   args$fitA <- substitute(medform)
+
   # Bootstrap
   bootFunc <- function(data, index, ...){
     d <- data[index, ]
@@ -131,13 +141,14 @@ estirow <- function(fitA,
                      mediator,
                      family,
                      ref        = NULL,
-                     stabilized = TRUE){
+                     stabilized = TRUE,
+                    envir = parent.frame()){
 
   tempcall <- match.call()
 
   #weights binomial
   if(family == "binomial"){
-    Afit <- do.call("glm", eval(list(formula = fitA, data = substitute(data), family = family)))
+    Afit <- do.call("glm", eval(list(formula = fitA, data = data, family = family)))
     # Step 2: Compute IORW
     if(!stabilized){
       newdata <- data
@@ -157,7 +168,7 @@ estirow <- function(fitA,
   if(family == "multinomial"){
     tempdat <- data.frame(exposure = data[,as.character(exposure)])
 
-    Afit <- do.call("nnet::multinom", eval(list(formula = fitA, data = substitute(data))))
+    Afit <- do.call("nnet::multinom", eval(list(formula = fitA, data = data)))
     # Step 2: Compute IORW
     if(!stabilized){
       newdata <- data
@@ -188,7 +199,7 @@ estirow <- function(fitA,
 
   # weights gaussian
   if(family == "gaussian"){
-    Afit <- do.call("glm", eval(list(formula = fitA, data = substitute(data), family = family)))
+    Afit <- do.call("glm", eval(list(formula = fitA, data = data, family = family)))
 
     #p1 <- predict(Afit, newdata = data, type="response")
     pt <- predict(Afit, newdata = data, type = "term")
@@ -221,6 +232,8 @@ estirow <- function(fitA,
   #Natural indirect = total effect - natural direct:
   res <- c(tot, dir, tot - dir)
   names(res) <- c("Total effect","Natural Direct effect","Natural Indirect effect")
+
+  Afit$call$data <- NULL
 
   res <- list(Afit    = Afit$call,
               Yfit    = extrCall(tempcall$fitY),
