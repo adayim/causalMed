@@ -11,14 +11,12 @@ mod_cov1 <- spec_model(platnorm ~ all + cmv + male + age + agecurs1 +
                          agecurs2 + gvhdm1 + daysgvhd + daysnorelapse + wait,
                     family = "binomial",
                     type = "covriate",
-                    order = 1,
                     subset = platnormm1 == 0)
 
 mod_cov2 <- spec_model(relapse ~ all + cmv + male + age + gvhdm1 + daysgvhd + platnormm1 +
                          daysnoplatnorm + agecurs1 + agecurs2 + day + daysq + wait,
                        family = "binomial",
                        type = "covriate",
-                       order = 2,
                        subset = relapsem1 == 0)
 
 mod_exp <- spec_model(gvhd ~ all + cmv + male + age + platnormm1 +
@@ -26,23 +24,20 @@ mod_exp <- spec_model(gvhd ~ all + cmv + male + age + platnormm1 +
                         agecurs1 + agecurs2 + day + daysq + wait,
                       subset = gvhdm1 == 0,
                       family = "binomial",
-                      type = "exposure",
-                      order = 3)
+                      type = "exposure")
 
 mod_cens <- spec_model(censlost ~ all + cmv + male + age + daysgvhd +
                          daysnoplatnorm + daysnorelapse + agesq + day +
                          daycurs1 + daycurs2 + wait,
                        family = "binomial",
-                       type = "censor",
-                       order = 4)
+                       type = "censor")
 
 mod_out <- spec_model(d ~ all + cmv + male + age + gvhd + platnorm +
                         daysnoplatnorm + relapse + daysnorelapse +
                         agesq + day + daycurs1 + daycurs2 + wait +
                         day*gvhd + daycurs1*gvhd + daycurs2*gvhd,
                       family = "binomial",
-                      type = "outcome",
-                      order = 5)
+                      type = "outcome")
 
 init_recode <- c("relapse=0", "gvhd=0", "platnorm=0", "gvhdm1=0",
                 "relapsem1=0", "platnormm1=0", "daysnorelapse=0",
@@ -76,7 +71,7 @@ out_recode = c('platnormm1 = platnorm',
                                                         daysplatnorm + 1)')
 
 
-# debug(Gformula)
+debug(Gformula)
 # debug(monte_g)
 # debug(monte_sim)
 natural <- Gformula(df,
@@ -86,7 +81,7 @@ natural <- Gformula(df,
                 exposure = "gvhd",
                 outcome = "d",
                 time.var = "day",
-                models = list(mod_exp, mod_cov1, mod_cov2, mod_cens, mod_out),
+                models = list(mod_cov1, mod_cov2, mod_exp, mod_cens, mod_out),
                 init.recode = init_recode,
                 in.recode = in_recode,
                 out.recode = out_recode,

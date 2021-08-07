@@ -4,7 +4,8 @@
 \name{lipdat}
 \alias{lipdat}
 \title{Lipid test results of 500 person.}
-\format{A data frame with 2114 rows and 13 variables:
+\format{
+A data frame with 2114 rows and 13 variables:
 \describe{
   \item{id}{unique id of subject}
   \item{age}{baseline age}
@@ -18,7 +19,8 @@
   \item{time}{Followup time since baseline(time = 0)}
   \item{cvd}{cardiovascular diseases event}
   \item{os}{Overall Survival of cardiovascular diseases}
-}}
+}
+}
 \source{
 \url{http://www.diamondse.info/}
 }

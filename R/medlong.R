@@ -25,14 +25,16 @@
 #' @param models A list of models for the G-formula, including exposure model,
 #'  covariate model (if any), mediator model (if any), outcome model or
 #'  censoring model (if any). See details in \code{\link[causalMed]{spec_model}}.
+#'  The order appeared in the list should reflect the temporal ordering of the
+#'  variables, in another way data generation process.
 #'
 #' @param intervention A named list with a value of intervention on exposure.
-#' if kept as NULL (default), the natrual intervention cousre will be calculated.
-#'  eg: list(natural = NULL, always = 1, never = 0)
+#' if kept as NULL (default), the natural intervention course will be calculated.
+#'  eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0))
 #'
 #' @param init.recode optional, recoding of variables done at the
-#' begaining of the Monte Carlo loop. Needed for operations initalize baseline variables.
-#' This is executed at begaining of the Monte Carlo g-formula, excuted only once at time 0.
+#' beginning of the Monte Carlo loop. Needed for operations initialize baseline variables.
+#' This is executed at beginning of the Monte Carlo g-formula, executed only once at time 0.
 #'
 #' @param in.recode optional, On the fly recoding of variables done before the Monte
 #'  Carlo loop starts. Needed to do any kind of functional forms for entry times.
@@ -43,7 +45,7 @@
 #' days with a treatment or creating lagged variables. This is executed at each end
 #'  of the Monte Carlo g-formula time steps.
 #'
-#'  @param is.survival Is the data survival data, defalt is FALSE.
+#'  @param is.survival Is the data survival data, default is FALSE.
 #'
 #' @param mc.sample Sample size of Monte Carlo simulation.
 #'
@@ -80,14 +82,19 @@ Gformula <- function(data,
   if (!exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)) runif(1)
   seed <- get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
 
+  # Check variables in the data
+  check_var_in(c(id.var, base.vars, exposure, outcome, time.var), data)
+
+  # Check if variables in the formula included in the data
+  vars_models <- unlist(sapply(models, function(x)all.vars(formula(x$call))))
+  check_var_in(vars_models, data)
+
+  # Check for survival models
   cen_flag  <- sapply(models, function(mods) as.numeric(mods$type == "censor"))
   surv_flag <- sapply(models, function(mods) as.numeric(mods$type == "survival"))
   if(!all(cen_flag == 0) | !all(surv_flag == 0)){
     is.survival <- TRUE
   }
-
-  if(!all.equal(sort(unique(na.omit(data[[exposure]]))), c(0, 1)))
-    stop('Only binary treatments/exposures are currently implemented, and must be set to 0 and 1.')
 
   if(is.survival & !all.equal(sort(unique(na.omit(data[[outcome]]))), c(0, 1)))
     # TODO: competing risk
@@ -99,16 +106,19 @@ Gformula <- function(data,
 
   # Check if contain mediator
   med_flag <- sapply(models, function(mods) as.numeric(mods$type == "mediator"))
-  #med_flag <- which(med_flag == 1)
   if(!all(med_flag == 0) & !is.null(intervention))
     stop("You cannot specify intervention with mediator at the same time!")
 
   # Checking for interventions
+  check_intervention(intervention, data[[time.var]])
+
+  # Replicate to all intervention
+  if(!is.null(intervention) & all(sapply(tmp, length) == 1))
+    intervention <- lapply(intervention, function(x)rep(x, length(unique(data[[time.var]]))))
+
   if(is.null(intervention)){
     intervention <- list(intervention = NULL)
   }
-  if(!is.list(intervention))
-    stop("Intervention must be a named list object")
 
 
   # The following are model checking and model evaluations
@@ -121,44 +131,23 @@ Gformula <- function(data,
     stop("Models in the list must be gmodel object, please use spec_model to create!")
 
   # Run along the models
-  # TODO: Do need to consider the same ordering??
   if(!is.null(models)){
     fit_mods <- vector("list", length = length(models))
     for(indx_mod in seq_along(models)){
 
       mods <- models[[indx_mod]]
-      ord <- mods$order
 
-      if(mods$family == "lcmm"){
-        if(!"class" %in% names(data))
-          stop("Variable 'class' indicating object membership must be included in the data if lcmm model provided!")
+      mods$call$data <- substitute(data)
 
-        if(!"class" %in% base.vars)
-          base.vars <- c(base.vars, "class")
+      rsp_vars <- all.vars(formula(mods$call)[[2]])
 
-        rsp_vars <- all.vars(mods$call$fixed[[2]])
+      fit_mods[[indx_mod]] <- list(mods     = eval(mods$call),
+                                   recodes  = mods$recode,
+                                   subset   = mods$subset,
+                                   family   = mods$family,
+                                   type     = mods$type,
+                                   val_ran  = range(na.omit(data[[rsp_vars]]))) # Observed values
 
-        # Observed values
-        val_ran <- sapply(rsp_vars, function(x)unique(na.omit(data[[x]])))
-
-        fit_mods[[ord]] <- list(mods     = mods$call,
-                                # recodes  = mods$recode,
-                                subset   = mods$subset,
-                                family   = mods$family,
-                                type     = mods$type,
-                                val_ran  = val_ran)
-      }else{
-        mods$call$data <- substitute(data)
-
-        rsp_vars <- all.vars(formula(mods$call)[[2]])
-
-        fit_mods[[ord]] <- list(mods     = eval(mods$call),
-                                # recodes  = mods$recode,
-                                subset   = mods$subset,
-                                family   = mods$family,
-                                type     = mods$type,
-                                val_ran  = unique(na.omit(data[[rsp_vars]]))) # Observed values
-      }
     }
   }
 
@@ -321,14 +310,8 @@ monte_g <- function(data, time.seq, time.var, models,
       if(sum(cond) != 0){
         if(med_flag == indx){
           # Set the mediator's intervention to 0
-          if(models[[indx]]$family == "lcmm"){
-            dat_y <- monte_sim.lcmm(within(dat_y[cond,  ], eval(interv0)),
-                                    models[[indx]], time.var = time.var)
-
-          }else{
-            dat_y[[resp_var]][cond] <- monte_sim(within(dat_y[cond,  ], eval(interv0)),
-                                                 models[[indx]])
-          }
+          dat_y[[resp_var]][cond] <- monte_sim(within(dat_y[cond,  ], eval(interv0)),
+                                               models[[indx]])
 
         }else{
           dat_y[[resp_var]][cond] <- monte_sim(dat_y[cond, ], models[[indx]])
@@ -426,46 +409,7 @@ monte_sim <- function(newdt, models){
   }
 }
 
-monte_sim.lcmm <- function(newdt, models, time.var){
 
-  fit <- models$mods
-  resp_vars <- all.vars(fit$call$fixed[[2]])
-
-  pred <- predictY(fit, newdata = newdt, draws = FALSE, var.time = time.var)$pred
-
-  if(length(resp_vars) == 1){
-    for(i in 1:ncol(pred)){
-      newdt[newdt$class == i, resp_vars] <- pred[newdt$class == i, i]
-    }
-
-    newdt[[resp_vars]] <- newdt[[resp_vars]] + rnorm(length(newdt[[resp_vars]]))*fit$best["stderr"]
-
-    # Limit the predicted values within observed range.
-    newdt[[resp_vars]] <- pmax(newdt[[resp_vars]], min(models$val_ran[[resp_vars]]))
-    newdt[[resp_vars]] <- pmin(newdt[[resp_vars]], max(models$val_ran[[resp_vars]]))
-
-  }else{
-    for(vars in resp_vars){
-      for(i in 2:ncol(pred)){
-        newdt[newdt$class == i-1, vars] <- pred[pred$Yname == vars & newdt$class == i-1, i]
-      }
-    }
-
-    std_err <- fit$best[grepl("std.err", names(fit$best))]
-
-    for(i in seq_along(resp_vars)){
-      newdt[[resp_vars[i]]] <- newdt[[resp_vars[i]]] +
-        rnorm(length(newdt[[resp_vars[i]]]))*std_err[i]
-
-      # Limit the predicted values within observed range.
-      newdt[[resp_vars[i]]] <- pmax(newdt[[resp_vars[i]]], min(models$val_ran[[resp_vars[i]]]))
-      newdt[[resp_vars[i]]] <- pmin(newdt[[resp_vars[i]]], max(models$val_ran[[resp_vars[i]]]))
-    }
-  }
-
-  return(newdt)
-
-}
 
 #' Model specification for G-formula
 #'
@@ -479,10 +423,11 @@ monte_sim.lcmm <- function(newdt, models, time.var){
 #' @param subset an optional vector specifying a subset of observations to be used
 #'  in the fitting process (see \code{\link[stats]{glm}}).
 #'
+#'  @param recode An Optional string vector. Recoding variable before including
+#'  variables in the model. Strings will be evaluated before the fitting the model.
+#'
 #' @param family A description of the error distribution and link function
 #'  to be used in the \code{glm} model.
-#'
-#' @param order Numeric, temporal ordering of the Covariates.
 #'
 #' @param type Model type. Exposure model (\code{exposure}), covariate
 #'  model (\code{covariate}), mediator model (\code{mediator}), outcome
@@ -494,9 +439,8 @@ monte_sim.lcmm <- function(newdt, models, time.var){
 
 spec_model <- function(formula,
                        subset   = NULL,
+                       recode   = NULL,
                        family   = "gaussian",
-                       order,
-                       #recode   = NULL,
                        type     = c("exposure", "covariate", "mediator",
                                     "outcome", "censor", "survival")){
 
@@ -505,44 +449,23 @@ spec_model <- function(formula,
   if(tmpcall$type %in% c("exposure", "outcome", "censor") & tmpcall$family != "binomial")
     stop("Only binomial family supported for (\"exposure\", \"outcome\", \"censor\")")
 
-  if(!is.numeric(tmpcall$order))
-    stop("Order must be numeric!")
+  if (!tmpcall$family %in% c("binomial", "multinomial", "gaussian"))
+    stop("No valid family specified (\"binomial\", \"multinomial\", \"gaussian\")")
 
-  if(tmpcall$type != "mediator" & class(tmpcall$formula) %in% c("lcmm", "hlme", "multlcmm"))
-    stop("LCMM object only supported for mediator model!")
-
-  # For LCMM models
-  if(class(tmpcall$formula) %in% c("lcmm", "hlme", "multlcmm")){
-    out <- list(call   = tmpcall$formula,
-                subset = tmpcall$formula$subset,
-                order  = tmpcall$order,
-                type   = tmpcall$type,
-                #recode = tmpcall$recode,
-                family = "lcmm")
+  if(family == "multinomial"){
+    out_model <- quote(multinom())
   }else{
-    # For none LCMM models
-    if (!tmpcall$family %in% c("binomial", "multinomial", "gaussian"))
-      stop("No valid family specified (\"binomial\", \"multinomial\", \"gaussian\")")
-
-    # if(!is.null(tmpcall$recode) & !is.list(tmpcall$recode))
-    #   stop("Recode must be provided as list!")
-
-    if(family == "multinomial"){
-      out_model <- quote(multinom())
-    }else{
-      out_model <- quote(glm())
-      out_model$family <- substitute(family)
-    }
-    out_model$formula <- substitute(formula)
-    out_model$subset  <- substitute(subset)
-
-    out <- list(call   = out_model,
-                subset = tmpcall$subset,
-                order  = tmpcall$order,
-                type   = tmpcall$type,
-                #recode = tmpcall$recode,
-                family = tmpcall$family)
+    out_model <- quote(glm())
+    out_model$family <- substitute(family)
   }
+  out_model$formula <- substitute(formula)
+  out_model$subset  <- substitute(subset)
+
+  out <- list(call   = out_model,
+              subset = tmpcall$subset,
+              recode = tmpcall$recode,
+              type   = tmpcall$type,
+              family = tmpcall$family)
 
   class(out) <- "gmodel"
 
