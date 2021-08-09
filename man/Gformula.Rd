@@ -34,16 +34,19 @@ Gformula(
 \item{time.var}{Time variable.}
 
 \item{models}{A list of models for the G-formula, including exposure model,
-covariate model (if any), mediator model (if any), outcome model or
-censoring model (if any). See details in \code{\link[causalMed]{spec_model}}.}
+ covariate model (if any), mediator model (if any), outcome model or
+ censoring model (if any). See details in \code{\link{spec_model}}.
+ The order appeared in the list should reflect the temporal ordering of the
+ variables, in another way data generation process. The model will be evaluated 
+in this process.}
 
 \item{intervention}{A named list with a value of intervention on exposure.
-if kept as NULL (default), the natrual intervention cousre will be calculated.
- eg: list(natural = NULL, always = 1, never = 0)}
+if kept as NULL (default), the natural intervention course will be calculated.
+ eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0))}
 
 \item{init.recode}{optional, recoding of variables done at the
-begaining of the Monte Carlo loop. Needed for operations initalize baseline variables.
-This is executed at begaining of the Monte Carlo g-formula, excuted only once at time 0.}
+beginning of the Monte Carlo loop. Needed for operations initialize baseline variables.
+This is executed at beginning of the Monte Carlo g-formula, executed only once at time 0.}
 
 \item{in.recode}{optional, On the fly recoding of variables done before the Monte
 Carlo loop starts. Needed to do any kind of functional forms for entry times.
@@ -52,13 +55,13 @@ Carlo loop starts. Needed to do any kind of functional forms for entry times.
 \item{out.recode}{optional, On the fly recoding of variables done at the
 end of the Monte Carlo loop. Needed for operations like counting the number of
 days with a treatment or creating lagged variables. This is executed at each end
- of the Monte Carlo g-formula time steps.
-
- @param is.survival Is the data survival data, defalt is FALSE.}
+ of the Monte Carlo g-formula time steps.}
 
 \item{mc.sample}{Sample size of Monte Carlo simulation.}
 
 \item{verbose}{Print intervention information during calculation.}
+
+\item{is.survival}{Is the data survival data, default is FALSE.}
 }
 \description{
 Mediation analysis for time varying mediator, estimation based

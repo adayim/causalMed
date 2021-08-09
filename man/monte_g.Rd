@@ -45,3 +45,4 @@ This is executed at begaining of the Monte Carlo g-formula, excuted only once at
 \description{
 Internal use only. Monte Carlo simulation.
 }
+\keyword{internal}

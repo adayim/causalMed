@@ -24,9 +24,10 @@
 #'
 #' @param models A list of models for the G-formula, including exposure model,
 #'  covariate model (if any), mediator model (if any), outcome model or
-#'  censoring model (if any). See details in \code{\link[causalMed]{spec_model}}.
+#'  censoring model (if any). See details in \code{\link{spec_model}}.
 #'  The order appeared in the list should reflect the temporal ordering of the
-#'  variables, in another way data generation process.
+#'  variables, in another way data generation process. The model will be evaluated
+#' in this process.
 #'
 #' @param intervention A named list with a value of intervention on exposure.
 #' if kept as NULL (default), the natural intervention course will be calculated.
@@ -45,7 +46,7 @@
 #' days with a treatment or creating lagged variables. This is executed at each end
 #'  of the Monte Carlo g-formula time steps.
 #'
-#'  @param is.survival Is the data survival data, default is FALSE.
+#' @param is.survival Is the data survival data, default is FALSE.
 #'
 #' @param mc.sample Sample size of Monte Carlo simulation.
 #'
@@ -70,11 +71,11 @@ Gformula <- function(data,
                      time.var,
                      models,
                      intervention = NULL,
-                     init.recode = NULL,
-                     in.recode = NULL,
-                     out.recode = NULL,
-                     mc.sample = 10000,
-                     verbose  = TRUE){
+                     init.recode  = NULL,
+                     in.recode    = NULL,
+                     out.recode   = NULL,
+                     mc.sample    = 10000,
+                     verbose      = TRUE){
 
   tpcall <- match.call()
 
@@ -82,74 +83,29 @@ Gformula <- function(data,
   if (!exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)) runif(1)
   seed <- get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
 
-  # Check variables in the data
-  check_var_in(c(id.var, base.vars, exposure, outcome, time.var), data)
-
-  # Check if variables in the formula included in the data
-  vars_models <- unlist(sapply(models, function(x)all.vars(formula(x$call))))
-  check_var_in(vars_models, data)
-
-  # Check for survival models
-  cen_flag  <- sapply(models, function(mods) as.numeric(mods$type == "censor"))
-  surv_flag <- sapply(models, function(mods) as.numeric(mods$type == "survival"))
-  if(!all(cen_flag == 0) | !all(surv_flag == 0)){
-    is.survival <- TRUE
-  }
-
-  if(is.survival & !all.equal(sort(unique(na.omit(data[[outcome]]))), c(0, 1)))
-    # TODO: competing risk
-    stop('Only binary outcomes for survival are currently supported, and must be set to 0 and 1.')
-
-  # TODO: weights
-  # if(!is.null(weights))
-  #   stop('Weights currently not supported')
-
-  # Check if contain mediator
-  med_flag <- sapply(models, function(mods) as.numeric(mods$type == "mediator"))
-  if(!all(med_flag == 0) & !is.null(intervention))
-    stop("You cannot specify intervention with mediator at the same time!")
-
-  # Checking for interventions
-  check_intervention(intervention, data[[time.var]])
-
-  # Replicate to all intervention
-  if(!is.null(intervention) & all(sapply(tmp, length) == 1))
-    intervention <- lapply(intervention, function(x)rep(x, length(unique(data[[time.var]]))))
+  # Check for error
+  do.call(check_error, tpcall)
 
   if(is.null(intervention)){
     intervention <- list(intervention = NULL)
   }
 
-
-  # The following are model checking and model evaluations
-
-  # Models checking
-  if(!is.list(models))
-    stop("Models must be provided as a list")
-  cls <- sapply(models, function(x)class(x) != "gmodel")
-  if(any(cls))
-    stop("Models in the list must be gmodel object, please use spec_model to create!")
-
   # Run along the models
-  if(!is.null(models)){
-    fit_mods <- vector("list", length = length(models))
-    for(indx_mod in seq_along(models)){
+  fit_mods <- lapply(models, function(mods){
+    mods$call$data <- substitute(data)
+    rsp_vars <- all.vars(formula(mods$call)[[2]])
+    is_numeric <- is.numeric(data[[rsp_vars]])
 
-      mods <- models[[indx_mod]]
-
-      mods$call$data <- substitute(data)
-
-      rsp_vars <- all.vars(formula(mods$call)[[2]])
-
-      fit_mods[[indx_mod]] <- list(mods     = eval(mods$call),
-                                   recodes  = mods$recode,
-                                   subset   = mods$subset,
-                                   family   = mods$family,
-                                   type     = mods$type,
-                                   val_ran  = range(na.omit(data[[rsp_vars]]))) # Observed values
-
-    }
-  }
+    list(fitted    = eval(mods$call),
+         recodes  = mods$recode,
+         subset   = mods$subset,
+         var_type = mods$var_type,
+         mod_type = mods$mod_type,
+         custom_sim = mods$custom_sim,
+         rsp_vars = rsp_vars,
+         val_ran  = ifelse(is_numeric, range(na.omit(data[[rsp_vars]])),
+                           unique(na.omit(data[[rsp_vars]])))) # Observed values range
+  })
 
   # Baseline variables for Monte Carlo Sampling
   base_dat <- unique(data[, unique(c(id.var, base.vars))])
@@ -157,7 +113,9 @@ Gformula <- function(data,
 
   # Mediation analysis
   if(!all(med_flag == 0))
-    intervention <- list(always = 1, never = 0, mediation = "mediation")
+    intervention <- list(always    = rep(1, time_len),
+                         never     = rep(0, time_len),
+                         mediation = rep("mediation", time_len))
 
   res <- sapply(intervention, function(i){
     monte_g(data = df_mc, time.var = time.var, time.seq = unique(data[[time.var]]),
@@ -203,48 +161,45 @@ Gformula <- function(data,
 #'
 #' @param verbose Print intervention information during calculation.
 #'
-#' @export
+#' @keywords internal
 #'
-monte_g <- function(data, time.seq, time.var, models,
+monte_g <- function(data,
+                    time.seq,
+                    time.var,
+                    models,
                     intervention = NULL,
                     in.recode = NULL,
-                    out.recode = NULL, init.recode = NULL,
+                    out.recode = NULL,
+                    init.recode = NULL,
                     verbose = TRUE){
 
-  # Time varying intervention
-  # if(!is.null(intervention) & length(intervention) == 1){
-  #   intervention <- rep(intervention, length(unique(na.omit(data[[time.var]]))))
-  # }
+  # Replicate to intervention to the same length of the time.
+  time_len <- length(time.seq)
+  if(all(sapply(intervention, length) == 1))
+    intervention <- lapply(intervention, function(x)rep(x, time_len))
 
   # Get the position of the mediator
-  med_flag <- sapply(models, function(mods) as.numeric(mods$type == "mediator"))
+  med_flag <- sapply(models, function(mods) as.numeric(mods$mod_type == "mediator"))
   med_flag <- which(med_flag == 1)
   med_flag <- ifelse(is.null(intervention), 0,
                     ifelse(as.character(intervention) == "mediation", med_flag, 0))
 
-  # Get the position of exposure
-  exp_flag <- sapply(models, function(mods) as.numeric(mods$type == "exposure"))
-  exp_flag <- which(exp_flag == 1)
-
   # Get the position of the outcome
-  out_flag <- sapply(models, function(mods) as.numeric(mods$type == "outcome"))
+  out_flag <- sapply(models, function(mods) as.numeric(mods$mod_type == "outcome"))
   out_flag <- which(out_flag == 1)
 
   # Get the position of the censor
-  cen_flag <- sapply(models, function(mods) as.numeric(mods$type == "censor"))
-  surv_flag <- sapply(models, function(mods) as.numeric(mods$type == "survival"))
+  cen_flag <- sapply(models, function(mods) as.numeric(mods$mod_type == "censor"))
+  surv_flag <- sapply(models, function(mods) as.numeric(mods$mod_type == "survival"))
   if(!all(cen_flag == 0) | !all(surv_flag == 0)){
     is.survival <- TRUE
   }
-
   cen_flag <- which(cen_flag == 1)
 
-
-  # Get the variable name of exposure, outcome and censor
-  exposure <- all.vars(formula(models[[exp_flag]]$mods)[[2]])
-  outcome  <- all.vars(formula(models[[out_flag]]$mods)[[2]])
+  # Get the variable name of outcome and censor
+  outcome  <- all.vars(formula(models[[out_flag]]$fitted)[[2]])
   if(!all(cen_flag == 0)){
-    censor <- all.vars(formula(models[[cen_flag]]$mods)[[2]])
+    censor <- all.vars(formula(models[[cen_flag]]$fitted)[[2]])
   }
 
   if(verbose){
@@ -259,11 +214,11 @@ monte_g <- function(data, time.seq, time.var, models,
 
 
   # Run normal g-formula
-  for(t in min_time:max_time){
-    dat_y[[time.var]] <- t
+  for(t_index in min_time:max_time){
+    dat_y[[time.var]] <- t_index
 
-    # Recode baseline variables
-    if(t == min_time){
+    # Recode baseline variables at initiation
+    if(t_index == min_time){
       if(!is.null(init.recode)){
         for(i in seq_along(init.recode)){
           dat_y <- within(dat_y, eval(parse(text = init.recode[i])))
@@ -278,46 +233,9 @@ monte_g <- function(data, time.seq, time.var, models,
       }
     }
 
-    # Intervention
-    if(!is.null(intervention) & med_flag == 0){
-      dat_y[[exposure]] <- intervention
-    }
-
-    # For mediation
-    if(med_flag != 0){
-      dat_y[[exposure]] <- 1
-      interv0 <- parse(text = paste0(exposure, " = 0"))
-    }
-
-    # Loop through variables
-    for(indx in seq_along(models)){
-      if(models[[indx]]$family == "lcmm"){
-        resp_var <- all.vars(models[[indx]]$mods$call$fixed[[2]])
-
-      }else{
-        resp_var <- all.vars(formula(models[[indx]]$mods)[[2]])
-
-        if(resp_var == exposure & !is.null(intervention))
-          next   # Skip if variable is treatment
-      }
-
-      # If condition has been defined
-      if(!is.null(models[[indx]]$subset)){
-        cond <- with(dat_y, eval(models[[indx]]$subset))
-      }else{
-        cond <- rep(TRUE, nrow(dat_y))
-      }
-      if(sum(cond) != 0){
-        if(med_flag == indx){
-          # Set the mediator's intervention to 0
-          dat_y[[resp_var]][cond] <- monte_sim(within(dat_y[cond,  ], eval(interv0)),
-                                               models[[indx]])
-
-        }else{
-          dat_y[[resp_var]][cond] <- monte_sim(dat_y[cond, ], models[[indx]])
-        }
-      }
-    }
+    # Use the model to calculate the simulated value
+    dat_y <- simulate_data(data = dat_y, models = models, intervention = intervention[t_index])
+    
 
     if(!is.null(out.recode)){
       for(i in seq_along(out.recode)){
@@ -336,7 +254,7 @@ monte_g <- function(data, time.seq, time.var, models,
       }
 
       # Output censoring and death, only the not intervened have censoring
-      if(t == min_time){
+      if(t_index == min_time){
         if(cen_flag != 0){
           out_y <- dat_y[dat_y[[outcome]] == 1 | dat_y[[censor]] == 1, ]
         }else{
@@ -361,7 +279,7 @@ monte_g <- function(data, time.seq, time.var, models,
       # if loop ends
       if(nrow(dat_y) == 0)
         break
-      if(t == max_time){
+      if(t_index == max_time){
         out_y <- rbind(out_y, dat_y)
       }
     }else{
@@ -371,105 +289,6 @@ monte_g <- function(data, time.seq, time.var, models,
   # loop ends here
 
   return(as.data.frame(out_y))
-}
-
-#' Random data simulation from predicted value.
-#'
-#' @description
-#'  Internal use only. Predict response and generate random data.
-#'
-#' @param newdt a data frame in which to look for variables with which to predict.
-#'
-#' @param models fitted objects.
-#'
-#' @export
-
-
-monte_sim <- function(newdt, models){
-
-  family <- models$family
-  fit <- models$mods
-  rmse <- sqrt(mean((stats::fitted(fit) - fit$y)^2, na.rm = TRUE))
-
-  # Randomg number generation for Monte Carlo simulation
-  if(family == "multinomial"){
-    pred <- predict(fit, newdata = newdt, type =  "probs")
-    rMultinom(pred, 1)
-  }else if(family == "binomial"){
-    pred <- predict(fit, newdata = newdt, type = "response")
-    rbinom(nrow(newdt), 1, pred)
-  }else{
-    pred <- predict(fit, newdata = newdt, type = "response")
-    out <- rnorm(nrow(newdt), pred, rmse)
-
-    # Limit the predicted values within observed range.
-    out <- pmax(out, min(models$val_ran))
-    out <- pmin(out, max(models$val_ran))
-    out
-  }
-}
-
-
-
-#' Model specification for G-formula
-#'
-#' @description
-#'  Add a specified regression model for the exposure. This is used for natural course estimation
-#'  of the Monte Carlo g-formula. This must be specified before calling the fit function.
-#'
-#' @param formula Formula for specified models passed to \code{\link[stats]{glm}}.
-#' Must be contained within the input  dataframe when initialized.
-#'
-#' @param subset an optional vector specifying a subset of observations to be used
-#'  in the fitting process (see \code{\link[stats]{glm}}).
-#'
-#'  @param recode An Optional string vector. Recoding variable before including
-#'  variables in the model. Strings will be evaluated before the fitting the model.
-#'
-#' @param family A description of the error distribution and link function
-#'  to be used in the \code{glm} model.
-#'
-#' @param type Model type. Exposure model (\code{exposure}), covariate
-#'  model (\code{covariate}), mediator model (\code{mediator}), outcome
-#'   model (\code{outcome}), mediator model (\code{survival}) or censoring model (\code{censor})
-#'
-#' @import nnet
-#'
-#' @export
-
-spec_model <- function(formula,
-                       subset   = NULL,
-                       recode   = NULL,
-                       family   = "gaussian",
-                       type     = c("exposure", "covariate", "mediator",
-                                    "outcome", "censor", "survival")){
-
-  tmpcall <- match.call()
-
-  if(tmpcall$type %in% c("exposure", "outcome", "censor") & tmpcall$family != "binomial")
-    stop("Only binomial family supported for (\"exposure\", \"outcome\", \"censor\")")
-
-  if (!tmpcall$family %in% c("binomial", "multinomial", "gaussian"))
-    stop("No valid family specified (\"binomial\", \"multinomial\", \"gaussian\")")
-
-  if(family == "multinomial"){
-    out_model <- quote(multinom())
-  }else{
-    out_model <- quote(glm())
-    out_model$family <- substitute(family)
-  }
-  out_model$formula <- substitute(formula)
-  out_model$subset  <- substitute(subset)
-
-  out <- list(call   = out_model,
-              subset = tmpcall$subset,
-              recode = tmpcall$recode,
-              type   = tmpcall$type,
-              family = tmpcall$family)
-
-  class(out) <- "gmodel"
-
-  return(out)
 }
 
 #' Calculate mediation analysis confidence interval
