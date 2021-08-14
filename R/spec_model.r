@@ -56,53 +56,57 @@
 #' @export
 
 spec_model <- function(formula,
-                       subset   = NULL,
-                       recode   = NULL,
+                       subset = NULL,
+                       recode = NULL,
                        var_type = c("normal", "binary", "categorical", "custom"),
-                       mod_type = c("exposure", "covariate", "mediator",
-                                    "outcome", "censor", "survival"),
+                       mod_type = c(
+                         "exposure", "covariate", "mediator",
+                         "outcome", "censor", "survival"
+                       ),
                        custom_fit = NULL,
                        custom_sim = NULL,
-                       ...){
-
+                       ...) {
+                         
   tmpcall <- match.call(expand.dots = TRUE)
 
   args_list <- tmpcall
 
   # Remove unnecessary arguments
-  args_list <- args_list[!names(args_list) %in% c("recode", "mod_type", "custom_fit",
-                                                 "custom_sim", "var_type")]
+  args_list <- args_list[!names(args_list) %in% c(
+    "recode", "mod_type", "custom_fit",
+    "custom_sim", "var_type"
+  )]
 
   var_type <- match.arg(var_type)
 
-  if(var_type == "custom" & is.null(custom_fit))
+  if (var_type == "custom" & is.null(custom_fit)) {
     stop("`custom_fit` must be defined if `var_type` == 'custom'.",
-         domain = "causalMed")
+      domain = "causalMed"
+    )
+  }
 
-  if(var_type == "categorical"){
+  if (var_type == "categorical") {
     args_list[[1]] <- substitute(nnet::multinom)
-
-  }else if(var_type == "normal"){
+  } else if (var_type == "normal") {
     args_list[[1]] <- substitute(stats::glm)
     args_list$family <- substitute(gaussian)
-
-  }else if(var_type == "binary"){
+  } else if (var_type == "binary") {
     args_list[[1]] <- substitute(stats::glm)
     args_list$family <- substitute(binomial())
-
-  }else{
+  } else {
     args_list[[1]] <- substitute(custom_fit)
   }
 
-  out <- list(call       = args_list,
-              subset     = tmpcall$subset,
-              recode     = tmpcall$recode,
-              var_type   = tmpcall$var_type,
-              mod_type   = tmpcall$mod_type,
-              custom_sim = tmpcall$custom_sim)
+  out <- list(
+    call = args_list,
+    subset = tmpcall$subset,
+    recode = tmpcall$recode,
+    var_type = tmpcall$var_type,
+    mod_type = tmpcall$mod_type,
+    custom_sim = tmpcall$custom_sim
+  )
 
   class(out) <- "gmodel"
 
   return(out)
 }
-

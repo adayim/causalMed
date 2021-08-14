@@ -19,4 +19,3 @@
 #' }
 #' @source \url{http://www.diamondse.info/}
 "lipdat"
-

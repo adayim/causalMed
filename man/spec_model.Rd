@@ -55,7 +55,7 @@ The list returned is:
 \item{recode}{A string vector passed by the parameter \code{recode}.}
 \item{var_type}{A character string passed by the parameter \code{var_type}.}
 \item{mod_type}{A character string passed by the parameter \code{mod_type}.}
-\item{custom_sim}{A symbolic custimized simulation function name, passed by the parameter \code{custom_sim}.}
+\item{custom_sim}{A symbolic customized simulation function name, passed by the parameter \code{custom_sim}.}
 }
 \description{
 Specify regression model for the time-varying variables. This is will be used for

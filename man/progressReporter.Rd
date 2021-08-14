@@ -19,10 +19,12 @@ progressReporter(total, nBars = 100, f, ...)
 Higher order function to display progress.
 }
 \examples{
- \dontrun{
- boot_res <- boot::boot(data = data, statistic =
- progressReporter(500, nBars=100, f = boot_func), R = 500)
- }
+\dontrun{
+boot_res <- boot::boot(
+  data = data, statistic =
+    progressReporter(500, nBars = 100, f = boot_func), R = 500
+)
+}
 
 }
 \references{

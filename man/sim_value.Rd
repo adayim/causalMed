@@ -4,15 +4,15 @@
 \alias{sim_value}
 \title{Random data simulation from predicted value.}
 \usage{
-sim_value(models, newdt)
+sim_value(model, newdt)
 }
 \arguments{
-\item{models}{fitted objects defined in the `spec_model`.}
+\item{model}{fitted objects defined in the `spec_model`.}
 
 \item{newdt}{a data frame in which to look for variables with which to predict.}
 }
 \value{
-A simulated random vector using the predicted value from models and newdt.
+A simulated random vector using the predicted value from model and newdt.
 }
 \description{
 Internal use only, predict response and simulate random data. The simulated

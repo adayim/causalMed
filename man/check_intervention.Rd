@@ -2,16 +2,31 @@
 % Please edit documentation in R/check.R
 \name{check_intervention}
 \alias{check_intervention}
-\title{Check intervention settings}
+\title{Check for the intervention}
 \usage{
-check_intervention(intervention, time)
+check_intervention(models, intervention, ref_int, time_len)
 }
 \arguments{
-\item{intervention}{Intervention settings pass from the function.}
+\item{models}{A list of models for the G-formula, including exposure model,
+ covariate model (if any), mediator model (if any), outcome model or
+ censoring model (if any). See details in \code{\link{spec_model}}.
+ The order appeared in the list should reflect the temporal ordering of the
+ variables, in another way data generation process. The model will be evaluated
+in this process.}
 
-\item{time}{Time index from the data.}
+\item{intervention}{A named list with a value of intervention on exposure.
+if kept as NULL (default), the natural intervention course will be calculated.
+ eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0))}
+
+\item{ref_int}{Integer or character string denoting the intervention to be used as
+the reference for calculating the risk ratio and risk difference. 0 or \code{"natural"}
+ denotes the natural course, while subsequent integers denote user-specified
+interventions in the order that they are named in \code{intervention}. Or if the character
+is the name of the intervention. The default is 0.}
+
+\item{time_len}{length of the time in the data.}
 }
 \description{
-Check intervention settings
+Check if the intervention is correctly defined.
 }
 \keyword{internal}
