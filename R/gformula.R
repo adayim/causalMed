@@ -192,8 +192,8 @@ Gformula <- function(data,
 
   return(list(
     call = tpcall,
-    estimate = est_out,
-    risk_est = risk_est,
+    estimate = risk_est,
+    risk_size = est_out,
     gform.data = data.table::rbindlist(est_ori$gform.data, idcol = "Intervention"),
     fitted.models = est_ori$fitted.models
   ))
