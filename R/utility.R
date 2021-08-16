@@ -44,7 +44,7 @@ get_args_for <- function(fun, env = parent.frame(), ..., dots = NULL) {
     }
 
     # get all formal arguments that can be found in parent frame
-    args <- mget(potential, env, ..., ifnotfound = list(NULL))
+    args <- mget(potential, env, ..., ifnotfound = list(NULL), inherits = FALSE)
     # remove not found
     args <- args[sapply(args, Negate(is.null))]
     # return found args and dots

@@ -14,8 +14,7 @@ monte_g(
   in.recode = NULL,
   out.recode = NULL,
   init.recode = NULL,
-  mediation_type = c(NA, "N", "I"),
-  verbose = TRUE
+  mediation_type = c(NA, "N", "I")
 )
 }
 \arguments{
@@ -43,8 +42,6 @@ days with a treatment or creating lagged variables. This is executed at each end
 \item{init.recode}{optional, recoding of variables done at the
 beginning of the Monte Carlo loop. Needed for operations initialize baseline variables.
 This is executed at beginning of the Monte Carlo g-formula, executed only once at time 0.}
-
-\item{verbose}{Print intervention information during calculation.}
 }
 \description{
 Internal use only. Monte Carlo simulation.

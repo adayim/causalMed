@@ -16,21 +16,17 @@ bootstrap_helper(
   in.recode,
   out.recode,
   mc.sample = 10000,
-  verbose = TRUE,
   mediation_type = c(NA, "N", "I"),
   R = 500,
-  parallel = FALSE,
-  ncpus = 1L
+  ncores = 1L
 )
 }
 \arguments{
 \item{R}{The number of bootstrap replicates, default is 500. Same with \code{boot}, see \code{\link[boot]{boot}} for detail.}
 
-\item{parallel}{If parallel operation to be used, the default is FALSE.}
+\item{ncores}{integer: number of processes to be used in parallel operation: typically one would chose this to the number of available CPUs.}
 
 \item{object}{Object returned from Gformula function (see \code{\link[calsalMed]{Gformula}}).}
-
-\item{ncores}{integer: number of processes to be used in parallel operation: typically one would chose this to the number of available CPUs.}
 }
 \description{
 Used to calculate confidence interval using non-parametric bootstrap methods.

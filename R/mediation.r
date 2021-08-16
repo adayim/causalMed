@@ -60,7 +60,6 @@
 #' @export
 #'
 #'
-
 mediation <- function(data,
                       id.var,
                       base.vars,
@@ -74,65 +73,43 @@ mediation <- function(data,
                       mc.sample = 10000,
                       mediation_type = c("N", "I"),
                       verbose = TRUE) {
+  
   tpcall <- match.call()
   mediation_type <- match.arg(mediation_type)
 
-  # Setting seeds
-  if (!exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)) runif(1)
-  seed <- get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
+  # Get time length
+  time_seq <- unique(na.omit(data[[time.var]]))
+  time_len <- length(time_seq)
 
   # Check for error
-  do.call(check_error, tpcall)
+  check_error(data, id.var, base.vars, exposure, time.var, models)
 
-  if (is.null(intervention)) {
-    intervention <- list(intervention = NULL)
-  }
+  intervention <- list(always = 1, never = 0, mediation = NULL)
+
+  # Get the position of the outcome
+  out_flag <- sapply(models, function(mods) mods$mod_type %in% c("outcome", "survival"))
+  out_flag <- which(out_flag)
+  outcome_var <- all.vars(formula(models[[out_flag]]$call)[[2]])
+
+  # Test if mediator model exists
+  med_flag <- sapply(models, function(mods) mods$mod_type == "mediator")
+  if(!any(med_flag))
+    stop("Mediator model was not defined.", domain = "causalMed")
 
   # Run along the models
-  fit_mods <- lapply(models, function(mods) {
-    mods$call$data <- substitute(data)
-    rsp_vars <- all.vars(formula(mods$call)[[2]])
-    is_numeric <- is.numeric(data[[rsp_vars]])
+  if (verbose)
+    cat("\n====== Fitting models =======\n")
 
-    list(
-      fitted = eval(mods$call),
-      recodes = mods$recode,
-      subset = mods$subset,
-      var_type = mods$var_type,
-      mod_type = mods$mod_type,
-      custom_sim = mods$custom_sim,
-      rsp_vars = rsp_vars,
-      val_ran = ifelse(is_numeric, range(na.omit(data[[rsp_vars]])),
-        unique(na.omit(data[[rsp_vars]]))
-      )
-    ) # Observed values range
-  })
+  # Run original estimate
+  arg_est <- get_args_for(.gformula)
+  arg_est$return_fitted <- TRUE
+  est_ori <- do.call(.gformula, arg_est)
 
-  # Baseline variables for Monte Carlo Sampling
-  base_dat <- unique(data[, unique(c(id.var, base.vars))])
-  df_mc <- base_dat[sample(1:nrow(base_dat), mc.sample, replace = TRUE), ]
+  # Run bootstrap
+  arg_pools <- get_args_for(bootstrap_helper)
+  pools <- do.call(bootstrap_helper, arg_pools)
 
-  # Mediation analysis
-  if (!all(med_flag == 0)) {
-    intervention <- list(
-      always = rep(1, time_len),
-      never = rep(0, time_len),
-      mediation = rep("mediation", time_len)
-    )
-  }
-
-  res <- sapply(intervention, function(i) {
-    monte_g(
-      data = df_mc, 
-      exposure = exposure,
-      time.var = time.var,
-      time.seq = unique(data[[time.var]]),
-      models = fit_mods, intervention = i,
-      in.recode = in.recode,
-      out.recode = out.recode, init.recode = init.recode,
-      verbose = verbose
-    )
-  }, simplify = FALSE)
+  # Mean value of the outcome at each time point by intervention
 
   return(list(
     call = tpcall,

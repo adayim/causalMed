@@ -10,7 +10,6 @@
 #'
 #' @return A simulated random vector using the predicted value from model and newdt.
 #' 
-#' @importFrom nnet predict.multinom
 #'
 #' @export
 #'

@@ -18,9 +18,7 @@ Gformula(
   out.recode = NULL,
   mc.sample = 10000,
   R = 500,
-  parallel = FALSE,
-  ncores = 1L,
-  verbose = TRUE
+  ncores = 1L
 )
 }
 \arguments{
@@ -66,13 +64,10 @@ days with a treatment or creating lagged variables. This is executed at each end
 
 \item{mc.sample}{Sample size of Monte Carlo simulation.}
 
-\item{R}{The number of bootstrap replicates, default is 500. Same with \code{boot}, see \code{\link[boot]{boot}} for detail.}
+\item{R}{The number of bootstrap replicates, default is 500.}
 
-\item{parallel}{If parallel operation to be used, the default is FALSE.}
-
-\item{ncores}{integer: number of processes to be used in parallel operation: typically one would chose this to the number of available CPUs.}
-
-\item{verbose}{Print intervention information during calculation.}
+\item{ncores}{integer: number of processes to be used in parallel operation: typically one would chose this to the number of
+available CPUs. Parallel computation for bootstrap will be applied if \code{ncores} larger than 1.}
 
 \item{is.survival}{Is the data survival data, default is FALSE.}
 }

@@ -71,6 +71,12 @@ spec_model <- function(formula,
 
   args_list <- tmpcall
 
+  if(mod_type %in% c("censor", "survival") & var_type != "binary")
+    stop("Only binary variable type is allowed for the survival and censor models.", domain = "causalMed")  
+
+  if(mod_type == "outcome" & !var_type %in% c("binary", "normal"))
+    stop("Only binary or normal variable type is allowed for the outcome model.", domain = "causalMed")
+  
   # Remove unnecessary arguments
   args_list <- args_list[!names(args_list) %in% c(
     "recode", "mod_type", "custom_fit",

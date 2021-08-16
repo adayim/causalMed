@@ -77,27 +77,46 @@ out_recode <- c(
 
 devtools::load_all()
 df <- df[df$day <= 100, ]
-ncors <- parallel::detectCores()
+ncors <- parallel::detectCores(logical = FALSE)
 # debug(.gformula)
 # undebug(Gformula)
 # debug(monte_g)
+# debug(bootstrap_helper)
 # debug(simulate_data)
 natural <- Gformula(df,
-  id.var = "id",
-  base.vars = c(
-    "age", "agesq", "agecurs1", "agecurs2", "male",
-    "cmv", "all", "wait"
-  ),
-  exposure = "gvhd",
-  time.var = "day",
-  models = list(mod_cov1, mod_cov2, mod_exp, mod_cens, mod_out),
-  intervention = list(always = 1),
-  init.recode = init_recode,
-  in.recode = in_recode,
-  out.recode = out_recode,
-  mc.sample = 1370,
-  R = 50,
-  ncores = ncores -1
+                    id.var = "id",
+                    base.vars = c(
+                      "age", "agesq", "agecurs1", "agecurs2", "male",
+                      "cmv", "all", "wait"
+                    ),
+                    exposure = "gvhd",
+                    time.var = "day",
+                    models = list(mod_cov1, mod_cov2, mod_exp, mod_cens, mod_out),
+                    intervention = list(always = 1),
+                    init.recode = init_recode,
+                    in.recode = in_recode,
+                    out.recode = out_recode,
+                    mc.sample = 1370,
+                    R = 10,
+                    ncores = 3
+)
+
+natural2 <- Gformula(df,
+                    id.var = "id",
+                    base.vars = c(
+                      "age", "agesq", "agecurs1", "agecurs2", "male",
+                      "cmv", "all", "wait"
+                    ),
+                    exposure = "gvhd",
+                    time.var = "day",
+                    models = list(mod_cov1, mod_cov2, mod_exp, mod_cens, mod_out),
+                    intervention = list(always = 1),
+                    init.recode = init_recode,
+                    in.recode = in_recode,
+                    out.recode = out_recode,
+                    mc.sample = 1370,
+                    R = 50,
+                    ncores = 3
 )
 
 always <- Gformula(df,

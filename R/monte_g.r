@@ -1,3 +1,94 @@
+#' Main calculation function
+#' 
+#' @inheritParams Gformula
+#' @param mediation_type Type of the mediation effect.
+#' @param return_fitted Return the fitted model (default is FALSE).
+#' 
+#' @importFrom pbapply pbsapply
+
+.gformula <- function(data,
+                      id.var,
+                      base.vars,
+                      time.var,
+                      exposure,
+                      models,
+                      intervention,
+                      in.recode,
+                      out.recode,
+                      init.recode,
+                      mediation_type = c(NA, "N", "I"),
+                      mc.sample      = 10000,
+                      return_fitted  = FALSE){
+
+  mediation_type <- match.arg(mediation_type)
+
+  fit_mods <- lapply(models, function(mods) {
+
+    rsp_vars <- all.vars(formula(mods$call)[[2]])
+
+    # Observed values range
+    if(is.numeric(data[[rsp_vars]])){
+      val_ran <- range(na.omit(data[[rsp_vars]]))
+    }else {
+      val_ran <- unique(na.omit(data[[rsp_vars]]))
+    }
+
+    # Recode data before simulating
+    if (!is.null(mods$recode)) {
+      for (i in seq_along(mods$recode)) {
+        data <- within(data, eval(parse(text = mods$recode[i])))
+      }
+    }
+
+    mods$call$data <- substitute(data)
+
+    list(
+      fitted = eval(mods$call),
+      recodes = mods$recode,
+      subset = mods$subset,
+      var_type = mods$var_type,
+      mod_type = mods$mod_type,
+      custom_sim = mods$custom_sim,
+      rsp_vars = rsp_vars,
+      val_ran = val_ran
+    )
+  })
+
+  # Setting seeds
+  set.seed(12345*mc.sample)
+
+  # Baseline variables for Monte Carlo Sampling
+  base_dat <- unique(data[, unique(c(id.var, base.vars))])
+  df_mc <- data.table::as.data.table(base_dat[sample(1:nrow(base_dat), mc.sample, replace = TRUE), ])
+  df_mc[, new_ID:=seq_len(.N)]
+
+  if(!is.na(mediation_type))
+    intervention <- list(always = 1, never = 0, mediation = NULL)
+
+  # 
+  cat("\nLooping interventions:\n")
+
+  res <- pbapply::pbsapply(intervention, function(i) {
+    monte_g(
+      data = df_mc,
+      time.var = time.var,
+      time.seq = unique(data[[time.var]]),
+      exposure = exposure,
+      models = fit_mods,
+      intervention = i,
+      in.recode = in.recode,
+      out.recode = out.recode,
+      init.recode = init.recode,
+      mediation_type = mediation_type
+    )
+  }, simplify = FALSE)
+
+  if(return_fitted){
+    return(list(fitted.models = fit_mods, gform.data = res))
+  } else {
+    return(res)
+  }
+}
 
 #' Monte Carlo simulation
 #'
@@ -29,8 +120,6 @@
 #' days with a treatment or creating lagged variables. This is executed at each end
 #'  of the Monte Carlo g-formula time steps.
 #'
-#' @param verbose Print intervention information during calculation.
-#'
 #' @importFrom pbapply timerProgressBar setTimerProgressBar
 #'
 #' @keywords internal
@@ -44,8 +133,7 @@ monte_g <- function(data,
                     in.recode = NULL,
                     out.recode = NULL,
                     init.recode = NULL,
-                    mediation_type = c(NA, "N", "I"),
-                    verbose = TRUE) {
+                    mediation_type = c(NA, "N", "I")) {
 
   mediation_type <- match.arg(mediation_type)
 
@@ -73,26 +161,13 @@ monte_g <- function(data,
     censor <- all.vars(formula(models[[cen_flag]]$fitted)[[2]])
   }
 
-  if (verbose) {
-    cat("\n======Running intervention, please be patient.=======\n")
-  }
-
   # Simulate
   max_time <- max(time.seq, na.rm = TRUE)
   min_time <- min(time.seq, na.rm = TRUE)
   dat_y <- data
 
-  # for progress bar
-  if (verbose){
-    pb = pbapply::timerProgressBar(min = 0, max = length(time.seq), style = 2)
-    on.exit(close(pb))
-  }
-
   # Run normal g-formula
   for (t_index in sort(time.seq)) {
-
-    if (verbose)
-      pbapply::setTimerProgressBar(pb, which(sort(time.seq) == t_index))
 
     dat_y[[time.var]] <- t_index
 
@@ -129,9 +204,9 @@ monte_g <- function(data,
 
       # Output data
       if (t_index == min_time){
-        out_y <- dat_y[, c("new_ID", time.var, outcome), with = FALSE]
+        out_y <- dat_y[, c("new_ID", time.var, outcome, "Pred_Y"), with = FALSE]
       }else{
-        out_y <- rbind(out_y, dat_y[, c("new_ID", time.var, outcome), with = FALSE])
+        out_y <- rbind(out_y, dat_y[, c("new_ID", time.var, outcome, "Pred_Y"), with = FALSE])
       }
 
       # Continue for the not censored or no event observed
@@ -148,15 +223,15 @@ monte_g <- function(data,
 
       # If all loop complete
       if (t_index == max_time) {
-        out_y <- rbind(out_y, dat_y[, c("new_ID", time.var, outcome), with = FALSE])
+        out_y <- rbind(out_y, dat_y[, c("new_ID", time.var, outcome, "Pred_Y"), with = FALSE])
       }
 
     } else {
       # Output data
       if (t_index == min_time){
-        out_y <- dat_y[, c("new_ID", time.var, outcome), with = FALSE]
+        out_y <- dat_y[, c("new_ID", time.var, outcome, "Pred_Y"), with = FALSE]
       }else{
-        out_y <- rbind(out_y, dat_y[, c("new_ID", time.var, outcome), with = FALSE])
+        out_y <- rbind(out_y, dat_y[, c("new_ID", time.var, outcome, "Pred_Y"), with = FALSE])
       }
     }
   }

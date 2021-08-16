@@ -50,7 +50,8 @@ simulate_data <- function(data,
     if (resp_var == exposure & !is.null(intervention)) {
       # Evaluate if the intervention is dynamic
       if (is_dynamic) {
-        data <- within(data, eval(parse(text = intervention)))
+        data[[exposure]] <- as.numeric(eval(parse(text = intervention), envir = data))
+        # data <- within(data, eval(parse(text = intervention)))
       }
 
       next
@@ -81,6 +82,11 @@ simulate_data <- function(data,
       } else {
         data[[resp_var]][cond] <- sim_value(model = model, newdt = data[cond, ])
       }
+
+      # Get the predicted values for the outcome
+      if(mod_type %in% c("outcome", "survival"))
+        data[["Pred_Y"]][cond] <- predict(model$fitted, newdata = data[cond, ], type = "response")
+
     }
   }
 
