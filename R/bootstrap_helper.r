@@ -28,16 +28,6 @@ bootstrap_helper <- function(data,
 
   mediation_type <- match.arg(mediation_type)
 
-  # Check parallel
-  if (ncores > 1L) {
-    if (.Platform$OS.type != "windows") {
-      have_mc <- TRUE
-    } else {
-      have_mc <- FALSE
-    }
-    loadNamespace("parallel") # get this out of the way before recording seed
-  }
-
   set.seed(12345)
 
   dfm <- lapply(1:R, function(x) data[sample(1:nrow(data), nrow(data), replace = TRUE), ])
@@ -52,7 +42,7 @@ bootstrap_helper <- function(data,
       parallel::clusterExport(cl, ls(all.names=TRUE, env=globalenv()), envir=globalenv())
       parallel::clusterExport(cl, c("monte_g", "simulate_data", "sim_value"))
       parallel::clusterEvalQ(cl, library(data.table))
-      # clusterExport(cl, c("nobs", "iris_2species"))
+
       on.exit(parallel::stopCluster(cl))
     }
   } else {
