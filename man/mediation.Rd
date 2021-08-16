@@ -17,7 +17,8 @@ mediation(
   out.recode = NULL,
   mc.sample = 10000,
   mediation_type = c("N", "I"),
-  verbose = TRUE
+  R = 500,
+  ncores = 1L
 )
 }
 \arguments{
@@ -28,8 +29,6 @@ mediation(
 \item{base.vars}{A vector of time fixed baseline variables.}
 
 \item{exposure}{Intervention/Exposure variable}
-
-\item{outcome}{Name of the outcome variable.}
 
 \item{time.var}{Time variable.}
 
@@ -57,19 +56,20 @@ days with a treatment or creating lagged variables. This is executed at each end
 
 \item{mediation_type}{Type of the mediation effect, natural effect (\code{"N"}) or interventional effect (\code{"I"}).}
 
-\item{verbose}{Print intervention information during calculation.}
+\item{R}{The number of bootstrap replicates, default is 500.}
 
-\item{is.survival}{Is the data survival data, default is FALSE.}
+\item{ncores}{integer: number of processes to be used in parallel operation: typically one would chose this to the number of
+available CPUs. Parallel computation for bootstrap will be applied if \code{ncores} larger than 1.}
 }
 \description{
 Mediation analysis for time varying mediator, estimation based
- on g-formula. Output contains total effect, #' natrual direct effect and natural
+ on g-formula. Output contains total effect, #' natural direct effect and natural
   indirect effect for mediation or regular g-formula. data.frame will be returned.
 }
 \note{
 Not that final outcome must be the same for in all rows per subject.
   If the dataset is  survival settings, records after the interested outcome
-   must be deleted. The funciton it self do some data manupilation internally.
+   must be deleted. The function it self do some data manipulation internally.
    Please prepare the data as longitudinal format.
 }
 \references{

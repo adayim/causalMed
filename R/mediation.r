@@ -2,49 +2,15 @@
 #' G-formula Analysis
 #'
 #' @description Mediation analysis for time varying mediator, estimation based
-#'  on g-formula. Output contains total effect, #' natrual direct effect and natural
+#'  on g-formula. Output contains total effect, #' natural direct effect and natural
 #'   indirect effect for mediation or regular g-formula. data.frame will be returned.
 #'
 #' @note Not that final outcome must be the same for in all rows per subject.
 #'   If the dataset is  survival settings, records after the interested outcome
-#'    must be deleted. The funciton it self do some data manupilation internally.
+#'    must be deleted. The function it self do some data manipulation internally.
 #'    Please prepare the data as longitudinal format.
 #'
-#' @param data Data set to be sued
-#'
-#' @param id.var ID variable per subject.
-#'
-#' @param base.vars A vector of time fixed baseline variables.
-#'
-#' @param exposure Intervention/Exposure variable
-#'
-#' @param outcome Name of the outcome variable.
-#'
-#' @param time.var Time variable.
-#'
-#' @param models A list of models for the G-formula, including exposure model,
-#'  covariate model (if any), mediator model (if any), outcome model or
-#'  censoring model (if any). See details in \code{\link{spec_model}}.
-#'  The order appeared in the list should reflect the temporal ordering of the
-#'  variables, in another way data generation process. The model will be evaluated
-#' in this process.
-#'
-#' @param init.recode optional, recoding of variables done at the
-#' beginning of the Monte Carlo loop. Needed for operations initialize baseline variables.
-#' This is executed at beginning of the Monte Carlo g-formula, executed only once at time 0.
-#'
-#' @param in.recode optional, On the fly recoding of variables done before the Monte
-#'  Carlo loop starts. Needed to do any kind of functional forms for entry times.
-#'   This is executed at each start of the Monte Carlo g-formula time steps
-#'
-#' @param out.recode optional, On the fly recoding of variables done at the
-#' end of the Monte Carlo loop. Needed for operations like counting the number of
-#' days with a treatment or creating lagged variables. This is executed at each end
-#'  of the Monte Carlo g-formula time steps.
-#'
-#' @param is.survival Is the data survival data, default is FALSE.
-#'
-#' @param mc.sample Sample size of Monte Carlo simulation.
+#' @inheritParams Gformula
 #'
 #' @param mediation_type Type of the mediation effect, natural effect (\code{"N"}) or interventional effect (\code{"I"}).
 #'
@@ -72,7 +38,7 @@ mediation <- function(data,
                       mediation_type = c("N", "I"),
                       R              = 500,
                       ncores         = 1L) {
-  
+
   tpcall <- match.call()
   mediation_type <- match.arg(mediation_type)
 

@@ -1,8 +1,7 @@
 options(stringsAsFactors = FALSE)
 
-df <- read.csv("data-raw/gvhd_data.csv")
-
 devtools::load_all()
+data(gvhd)
 
 set.seed(12131231)
 

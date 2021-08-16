@@ -28,6 +28,6 @@ A data frame with 2114 rows and 13 variables:
 lipdat
 }
 \description{
-A dataset containing the lipid profle and other attributes.
+A dataset containing the lipid profile and other attributes.
 }
 \keyword{datasets}
