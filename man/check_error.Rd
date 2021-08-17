@@ -4,18 +4,18 @@
 \alias{check_error}
 \title{Error Catching}
 \usage{
-check_error(data, id.var, base.vars, exposure, time.var, models)
+check_error(data, id_var, base_vars, exposure, time_var, models)
 }
 \arguments{
 \item{data}{Data set to be sued}
 
-\item{id.var}{ID variable per subject.}
+\item{id_var}{ID variable per subject.}
 
-\item{base.vars}{A vector of time fixed baseline variables.}
+\item{base_vars}{A vector of time fixed baseline variables.}
 
 \item{exposure}{Intervention/Exposure variable}
 
-\item{time.var}{Time variable.}
+\item{time_var}{Time variable.}
 
 \item{models}{A list of models for the G-formula, including exposure model,
  covariate model (if any), mediator model (if any), outcome model or
@@ -28,6 +28,6 @@ in this process.}
 No value is returned.
 }
 \description{
-This function is used to check for errors in the \code{\link{Gformula}}.
+This function is used to check for errors in the \code{\link{gformula}}.
 }
 \keyword{internal}

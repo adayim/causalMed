@@ -6,8 +6,8 @@
 \usage{
 calc_iptw(
   data,
-  id.vars,
-  time.var,
+  id_vars,
+  time_var,
   baseline.vars,
   exposure.model,
   exposure.vars,
@@ -22,9 +22,9 @@ calc_iptw(
 \arguments{
 \item{data}{Data to be used to ceate matrix.}
 
-\item{id.vars}{ID variable name.}
+\item{id_vars}{ID variable name.}
 
-\item{time.var}{Time indexing varaible name.}
+\item{time_var}{Time indexing varaible name.}
 
 \item{baseline.vars}{A vector of baseline variables and time-fixed variable names.}
 

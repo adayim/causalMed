@@ -6,17 +6,18 @@
 \usage{
 mediation(
   data,
-  id.var,
-  base.vars,
+  id_var,
+  base_vars,
   exposure,
   outcome,
-  time.var,
+  time_var,
   models,
-  init.recode = NULL,
-  in.recode = NULL,
-  out.recode = NULL,
-  mc.sample = 10000,
+  init_recode = NULL,
+  in_recode = NULL,
+  out_recode = NULL,
+  mc_sample = nrow(data),
   mediation_type = c("N", "I"),
+  return_fitted = FALSE,
   R = 500,
   ncores = 1L
 )
@@ -24,13 +25,13 @@ mediation(
 \arguments{
 \item{data}{Data set to be sued}
 
-\item{id.var}{ID variable per subject.}
+\item{id_var}{ID variable per subject.}
 
-\item{base.vars}{A vector of time fixed baseline variables.}
+\item{base_vars}{A vector of time fixed baseline variables.}
 
 \item{exposure}{Intervention/Exposure variable}
 
-\item{time.var}{Time variable.}
+\item{time_var}{Time variable.}
 
 \item{models}{A list of models for the G-formula, including exposure model,
  covariate model (if any), mediator model (if any), outcome model or
@@ -39,20 +40,20 @@ mediation(
  variables, in another way data generation process. The model will be evaluated
 in this process.}
 
-\item{init.recode}{optional, recoding of variables done at the
+\item{init_recode}{optional, recoding of variables done at the
 beginning of the Monte Carlo loop. Needed for operations initialize baseline variables.
 This is executed at beginning of the Monte Carlo g-formula, executed only once at time 0.}
 
-\item{in.recode}{optional, On the fly recoding of variables done before the Monte
+\item{in_recode}{optional, On the fly recoding of variables done before the Monte
 Carlo loop starts. Needed to do any kind of functional forms for entry times.
  This is executed at each start of the Monte Carlo g-formula time steps}
 
-\item{out.recode}{optional, On the fly recoding of variables done at the
+\item{out_recode}{optional, On the fly recoding of variables done at the
 end of the Monte Carlo loop. Needed for operations like counting the number of
 days with a treatment or creating lagged variables. This is executed at each end
  of the Monte Carlo g-formula time steps.}
 
-\item{mc.sample}{Sample size of Monte Carlo simulation.}
+\item{mc_sample}{Sample size of Monte Carlo simulation.}
 
 \item{mediation_type}{Type of the mediation effect, natural effect (\code{"N"}) or interventional effect (\code{"I"}).}
 

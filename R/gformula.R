@@ -70,7 +70,7 @@
 #'
 #'
 
-Gformula <- function(data,
+gformula <- function(data,
                      id_var,
                      base_vars,
                      exposure,

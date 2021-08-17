@@ -6,16 +6,16 @@
 \usage{
 bootstrap_helper(
   data,
-  id.var,
-  base.vars,
-  time.var,
+  id_var,
+  base_vars,
+  time_var,
   exposure,
   models,
   intervention,
-  init.recode,
-  in.recode,
-  out.recode,
-  mc.sample = 10000,
+  init_recode,
+  in_recode,
+  out_recode,
+  mc_sample = 10000,
   mediation_type = c(NA, "N", "I"),
   R = 500,
   ncores = 1L
@@ -26,7 +26,7 @@ bootstrap_helper(
 
 \item{ncores}{integer: number of processes to be used in parallel operation: typically one would chose this to the number of available CPUs.}
 
-\item{object}{Object returned from Gformula function (see \code{\link[calsalMed]{Gformula}}).}
+\item{object}{Object returned from gformula function (see \code{\link[calsalMed]{gformula}}).}
 }
 \description{
 Used to calculate confidence interval using non-parametric bootstrap methods.

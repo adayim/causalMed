@@ -6,28 +6,28 @@
 \usage{
 .gformula(
   data,
-  id.var,
-  base.vars,
-  time.var,
+  id_var,
+  base_vars,
+  time_var,
   exposure,
   models,
   intervention,
-  in.recode,
-  out.recode,
-  init.recode,
+  in_recode,
+  out_recode,
+  init_recode,
   mediation_type = c(NA, "N", "I"),
-  mc.sample = 10000,
+  mc_sample = 10000,
   return_fitted = FALSE
 )
 }
 \arguments{
 \item{data}{Data set to be sued}
 
-\item{id.var}{ID variable per subject.}
+\item{id_var}{ID variable per subject.}
 
-\item{base.vars}{A vector of time fixed baseline variables.}
+\item{base_vars}{A vector of time fixed baseline variables.}
 
-\item{time.var}{Time variable.}
+\item{time_var}{Time variable.}
 
 \item{exposure}{Intervention/Exposure variable}
 
@@ -42,22 +42,22 @@ in this process.}
 if kept as NULL (default), the natural intervention course will be calculated.
  eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0))}
 
-\item{in.recode}{optional, On the fly recoding of variables done before the Monte
+\item{in_recode}{optional, On the fly recoding of variables done before the Monte
 Carlo loop starts. Needed to do any kind of functional forms for entry times.
  This is executed at each start of the Monte Carlo g-formula time steps}
 
-\item{out.recode}{optional, On the fly recoding of variables done at the
+\item{out_recode}{optional, On the fly recoding of variables done at the
 end of the Monte Carlo loop. Needed for operations like counting the number of
 days with a treatment or creating lagged variables. This is executed at each end
  of the Monte Carlo g-formula time steps.}
 
-\item{init.recode}{optional, recoding of variables done at the
+\item{init_recode}{optional, recoding of variables done at the
 beginning of the Monte Carlo loop. Needed for operations initialize baseline variables.
 This is executed at beginning of the Monte Carlo g-formula, executed only once at time 0.}
 
 \item{mediation_type}{Type of the mediation effect.}
 
-\item{mc.sample}{Sample size of Monte Carlo simulation.}
+\item{mc_sample}{Sample size of Monte Carlo simulation.}
 
 \item{return_fitted}{Return the fitted model (default is FALSE).}
 }

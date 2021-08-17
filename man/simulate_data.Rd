@@ -15,7 +15,7 @@ simulate_data(
 \arguments{
 \item{data}{Data to be used for the data generation}
 
-\item{models}{Model list passed from \code{\link{Gformula}}.}
+\item{models}{Model list passed from \code{\link{gformula}}.}
 
 \item{intervention}{A vector, intervention treatment per time.
 If \code{NULL}, natural course.}

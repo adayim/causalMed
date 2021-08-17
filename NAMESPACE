@@ -2,7 +2,7 @@
 
 S3method(print,gmed_boot)
 S3method(print,iptw_med)
-export(Gformula)
+export(gformula)
 export(mediation)
 export(sim_value)
 export(spec_model)

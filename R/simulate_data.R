@@ -4,7 +4,7 @@
 #'
 #'
 #' @param data Data to be used for the data generation
-#' @param models Model list passed from \code{\link{Gformula}}.
+#' @param models Model list passed from \code{\link{gformula}}.
 #' @param intervention A vector, intervention treatment per time.
 #' If \code{NULL}, natural course.
 #' @param mediation_type Type of the mediation analysis.

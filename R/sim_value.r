@@ -9,10 +9,9 @@
 #' @param newdt a data frame in which to look for variables with which to predict.
 #'
 #' @return A simulated random vector using the predicted value from model and newdt.
-#'
-#'
-#' @export
-#'
+#' 
+#' @keywords internal
+#' 
 sim_value <- function(model, newdt) {
   var_type <- model$var_type
   fit <- model$fitted
@@ -33,10 +32,10 @@ sim_value <- function(model, newdt) {
   # Random number generation for Monte Carlo simulation
   if (var_type == "categorical") {
     pred <- predict(fit, newdata = newdt, type = "probs")
-    rMultinom(pred, 1)
-  } else if (var_type == "binary") {
+    return(rMultinom(pred, 1))
+  } else if (var_type == "binomial") {
     pred <- predict(fit, newdata = newdt, type = "response")
-    rbinom(nrow(newdt), 1, pred)
+    return(rbinom(nrow(newdt), 1, pred))
   } else {
     pred <- predict(fit, newdata = newdt, type = "response")
     out <- rnorm(nrow(newdt), pred, rmse)

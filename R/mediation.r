@@ -10,7 +10,7 @@
 #'    must be deleted. The function it self do some data manipulation internally.
 #'    Please prepare the data as longitudinal format.
 #'
-#' @inheritParams Gformula
+#' @inheritParams gformula
 #'
 #' @param mediation_type Type of the mediation effect, natural effect (\code{"N"}) or interventional effect (\code{"I"}).
 #'

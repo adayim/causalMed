@@ -2,9 +2,9 @@
 
 #' Error Catching
 #'
-#' This function is used to check for errors in the \code{\link{Gformula}}.
+#' This function is used to check for errors in the \code{\link{gformula}}.
 #'
-#' @inheritParams Gformula
+#' @inheritParams gformula
 #' @return No value is returned.
 #' @keywords internal
 #'
@@ -69,7 +69,7 @@ check_error <- function(data,
 
   if (is_survival & !all.equal(sort(unique(na.omit(data[[outcome]]))), c(0, 1))) {
     # TODO: competing risk
-    stop("Only binary outcomes for survival are currently supported, and must be set to 0 and 1.", domain = "causalMed")
+    stop("Only binomial outcomes for survival are currently supported, and must be set to 0 and 1.", domain = "causalMed")
   }
 
   # Outcome model or survival model must be defined and one only
@@ -98,7 +98,7 @@ check_error <- function(data,
 #'
 #' Check if the intervention is correctly defined.
 #'
-#' @inheritParams Gformula
+#' @inheritParams gformula
 #' @param time_len length of the time in the data.
 #'
 #' @keywords internal

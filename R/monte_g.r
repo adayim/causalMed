@@ -1,6 +1,6 @@
 #' Main calculation function
 #'
-#' @inheritParams Gformula
+#' @inheritParams gformula
 #' @param mediation_type Type of the mediation effect.
 #' @param return_fitted Return the fitted model (default is FALSE).
 #'

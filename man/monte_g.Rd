@@ -8,12 +8,12 @@ monte_g(
   data,
   exposure,
   time.seq,
-  time.var,
+  time_var,
   models,
   intervention = NULL,
-  in.recode = NULL,
-  out.recode = NULL,
-  init.recode = NULL,
+  in_recode = NULL,
+  out_recode = NULL,
+  init_recode = NULL,
   mediation_type = c(NA, "N", "I")
 )
 }
@@ -24,22 +24,22 @@ monte_g(
 
 \item{time.seq}{Time sequence.}
 
-\item{time.var}{Time variable.}
+\item{time_var}{Time variable.}
 
 \item{models}{fitted objects.}
 
 \item{intervention}{A vector, intervention treatment per time.}
 
-\item{in.recode}{optional, On the fly recoding of variables done before the Monte
+\item{in_recode}{optional, On the fly recoding of variables done before the Monte
 Carlo loop starts. Needed to do any kind of functional forms for entry times.
  This is executed at each start of the Monte Carlo g-formula time steps}
 
-\item{out.recode}{optional, On the fly recoding of variables done at the
+\item{out_recode}{optional, On the fly recoding of variables done at the
 end of the Monte Carlo loop. Needed for operations like counting the number of
 days with a treatment or creating lagged variables. This is executed at each end
  of the Monte Carlo g-formula time steps.}
 
-\item{init.recode}{optional, recoding of variables done at the
+\item{init_recode}{optional, recoding of variables done at the
 beginning of the Monte Carlo loop. Needed for operations initialize baseline variables.
 This is executed at beginning of the Monte Carlo g-formula, executed only once at time 0.}
 }

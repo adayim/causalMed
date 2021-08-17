@@ -2,7 +2,7 @@
 #'
 #' @description Used to calculate confidence interval using non-parametric bootstrap methods.
 #'
-#' @param object Object returned from Gformula function (see \code{\link[calsalMed]{Gformula}}).
+#' @param object Object returned from gformula function (see \code{\link[calsalMed]{gformula}}).
 #'
 #' @param R The number of bootstrap replicates, default is 500. Same with \code{boot}, see \code{\link[boot]{boot}} for detail.
 #'
