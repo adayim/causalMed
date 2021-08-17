@@ -62,5 +62,7 @@ This is executed at beginning of the Monte Carlo g-formula, executed only once a
 \item{return_fitted}{Return the fitted model (default is FALSE).}
 }
 \description{
-Main calculation function
+This function will receive the parameters and fit model. After the model is fitted,
+random samples will be drawn from the data and apply the intervention.
 }
+\keyword{internal}

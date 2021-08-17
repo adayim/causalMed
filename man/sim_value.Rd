@@ -18,3 +18,4 @@ A simulated random vector using the predicted value from model and newdt.
 Internal use only, predict response and simulate random data. The simulated
  value will be restricted within the observed value range for numeric values.
 }
+\keyword{internal}

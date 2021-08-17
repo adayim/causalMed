@@ -15,14 +15,20 @@ simulate_data(
 \arguments{
 \item{data}{Data to be used for the data generation}
 
-\item{models}{Model list passed from \code{\link{gformula}}.}
+\item{models}{Model list passed from \code{\link{gformula}} or \code{\link{mediation}}.}
 
-\item{intervention}{A vector, intervention treatment per time.
-If \code{NULL}, natural course.}
+\item{intervention}{A vector, intervention treatment, natural course will be evaluated
+if the value is \code{NULL}. If the value contains any logical operators, the intervention
+will be evaluated and the exposure variable will be set to 1 if it is \code{TRUE}.}
 
-\item{mediation_type}{Type of the mediation analysis.}
+\item{mediation_type}{Type of the mediation analysis, if the value is \code{NA} 
+no mediation analysis will be performed (default). It will be ignored if the intervention
+ is not \code{NULL}}
 }
 \description{
-Simulate Data
+Loop through the models and apply any recoding or subset.
+}
+\details{
+If the intervention is \code{NULL}, and the \code{mediation_type}
 }
 \keyword{internal}

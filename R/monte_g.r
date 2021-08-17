@@ -1,10 +1,15 @@
 #' Main calculation function
+#' 
+#' This function will receive the parameters and fit model. After the model is fitted,
+#' random samples will be drawn from the data and apply the intervention. 
 #'
 #' @inheritParams gformula
 #' @param mediation_type Type of the mediation effect.
 #' @param return_fitted Return the fitted model (default is FALSE).
 #'
 #' @importFrom pbapply pbsapply
+#' 
+#' @keywords internal
 
 .gformula <- function(data,
                       id_var,
@@ -71,7 +76,7 @@
     monte_g(
       data = df_mc,
       time_var = time_var,
-      time.seq = unique(data[[time_var]]),
+      time_seq = unique(data[[time_var]]),
       exposure = exposure,
       models = fit_mods,
       intervention = i,
@@ -94,38 +99,19 @@
 #' @description
 #'  Internal use only. Monte Carlo simulation.
 #'
-#' @param data a data frame in which to look for variables with which to predict.
-#'
-#' @param exposure Intervention/Exposure variable
-#'
-#' @param time.seq Time sequence.
-#'
-#' @param time_var Time variable.
-#'
-#' @param models fitted objects.
-#'
-#' @param intervention A vector, intervention treatment per time.
-#'
-#' @param init_recode optional, recoding of variables done at the
-#' beginning of the Monte Carlo loop. Needed for operations initialize baseline variables.
-#' This is executed at beginning of the Monte Carlo g-formula, executed only once at time 0.
-#'
-#' @param in_recode optional, On the fly recoding of variables done before the Monte
-#'  Carlo loop starts. Needed to do any kind of functional forms for entry times.
-#'   This is executed at each start of the Monte Carlo g-formula time steps
-#'
-#' @param out_recode optional, On the fly recoding of variables done at the
-#' end of the Monte Carlo loop. Needed for operations like counting the number of
-#' days with a treatment or creating lagged variables. This is executed at each end
-#'  of the Monte Carlo g-formula time steps.
-#'
+#' @inheritParams gformula
+#' @param time_seq Time sequence vector of the data.
+#' @param mediation_type Type of the mediation analysis, if the value is \code{NA} 
+#' no mediation analysis will be performed (default). It will be ignored if the intervention
+#'  is not \code{NULL}
+#' 
 #' @importFrom pbapply timerProgressBar setTimerProgressBar
 #'
 #' @keywords internal
 #'
 monte_g <- function(data,
                     exposure,
-                    time.seq,
+                    time_seq,
                     time_var,
                     models,
                     intervention = NULL,
@@ -136,7 +122,7 @@ monte_g <- function(data,
   mediation_type <- match.arg(mediation_type)
 
   # Replicate to intervention to the same length of the time.
-  time_len <- length(time.seq)
+  time_len <- length(time_seq)
   if (length(intervention) == 1) {
     intervention <- rep(intervention, time_len)
   }
@@ -160,12 +146,12 @@ monte_g <- function(data,
   }
 
   # Simulate
-  max_time <- max(time.seq, na.rm = TRUE)
-  min_time <- min(time.seq, na.rm = TRUE)
+  max_time <- max(time_seq, na.rm = TRUE)
+  min_time <- min(time_seq, na.rm = TRUE)
   dat_y <- data
 
   # Run normal g-formula
-  for (t_index in sort(time.seq)) {
+  for (t_index in sort(time_seq)) {
     dat_y[[time_var]] <- t_index
 
     # Recode baseline variables at initiation

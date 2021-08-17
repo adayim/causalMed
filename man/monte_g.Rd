@@ -7,7 +7,7 @@
 monte_g(
   data,
   exposure,
-  time.seq,
+  time_seq,
   time_var,
   models,
   intervention = NULL,
@@ -18,17 +18,24 @@ monte_g(
 )
 }
 \arguments{
-\item{data}{a data frame in which to look for variables with which to predict.}
+\item{data}{Data set to be sued}
 
 \item{exposure}{Intervention/Exposure variable}
 
-\item{time.seq}{Time sequence.}
+\item{time_seq}{Time sequence vector of the data.}
 
 \item{time_var}{Time variable.}
 
-\item{models}{fitted objects.}
+\item{models}{A list of models for the G-formula, including exposure model,
+ covariate model (if any), mediator model (if any), outcome model or
+ censoring model (if any). See details in \code{\link{spec_model}}.
+ The order appeared in the list should reflect the temporal ordering of the
+ variables, in another way data generation process. The model will be evaluated
+in this process.}
 
-\item{intervention}{A vector, intervention treatment per time.}
+\item{intervention}{A named list with a value of intervention on exposure.
+if kept as NULL (default), the natural intervention course will be calculated.
+ eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0))}
 
 \item{in_recode}{optional, On the fly recoding of variables done before the Monte
 Carlo loop starts. Needed to do any kind of functional forms for entry times.
@@ -42,6 +49,10 @@ days with a treatment or creating lagged variables. This is executed at each end
 \item{init_recode}{optional, recoding of variables done at the
 beginning of the Monte Carlo loop. Needed for operations initialize baseline variables.
 This is executed at beginning of the Monte Carlo g-formula, executed only once at time 0.}
+
+\item{mediation_type}{Type of the mediation analysis, if the value is \code{NA} 
+no mediation analysis will be performed (default). It will be ignored if the intervention
+ is not \code{NULL}}
 }
 \description{
 Internal use only. Monte Carlo simulation.

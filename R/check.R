@@ -116,7 +116,7 @@ check_intervention <- function(models, intervention, ref_int, time_len) {
   is_dynamic <- sapply(intervention, function(x) any(grepl(">|<|=|!|%in%", x)))
   is_dynamic <- sapply(intervention[is_dynamic], function(x) length(unique(x)) > 1)
   if (any(is_dynamic)) {
-    stop("Dynamic intervention must have the same value", domain = "causalMed")
+    stop("Dynamic intervention must have the same value in the element", domain = "causalMed")
   }
 
   # Checking for interventions is list
@@ -138,7 +138,7 @@ check_intervention <- function(models, intervention, ref_int, time_len) {
   # Check the length, each element in the list must be of length 1 or equals to the time length.
   intervention_len <- sapply(intervention, length)
   if (!all(intervention_len %in% c(0, 1, time_len))) {
-    stop("Length of the elements in the intervention must be `NULL`, 1 or the same length of time.", domain = "causalMed")
+    stop("Length of the elements in the intervention must be 0 (`NULL`), 1 or the same length of time.", domain = "causalMed")
   }
 
   # Check for reference intervention
