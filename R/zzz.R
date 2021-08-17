@@ -1,4 +1,4 @@
-.onAttach <- function(libname, pkgname){
+.onAttach <- function(libname, pkgname) {
   options("pboptions" = list(
     type = if (interactive()) "timer" else "none",
     char = "-",
@@ -9,6 +9,7 @@
     title = "R progress bar",
     label = "",
     nout = 100L,
-    min_time = 2))
+    min_time = 2
+  ))
   invisible(NULL)
 }

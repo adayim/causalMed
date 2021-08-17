@@ -29,26 +29,25 @@ rMultinom <- function(probs, m) {
 # Derive parameters needed for the function from current environment
 # Ref: https://stackoverflow.com/a/51002887
 get_args_for <- function(fun, env = parent.frame(), ..., dots = NULL) {
-    potential <- names(formals(fun))
+  potential <- names(formals(fun))
 
-    if ("..." %in% potential) {
-        if (missing(dots)) {
-            # return everything from parent frame
-            return(as.list(env))
-        }
-        else if (!is.list(dots)) {
-            stop("If provided, 'dots' should be a list.")
-        }
-
-        potential <- setdiff(potential, "...")
+  if ("..." %in% potential) {
+    if (missing(dots)) {
+      # return everything from parent frame
+      return(as.list(env))
+    } else if (!is.list(dots)) {
+      stop("If provided, 'dots' should be a list.")
     }
 
-    # get all formal arguments that can be found in parent frame
-    args <- mget(potential, env, ..., ifnotfound = list(NULL), inherits = FALSE)
-    # remove not found
-    args <- args[sapply(args, Negate(is.null))]
-    # return found args and dots
-    c(args, dots)
+    potential <- setdiff(potential, "...")
+  }
+
+  # get all formal arguments that can be found in parent frame
+  args <- mget(potential, env, ..., ifnotfound = list(NULL), inherits = FALSE)
+  # remove not found
+  args <- args[sapply(args, Negate(is.null))]
+  # return found args and dots
+  c(args, dots)
 }
 
 

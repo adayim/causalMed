@@ -3,47 +3,59 @@ options(stringsAsFactors = FALSE)
 devtools::load_all()
 data(gvhd)
 
-set.seed(12131231)
-
+gvhd <- within(gvhd, c(
+  agesq <- age^2,
+  agecurs1 <- (age > 17.0) * (age - 17.0)^3 - ((age > 30.0) * (age - 30.0)^3) * (41.4 - 17.0) / (41.4 - 30.0),
+  agecurs2 <- (age > 25.4) * (age - 25.4)^3 - ((age > 41.4) * (age - 41.4)^3) * (41.4 - 25.4) / (41.4 - 30.0),
+  daysq <- day^2,
+  daycu <- day^3,
+  daycurs1 <- ((day > 63) * ((day - 63) / 63)^3) + ((day > 716) * ((day - 716) / 63)^3) * (350.0 - 63) - ((day > 350) * ((day - 350) / 63)^3) * (716 - 63) / (716 - 350),
+  daycurs2 <- ((day > 168) * ((day - 168) / 63)^3) + ((day > 716) * ((day - 716) / 63)^3) * (350 - 168) - ((day > 350) * ((day - 350) / 63)^3) * (716 - 168) / (716 - 350)
+))
 
 mod_cov1 <- spec_model(platnorm ~ all + cmv + male + age + agecurs1 +
-                         agecurs2 + gvhdm1 + daysgvhd + daysnorelapse + wait,
-                       var_type = "binary",
-                       mod_type = "covriate",
-                       subset = platnormm1 == 0)
+  agecurs2 + gvhdm1 + daysgvhd + daysnorelapse + wait,
+var_type = "binary",
+mod_type = "covriate",
+subset = platnormm1 == 0
+)
 
 mod_cov2 <- spec_model(relapse ~ all + cmv + male + age + gvhdm1 + daysgvhd + platnormm1 +
-                         daysnoplatnorm + agecurs1 + agecurs2 + day + daysq + wait,
-                       var_type = "binary",
-                       mod_type = "covriate",
-                       subset = relapsem1 == 0)
+  daysnoplatnorm + agecurs1 + agecurs2 + day + daysq + wait,
+var_type = "binary",
+mod_type = "covriate",
+subset = relapsem1 == 0
+)
 
 mod_exp <- spec_model(gvhd ~ all + cmv + male + age + platnormm1 +
-                        daysnoplatnorm + relapsem1 + daysnorelapse +
-                        agecurs1 + agecurs2 + day + daysq + wait,
-                      subset = gvhdm1 == 0,
-                      var_type = "binary",
-                      mod_type = "exposure")
+  daysnoplatnorm + relapsem1 + daysnorelapse +
+  agecurs1 + agecurs2 + day + daysq + wait,
+subset = gvhdm1 == 0,
+var_type = "binary",
+mod_type = "exposure"
+)
 
 mod_cens <- spec_model(censlost ~ all + cmv + male + age + daysgvhd +
-                         daysnoplatnorm + daysnorelapse + agesq + day +
-                         daycurs1 + daycurs2 + wait,
-                       var_type = "binary",
-                       mod_type = "censor")
+  daysnoplatnorm + daysnorelapse + agesq + day +
+  daycurs1 + daycurs2 + wait,
+var_type = "binary",
+mod_type = "censor"
+)
 
 mod_out <- spec_model(d ~ all + cmv + male + age + gvhd + platnorm +
-                        daysnoplatnorm + relapse + daysnorelapse +
-                        agesq + day + daycurs1 + daycurs2 + wait +
-                        day * gvhd + daycurs1 * gvhd + daycurs2 * gvhd,
-                      var_type = "binary",
-                      mod_type = "survival")
+  daysnoplatnorm + relapse + daysnorelapse +
+  agesq + day + daycurs1 + daycurs2 + wait +
+  day * gvhd + daycurs1 * gvhd + daycurs2 * gvhd,
+var_type = "binary",
+mod_type = "survival"
+)
 
 init_recode <- c(
   "relapse=0", "gvhd=0", "platnorm=0", "gvhdm1=0",
   "relapsem1=0", "platnormm1=0", "daysnorelapse=0",
   "daysnoplatnorm=0", "daysnogvhd=0", "daysrelapse=0",
   "daysplatnorm=0", "daysgvhd=0"
-  )
+)
 
 in_recode <- c(
   "daysq = day^2", "daycu = day^3",
@@ -55,23 +67,16 @@ out_recode <- c(
   "platnormm1 = platnorm",
   "relapsem1 = relapse",
   "gvhdm1 = gvhd",
-  "daysnorelapse = ifelse(relapse == 0, daysnorelapse + 1,
-                                                            daysnorelapse)",
-  "daysrelapse = ifelse(relapse == 1, daysrelapse,
-                                                          daysrelapse + 1)",
-  "daysnoplatnorm = ifelse(platnorm == 0, daysnoplatnorm + 1,
-                                                          daysnoplatnorm)",
-  "daysplatnorm = ifelse(relapse == 1, daysplatnorm,
-                                                          daysplatnorm + 1)",
-  "daysnogvhd = ifelse(gvhd == 0, daysnogvhd + 1,
-                                                          daysnogvhd)",
-  "daysgvhd = ifelse(relapse == 1, daysgvhd,
-                                                          daysgvhd + 1)",
+  "daysnorelapse = ifelse(relapse == 0, daysnorelapse + 1, daysnorelapse)",
+  "daysrelapse = ifelse(relapse == 1, daysrelapse, daysrelapse + 1)",
+  "daysnoplatnorm = ifelse(platnorm == 0, daysnoplatnorm + 1, daysnoplatnorm)",
+  "daysplatnorm = ifelse(relapse == 1, daysplatnorm, daysplatnorm + 1)",
+  "daysnogvhd = ifelse(gvhd == 0, daysnogvhd + 1, daysnogvhd)",
+  "daysgvhd = ifelse(relapse == 1, daysgvhd, daysgvhd + 1)",
   "platnorm = ifelse(platnormm1 == 1, 1, platnorm)",
   "relapse = ifelse(relapsem1 == 1, 1, relapse)",
   "gvhd = ifelse(gvhdm1 == 1, 1, gvhd)",
-  "daysplatnorm = ifelse(platnorm == 0, daysplatnorm,
-                                                        daysplatnorm + 1)"
+  "daysplatnorm = ifelse(platnorm == 0, daysplatnorm, daysplatnorm + 1)"
 )
 
 devtools::load_all()
@@ -82,40 +87,39 @@ ncors <- parallel::detectCores(logical = FALSE)
 # debug(monte_g)
 # debug(bootstrap_helper)
 # debug(simulate_data)
-natural <- Gformula(df,
-                    id.var = "id",
-                    base.vars = c(
-                      "age", "agesq", "agecurs1", "agecurs2", "male",
-                      "cmv", "all", "wait"
-                    ),
-                    exposure = "gvhd",
-                    time.var = "day",
-                    models = list(mod_cov1, mod_cov2, mod_exp, mod_cens, mod_out),
-                    intervention = list(always = 1),
-                    init.recode = init_recode,
-                    in.recode = in_recode,
-                    out.recode = out_recode,
-                    mc.sample = 1370,
-                    R = 10,
-                    ncores = 3
+natural <- Gformula(gvhd,
+  id.var = "id",
+  base.vars = c(
+    "age", "agesq", "agecurs1", "agecurs2", "male",
+    "cmv", "all", "wait"
+  ),
+  exposure = "gvhd",
+  time.var = "day",
+  models = list(mod_cov1, mod_cov2, mod_exp, mod_cens, mod_out),
+  intervention = list(always = 1),
+  init.recode = init_recode,
+  in.recode = in_recode,
+  out.recode = out_recode,
+  mc.sample = 13700,
+  R = 0
 )
 
 natural2 <- Gformula(df,
-                    id.var = "id",
-                    base.vars = c(
-                      "age", "agesq", "agecurs1", "agecurs2", "male",
-                      "cmv", "all", "wait"
-                    ),
-                    exposure = "gvhd",
-                    time.var = "day",
-                    models = list(mod_cov1, mod_cov2, mod_exp, mod_cens, mod_out),
-                    intervention = list(always = 1),
-                    init.recode = init_recode,
-                    in.recode = in_recode,
-                    out.recode = out_recode,
-                    mc.sample = 1370,
-                    R = 50,
-                    ncores = 3
+  id.var = "id",
+  base.vars = c(
+    "age", "agesq", "agecurs1", "agecurs2", "male",
+    "cmv", "all", "wait"
+  ),
+  exposure = "gvhd",
+  time.var = "day",
+  models = list(mod_cov1, mod_cov2, mod_exp, mod_cens, mod_out),
+  intervention = list(always = 1),
+  init.recode = init_recode,
+  in.recode = in_recode,
+  out.recode = out_recode,
+  mc.sample = 1370,
+  R = 50,
+  ncores = 3
 )
 
 always <- Gformula(df,

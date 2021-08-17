@@ -12,13 +12,13 @@
 #'
 #' @param data Data set to be sued
 #'
-#' @param id.var ID variable per subject.
+#' @param id_var ID variable per subject.
 #'
-#' @param base.vars A vector of time fixed baseline variables.
+#' @param base_vars A vector of time fixed baseline variables.
 #'
 #' @param exposure Intervention/Exposure variable
 #'
-#' @param time.var Time variable.
+#' @param time_var Time variable.
 #'
 #' @param models A list of models for the G-formula, including exposure model,
 #'  covariate model (if any), mediator model (if any), outcome model or
@@ -31,28 +31,28 @@
 #' if kept as NULL (default), the natural intervention course will be calculated.
 #'  eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0))
 #'
-#' @param ref_int Integer or character string denoting the intervention to be used as
+#' @param ref.int Integer or character string denoting the intervention to be used as
 #' the reference for calculating the risk ratio and risk difference. 0 or \code{"natural"}
 #'  denotes the natural course, while subsequent integers denote user-specified
 #' interventions in the order that they are named in \code{intervention}. Or if the character
 #' is the name of the intervention. The default is 0.
 #'
-#' @param init.recode optional, recoding of variables done at the
+#' @param init_recode optional, recoding of variables done at the
 #' beginning of the Monte Carlo loop. Needed for operations initialize baseline variables.
 #' This is executed at beginning of the Monte Carlo g-formula, executed only once at time 0.
 #'
-#' @param in.recode optional, On the fly recoding of variables done before the Monte
+#' @param in_recode optional, On the fly recoding of variables done before the Monte
 #'  Carlo loop starts. Needed to do any kind of functional forms for entry times.
 #'   This is executed at each start of the Monte Carlo g-formula time steps
 #'
-#' @param out.recode optional, On the fly recoding of variables done at the
+#' @param out_recode optional, On the fly recoding of variables done at the
 #' end of the Monte Carlo loop. Needed for operations like counting the number of
 #' days with a treatment or creating lagged variables. This is executed at each end
 #'  of the Monte Carlo g-formula time steps.
 #'
 #' @param is.survival Is the data survival data, default is FALSE.
 #'
-#' @param mc.sample Sample size of Monte Carlo simulation.
+#' @param mc_sample Sample size of Monte Carlo simulation.
 #'
 #' @param R The number of bootstrap replicates, default is 500.
 #'
@@ -71,43 +71,43 @@
 #'
 
 Gformula <- function(data,
-                     id.var,
-                     base.vars,
+                     id_var,
+                     base_vars,
                      exposure,
-                     time.var,
+                     time_var,
                      models,
                      intervention = NULL,
-                     ref_int      = 0,
-                     init.recode  = NULL,
-                     in.recode    = NULL,
-                     out.recode   = NULL,
-                     mc.sample    = 10000,
-                     R            = 500,
-                     ncores       = 1L) {
-
+                     ref.int = 0,
+                     init_recode = NULL,
+                     in_recode = NULL,
+                     out_recode = NULL,
+                     return_fitted = FALSE,
+                     mc_sample = nrow(data),
+                     R = 500,
+                     ncores = 1L) {
   tpcall <- match.call()
+
+  # Check for error
+  check_error(data, id_var, base_vars, exposure, time_var, models)
 
   orig.seed <- .Random.seed
   on.exit(.Random.seed <<- orig.seed)
 
   # Get time length
-  time_seq <- unique(na.omit(data[[time.var]]))
-  time_len <- length(time_seq)
+  time_len <- length(unique(na.omit(data[[time_var]])))
 
-  # Check for error
-  check_error(data, id.var, base.vars, exposure, time.var, models)
-
-  if(!is.null(intervention)){
-    check_intervention(models, intervention, ref_int, time_len)
+  if (!is.null(intervention)) {
+    check_intervention(models, intervention, ref.int, time_len)
 
     # If any intervention is set to NULL, but reference not defined.
-    if(ref_int == 0 & length(intervention) > 1){
+    if (ref.int == 0 & length(intervention) > 1) {
       interv_value <- sapply(intervention, is.null)
-      if(any(interv_value))
-        ref_int <- which(interv_value)
-    }else{
+      if (any(interv_value)) {
+        ref.int <- which(interv_value)
+      }
+    } else {
       intervention <- c(list(natural = NULL), intervention)
-      ref_int <- 1
+      ref.int <- 1
     }
   }
 
@@ -125,80 +125,108 @@ Gformula <- function(data,
   arg_est$return_fitted <- TRUE
   est_ori <- do.call(.gformula, arg_est)
 
-  # Run bootstrap
-  arg_pools <- get_args_for(bootstrap_helper)
-  pools <- do.call(bootstrap_helper, arg_pools)
-
   # Mean value of the outcome at each time point by intervention
   est_out <- data.table::rbindlist(est_ori$gform.data, idcol = "Intervention")
   est_out <- est_out[, list(Est = mean(Pred_Y)), by = c("Intervention")]
 
-  # Get the mean of bootstrap results
-  pools_res <- lapply(pools, function(bt){
-    out <- sapply(bt, function(x){
-      x[,list(Est = mean(Pred_Y))]
-    }, simplify = FALSE)
-    data.table::rbindlist(out, idcol = "Intervention")
-  })
-  pools_res <- data.table::rbindlist(pools_res)
+  # Run bootstrap
+  if (R > 1) {
+    arg_pools <- get_args_for(bootstrap_helper)
+    pools <- do.call(bootstrap_helper, arg_pools)
 
-  # Calculate Sd and percentile confidence interval
-  pools_res <- pools_res[, .(Sd = sd(Est), perct_lcl = quantile(Est, 0.025),
-                             perct_ucl = quantile(Est, 0.975)) ,
-                         by = c("Intervention")]
+    # Get the mean of bootstrap results
+    pools_res <- lapply(pools, function(bt) {
+      out <- sapply(bt, function(x) {
+        x[, list(Est = mean(Pred_Y))]
+      }, simplify = FALSE)
+      data.table::rbindlist(out, idcol = "Intervention")
+    })
+    pools_res <- data.table::rbindlist(pools_res)
 
-  # Merge all and calculate the normal confidence interval
-  est_out <- merge(est_out, pools_res, by = c("Intervention"))
-  est_out <- est_out[, `:=` (norm_lcl = Est - stats::qnorm(0.975)*Sd,
-                             norm_ucl = Est + stats::qnorm(0.975)*Sd)]
+    # Calculate Sd and percentile confidence interval
+    pools_res <- pools_res[, .(
+      Sd = sd(Est), perct_lcl = quantile(Est, 0.025),
+      perct_ucl = quantile(Est, 0.975)
+    ),
+    by = c("Intervention")
+    ]
+
+    # Merge all and calculate the normal confidence interval
+    est_out <- merge(est_out, pools_res, by = c("Intervention"))
+    est_out <- est_out[, `:=`(
+      norm_lcl = Est - stats::qnorm(0.975) * Sd,
+      norm_ucl = Est + stats::qnorm(0.975) * Sd
+    )]
+  }
 
   # Risk difference and risk ratio calculation function
-  risk_calc <- function(data_list, ref_int){
+  risk_calc <- function(data_list, ref.int) {
     # Get reference
-    ref_nam <- names(intervention)[ref_int]
+    ref_nam <- names(intervention)[ref.int]
     ref_dat <- data_list[[ref_nam]]
-    vs_nam  <- setdiff(names(intervention), ref_nam)
+    vs_nam <- setdiff(names(intervention), ref_nam)
 
     # Loop through each intervention name
-    out <- sapply(vs_nam, function(x){
+    out <- sapply(vs_nam, function(x) {
       tmp_dt <- data_list[[x]]
 
       # Calculate difference and ratio of mean at each time
       ref_mean <- mean(ref_dat[["Pred_Y"]])
       vs_mean <- mean(tmp_dt[["Pred_Y"]])
-      data.table(Risk_type = c("Risk difference", "Risk ratio"),
-                 Estimate = c( vs_mean - ref_mean, vs_mean/ref_mean))
+      data.table(
+        Risk_type = c("Risk difference", "Risk ratio"),
+        Estimate = c(vs_mean - ref_mean, vs_mean / ref_mean)
+      )
     }, simplify = FALSE)
     data.table::rbindlist(out, idcol = "Intervention")
   }
 
   # Calculate the difference and ratio
-  if(length(intervention) >= 1){
-    risk_ori <- risk_calc(est_ori$gform.data, ref_int)
-    res_pools <- lapply(pools, risk_calc, ref_int)
-    res_pools <- data.table::rbindlist(res_pools)
-    # Calculate Sd and percentile confidence interval
-    res_pools <- res_pools[, .(Sd = sd(Estimate, na.rm = TRUE),
-                               perct_lcl = quantile(Estimate, 0.025, na.rm = TRUE),
-                               perct_ucl = quantile(Estimate, 0.975, na.rm = TRUE)) ,
-                           by = c("Intervention", "Risk_type")]
+  if (length(intervention) >= 1) {
+    risk_est <- risk_calc(est_ori$gform.data, ref.int)
 
-    # Merge all and calculate the normal confidence interval
-    risk_est <- merge(risk_ori, res_pools, by = c("Intervention", "Risk_type"))
-    risk_est <- risk_est[, `:=` (norm_lcl = Estimate - stats::qnorm(0.975)*Sd,
-                                 norm_ucl = Estimate + stats::qnorm(0.975)*Sd)]
+    if (R > 1) {
+      res_pools <- lapply(pools, risk_calc, ref.int)
+      res_pools <- data.table::rbindlist(res_pools)
+      # Calculate Sd and percentile confidence interval
+      res_pools <- res_pools[, .(
+        Sd = sd(Estimate, na.rm = TRUE),
+        perct_lcl = quantile(Estimate, 0.025, na.rm = TRUE),
+        perct_ucl = quantile(Estimate, 0.975, na.rm = TRUE)
+      ),
+      by = c("Intervention", "Risk_type")
+      ]
 
+      # Merge all and calculate the normal confidence interval
+      risk_est <- merge(risk_est, res_pools, by = c("Intervention", "Risk_type"))
+      risk_est <- risk_est[, `:=`(
+        norm_lcl = Estimate - stats::qnorm(0.975) * Sd,
+        norm_ucl = Estimate + stats::qnorm(0.975) * Sd
+      )]
+    }
   }
+
+  # Extract fitted model information
+  resp_vars_list <- sapply(est_ori$fitted.models, function(x) {
+    x$rsp_vars
+  })
+
+  if (return_fitted) {
+    fitted_mods <- lapply(est_ori$fitted.models, function(x) {
+      x$fitted
+    })
+  } else {
+    fitted_mods <- lapply(est_ori$fitted.models, function(x) {
+      summary(x$fitted)$coefficients
+    })
+  }
+  names(fitted_mods) <- resp_vars_list
 
   return(list(
     call = tpcall,
     estimate = risk_est,
     risk_size = est_out,
     gform.data = data.table::rbindlist(est_ori$gform.data, idcol = "Intervention"),
-    fitted.models = est_ori$fitted.models
+    fitted.models = fitted_mods
   ))
 }
-
-
-
-

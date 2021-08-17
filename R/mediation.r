@@ -25,40 +25,52 @@
 #'
 #'
 mediation <- function(data,
-                      id.var,
-                      base.vars,
+                      id_var,
+                      base_vars,
                       exposure,
                       outcome,
-                      time.var,
+                      time_var,
                       models,
-                      init.recode    = NULL,
-                      in.recode      = NULL,
-                      out.recode     = NULL,
-                      mc.sample      = 10000,
+                      init_recode = NULL,
+                      in_recode = NULL,
+                      out_recode = NULL,
+                      mc_sample = nrow(data),
                       mediation_type = c("N", "I"),
-                      R              = 500,
-                      ncores         = 1L) {
-
+                      return_fitted = FALSE,
+                      R = 500,
+                      ncores = 1L) {
   tpcall <- match.call()
   mediation_type <- match.arg(mediation_type)
 
-  # Get time length
-  time_seq <- unique(na.omit(data[[time.var]]))
-  time_len <- length(time_seq)
+  # Calculate mediation effect
+  risk_calc <- function(data_list) {
+    phi_11 <- mean(data_list$always[["Pred_Y"]])
+    phi_00 <- mean(data_list$never[["Pred_Y"]])
+    phi_10 <- mean(data_list$mediation[["Pred_Y"]])
+    data.table(
+      Effect = c("Indirect effect", "Direct effect", "Total effect"),
+      Estimate = c(phi_11 - phi_10, phi_10 - phi_00)
+    )
+  }
 
   # Check for error
-  check_error(data, id.var, base.vars, exposure, time.var, models)
+  check_error(data, id_var, base_vars, exposure, time_var, models)
+
+  # Get time length
+  time_len <- length(unique(na.omit(data[[time_var]])))
 
   intervention <- list(always = 1, never = 0, mediation = NULL)
 
   # Test if mediator model exists
   med_flag <- sapply(models, function(mods) mods$mod_type == "mediator")
-  if(!any(med_flag))
+  if (!any(med_flag)) {
     stop("Mediator model was not defined.", domain = "causalMed")
+  }
 
   # Run along the models
-  if (verbose)
+  if (verbose) {
     cat("\n====== Fitting models =======\n")
+  }
 
   # Run original estimate
   arg_est <- get_args_for(.gformula)
@@ -72,55 +84,72 @@ mediation <- function(data,
   # Mean value of the outcome at each time point by intervention
   est_out <- data.table::rbindlist(est_ori$gform.data, idcol = "Intervention")
   est_out <- est_out[, list(Est = mean(Pred_Y)), by = c("Intervention")]
+  risk_est <- risk_calc(est_ori$gform.data)
 
   # Get the mean of bootstrap results
-  pools_res <- lapply(pools, function(bt){
-    out <- sapply(bt, function(x){
-      x[,list(Est = mean(Pred_Y))]
-    }, simplify = FALSE)
-    data.table::rbindlist(out, idcol = "Intervention")
-  })
-  pools_res <- data.table::rbindlist(pools_res)
+  if (R > 1) {
+    pools_res <- lapply(pools, function(bt) {
+      out <- sapply(bt, function(x) {
+        x[, list(Est = mean(Pred_Y))]
+      }, simplify = FALSE)
+      data.table::rbindlist(out, idcol = "Intervention")
+    })
+    pools_res <- data.table::rbindlist(pools_res)
 
-  # Calculate Sd and percentile confidence interval
-  pools_res <- pools_res[, .(Sd = sd(Est), perct_lcl = quantile(Est, 0.025),
-                             perct_ucl = quantile(Est, 0.975)) ,
-                         by = c("Intervention")]
+    # Calculate Sd and percentile confidence interval
+    pools_res <- pools_res[, .(
+      Sd = sd(Est), perct_lcl = quantile(Est, 0.025),
+      perct_ucl = quantile(Est, 0.975)
+    ),
+    by = c("Intervention")
+    ]
 
-  # Merge all and calculate the normal confidence interval
-  est_out <- merge(est_out, pools_res, by = c("Intervention"))
-  est_out <- est_out[, `:=` (norm_lcl = Est - stats::qnorm(0.975)*Sd,
-                             norm_ucl = Est + stats::qnorm(0.975)*Sd)]
+    # Merge all and calculate the normal confidence interval
+    est_out <- merge(est_out, pools_res, by = c("Intervention"))
+    est_out <- est_out[, `:=`(
+      norm_lcl = Est - stats::qnorm(0.975) * Sd,
+      norm_ucl = Est + stats::qnorm(0.975) * Sd
+    )]
 
-  # Calculate mediation effect
-  risk_calc <- function(data_list){
-    phi_11 <- mean(data_list$always[["Pred_Y"]])
-    phi_00 <- mean(data_list$never[["Pred_Y"]])
-    phi_10 <- mean(data_list$mediation[["Pred_Y"]])
-    data.table(Effect = c("Indirect effect", "Direct effect", "Total effect"),
-               Estimate  = c(phi_11 - phi_10, phi_10 - phi_00)
-    )
+    res_pools <- lapply(pools, risk_calc)
+    res_pools <- data.table::rbindlist(res_pools)
+    # Calculate Sd and percentile confidence interval
+    res_pools <- res_pools[, .(
+      Sd = sd(Estimate, na.rm = TRUE),
+      perct_lcl = quantile(Estimate, 0.025, na.rm = TRUE),
+      perct_ucl = quantile(Estimate, 0.975, na.rm = TRUE)
+    ),
+    by = c("Effect")
+    ]
+
+    # Merge all and calculate the normal confidence interval
+    risk_est <- merge(risk_est, res_pools, by = c("Effect"))
+    risk_est <- risk_est[, `:=`(
+      norm_lcl = Estimate - stats::qnorm(0.975) * Sd,
+      norm_ucl = Estimate + stats::qnorm(0.975) * Sd
+    )]
   }
 
-  risk_ori <- risk_calc(est_ori$gform.data)
-  res_pools <- lapply(pools, risk_calc)
-  res_pools <- data.table::rbindlist(res_pools)
-  # Calculate Sd and percentile confidence interval
-  res_pools <- res_pools[, .(Sd = sd(Estimate, na.rm = TRUE),
-                               perct_lcl = quantile(Estimate, 0.025, na.rm = TRUE),
-                               perct_ucl = quantile(Estimate, 0.975, na.rm = TRUE)) ,
-                           by = c("Effect")]
-
-  # Merge all and calculate the normal confidence interval
-  risk_est <- merge(risk_ori, res_pools, by = c("Effect"))
-  risk_est <- risk_est[, `:=` (norm_lcl = Estimate - stats::qnorm(0.975)*Sd,
-                                 norm_ucl = Estimate + stats::qnorm(0.975)*Sd)]
+  # Extract fitted model information
+  resp_vars_list <- sapply(est_ori$fitted.models, function(x) {
+    x$rsp_vars
+  })
+  if (return_fitted) {
+    fitted_mods <- lapply(est_ori$fitted.models, function(x) {
+      x$fitted
+    })
+  } else {
+    fitted_mods <- lapply(est_ori$fitted.models, function(x) {
+      summary(x$fitted)$coefficients
+    })
+  }
+  names(fitted_mods) <- resp_vars_list
 
   return(list(
     call = tpcall,
     estimate = risk_est,
     risk_size = est_out,
     gform.data = data.table::rbindlist(est_ori$gform.data, idcol = "Intervention"),
-    fitted.models = est_ori$fitted.models
+    fitted.models = fitted_mods
   ))
 }

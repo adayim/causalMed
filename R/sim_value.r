@@ -9,7 +9,7 @@
 #' @param newdt a data frame in which to look for variables with which to predict.
 #'
 #' @return A simulated random vector using the predicted value from model and newdt.
-#' 
+#'
 #'
 #' @export
 #'

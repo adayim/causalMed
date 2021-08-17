@@ -9,24 +9,29 @@
 #' @keywords internal
 #'
 check_error <- function(data,
-                        id.var,
-                        base.vars,
+                        id_var,
+                        base_vars,
                         exposure,
-                        time.var,
+                        time_var,
                         models) {
+  if (!(exists("data") && is.data.frame(get("data")))) {
+    stop("Data does not exist or not a data.frame.", domain = "causalMed")
+  }
 
   out_flag <- sapply(models, function(mods) mods$mod_type %in% c("outcome", "survival"))
-  if(sum(out_flag) > 1)
+  if (sum(out_flag) > 1) {
     stop("Only one outcome model or survival model allowed.", domain = "causalMed")
+  }
 
-  if(sum(out_flag) == 0)
+  if (sum(out_flag) == 0) {
     stop("Outcome model or survival model must be defined.", domain = "causalMed")
+  }
 
   out_flag <- which(out_flag)
   outcome <- all.vars(formula(models[[out_flag]]$call)[[2]])
 
   # Check variables in the data
-  check_var_in(c(id.var, base.vars, exposure, outcome, time.var), data)
+  check_var_in(c(id_var, base_vars, exposure, outcome, time_var), data)
 
   # Check if variables in the formula included in the data
   vars_models <- unlist(sapply(models, function(x) all.vars(formula(x$call))))
@@ -34,24 +39,29 @@ check_error <- function(data,
 
   # Get the variable name of exposure and check if it the same as the exposure
   exp_flag <- sapply(models, function(mods) mods$mod_type == "exposure")
-  if(sum(exp_flag) > 1)
+  if (sum(exp_flag) > 1) {
     stop("Only one exposure model is allowed.", domain = "causalMed")
+  }
 
-  if(any(exp_flag)){
+  if (any(exp_flag)) {
     exp_flag <- which(exp_flag)
     exposure_var <- all.vars(formula(models[[exp_flag]]$call)[[2]])
-    if(exposure_var != exposure)
+    if (exposure_var != exposure) {
       stop("The given exposure variable was different between exposure model in `models`.",
-      domain = "causalMed")
+        domain = "causalMed"
+      )
+    }
   }
 
   # Check for survival models
   cen_flag <- sapply(models, function(mods) mods$mod_type == "censor")
   surv_flag <- sapply(models, function(mods) mods$mod_type == "survival")
-  if(sum(cen_flag) > 1)
+  if (sum(cen_flag) > 1) {
     stop("Only one censor model is allowed.", domain = "causalMed")
-  if(sum(surv_flag) > 1)
+  }
+  if (sum(surv_flag) > 1) {
     stop("Only one survival model is allowed.", domain = "causalMed")
+  }
 
   if (any(cen_flag) | any(surv_flag)) {
     is_survival <- TRUE
@@ -64,11 +74,13 @@ check_error <- function(data,
 
   # Outcome model or survival model must be defined and one only
   out_flag <- sapply(models, function(mods) mods$mod_type == "outcome")
-  if(is_survival & any(out_flag))
+  if (is_survival & any(out_flag)) {
     stop("You cannot define the outcome model with survival/censor model at the same time.", domain = "causalMed")
+  }
 
-  if(!any(out_flag) & !is_survival)
+  if (!any(out_flag) & !is_survival) {
     stop("Outcome or survival model must be defined in the `models`.", domain = "causalMed")
+  }
 
   # Models checking
   if (!is.list(models)) {
@@ -80,7 +92,6 @@ check_error <- function(data,
   if (any(cls)) {
     stop("Models in the list must be `gmodel` object, please use spec_model to create!")
   }
-
 }
 
 #' Check for the intervention
@@ -115,8 +126,9 @@ check_intervention <- function(models, intervention, ref_int, time_len) {
 
   # Check if all null
   interv_value <- sapply(intervention, is.null)
-  if(sum(interv_value) > 1)
+  if (sum(interv_value) > 1) {
     stop("All intervention are NULL.", domain = "causalMed")
+  }
 
   # Check for intervention is a named list
   if (is.null(names(intervention)) | any(nchar(names(intervention)) == 0)) {

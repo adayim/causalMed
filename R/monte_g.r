@@ -1,35 +1,33 @@
 #' Main calculation function
-#' 
+#'
 #' @inheritParams Gformula
 #' @param mediation_type Type of the mediation effect.
 #' @param return_fitted Return the fitted model (default is FALSE).
-#' 
+#'
 #' @importFrom pbapply pbsapply
 
 .gformula <- function(data,
-                      id.var,
-                      base.vars,
-                      time.var,
+                      id_var,
+                      base_vars,
+                      time_var,
                       exposure,
                       models,
                       intervention,
-                      in.recode,
-                      out.recode,
-                      init.recode,
+                      in_recode,
+                      out_recode,
+                      init_recode,
                       mediation_type = c(NA, "N", "I"),
-                      mc.sample      = 10000,
-                      return_fitted  = FALSE){
-
+                      mc_sample = 10000,
+                      return_fitted = FALSE) {
   mediation_type <- match.arg(mediation_type)
 
   fit_mods <- lapply(models, function(mods) {
-
     rsp_vars <- all.vars(formula(mods$call)[[2]])
 
     # Observed values range
-    if(is.numeric(data[[rsp_vars]])){
+    if (is.numeric(data[[rsp_vars]])) {
       val_ran <- range(na.omit(data[[rsp_vars]]))
-    }else {
+    } else {
       val_ran <- unique(na.omit(data[[rsp_vars]]))
     }
 
@@ -40,7 +38,7 @@
       }
     }
 
-    mods$call$data <- substitute(data)
+    mods$call$data <- substitute(data, env = parent.frame())
 
     list(
       fitted = eval(mods$call),
@@ -55,35 +53,36 @@
   })
 
   # Setting seeds
-  set.seed(12345*mc.sample)
+  set.seed(12345 * mc_sample)
 
   # Baseline variables for Monte Carlo Sampling
-  base_dat <- unique(data[, unique(c(id.var, base.vars))])
-  df_mc <- data.table::as.data.table(base_dat[sample(1:nrow(base_dat), mc.sample, replace = TRUE), ])
-  df_mc[, new_ID:=seq_len(.N)]
+  base_dat <- unique(data[, unique(c(id_var, base_vars))])
+  df_mc <- data.table::as.data.table(base_dat[sample(1:nrow(base_dat), mc_sample, replace = TRUE), ])
+  df_mc[, new_ID := seq_len(.N)]
 
-  if(!is.na(mediation_type))
+  if (!is.na(mediation_type)) {
     intervention <- list(always = 1, never = 0, mediation = NULL)
+  }
 
-  # 
+  #
   cat("\nLooping interventions:\n")
 
   res <- pbapply::pbsapply(intervention, function(i) {
     monte_g(
       data = df_mc,
-      time.var = time.var,
-      time.seq = unique(data[[time.var]]),
+      time_var = time_var,
+      time.seq = unique(data[[time_var]]),
       exposure = exposure,
       models = fit_mods,
       intervention = i,
-      in.recode = in.recode,
-      out.recode = out.recode,
-      init.recode = init.recode,
+      in_recode = in_recode,
+      out_recode = out_recode,
+      init_recode = init_recode,
       mediation_type = mediation_type
     )
   }, simplify = FALSE)
 
-  if(return_fitted){
+  if (return_fitted) {
     return(list(fitted.models = fit_mods, gform.data = res))
   } else {
     return(res)
@@ -101,21 +100,21 @@
 #'
 #' @param time.seq Time sequence.
 #'
-#' @param time.var Time variable.
+#' @param time_var Time variable.
 #'
 #' @param models fitted objects.
 #'
 #' @param intervention A vector, intervention treatment per time.
 #'
-#' @param init.recode optional, recoding of variables done at the
+#' @param init_recode optional, recoding of variables done at the
 #' beginning of the Monte Carlo loop. Needed for operations initialize baseline variables.
 #' This is executed at beginning of the Monte Carlo g-formula, executed only once at time 0.
 #'
-#' @param in.recode optional, On the fly recoding of variables done before the Monte
+#' @param in_recode optional, On the fly recoding of variables done before the Monte
 #'  Carlo loop starts. Needed to do any kind of functional forms for entry times.
 #'   This is executed at each start of the Monte Carlo g-formula time steps
 #'
-#' @param out.recode optional, On the fly recoding of variables done at the
+#' @param out_recode optional, On the fly recoding of variables done at the
 #' end of the Monte Carlo loop. Needed for operations like counting the number of
 #' days with a treatment or creating lagged variables. This is executed at each end
 #'  of the Monte Carlo g-formula time steps.
@@ -127,14 +126,13 @@
 monte_g <- function(data,
                     exposure,
                     time.seq,
-                    time.var,
+                    time_var,
                     models,
                     intervention = NULL,
-                    in.recode = NULL,
-                    out.recode = NULL,
-                    init.recode = NULL,
+                    in_recode = NULL,
+                    out_recode = NULL,
+                    init_recode = NULL,
                     mediation_type = c(NA, "N", "I")) {
-
   mediation_type <- match.arg(mediation_type)
 
   # Replicate to intervention to the same length of the time.
@@ -168,26 +166,25 @@ monte_g <- function(data,
 
   # Run normal g-formula
   for (t_index in sort(time.seq)) {
-
-    dat_y[[time.var]] <- t_index
+    dat_y[[time_var]] <- t_index
 
     # Recode baseline variables at initiation
     if (t_index == min_time) {
-      if (!is.null(init.recode)) {
-        dat_y <- within(dat_y, eval(parse(text = init.recode)))
+      if (!is.null(init_recode)) {
+        dat_y <- within(dat_y, eval(parse(text = init_recode)))
       }
     }
 
     # Recode data before simulating
-    if (!is.null(in.recode)) {
-      dat_y <- within(dat_y, eval(parse(text = in.recode)))
+    if (!is.null(in_recode)) {
+      dat_y <- within(dat_y, eval(parse(text = in_recode)))
     }
 
     # Use the model to calculate the simulated value
     dat_y <- simulate_data(data = dat_y, exposure = exposure, models = models, intervention = intervention[t_index], mediation_type = mediation_type)
 
-    if (!is.null(out.recode)) {
-      dat_y <- within(dat_y, eval(parse(text = out.recode)))
+    if (!is.null(out_recode)) {
+      dat_y <- within(dat_y, eval(parse(text = out_recode)))
     }
 
     # For survival outcome
@@ -203,10 +200,10 @@ monte_g <- function(data,
       }
 
       # Output data
-      if (t_index == min_time){
-        out_y <- dat_y[, c("new_ID", time.var, outcome, "Pred_Y"), with = FALSE]
-      }else{
-        out_y <- rbind(out_y, dat_y[, c("new_ID", time.var, outcome, "Pred_Y"), with = FALSE])
+      if (t_index == min_time) {
+        out_y <- dat_y[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE]
+      } else {
+        out_y <- rbind(out_y, dat_y[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE])
       }
 
       # Continue for the not censored or no event observed
@@ -223,15 +220,14 @@ monte_g <- function(data,
 
       # If all loop complete
       if (t_index == max_time) {
-        out_y <- rbind(out_y, dat_y[, c("new_ID", time.var, outcome, "Pred_Y"), with = FALSE])
+        out_y <- rbind(out_y, dat_y[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE])
       }
-
     } else {
       # Output data
-      if (t_index == min_time){
-        out_y <- dat_y[, c("new_ID", time.var, outcome, "Pred_Y"), with = FALSE]
-      }else{
-        out_y <- rbind(out_y, dat_y[, c("new_ID", time.var, outcome, "Pred_Y"), with = FALSE])
+      if (t_index == min_time) {
+        out_y <- dat_y[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE]
+      } else {
+        out_y <- rbind(out_y, dat_y[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE])
       }
     }
   }

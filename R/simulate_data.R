@@ -16,18 +16,17 @@ simulate_data <- function(data,
                           models,
                           intervention = NULL,
                           mediation_type = c(NA, "N", "I")) {
-
   mediation_type <- match.arg(mediation_type)
 
   # Check if the intervention is dynamic
   if (!is.null(intervention)) {
     is_dynamic <- any(grepl(">|<|=|!|%in%", intervention))
-  }else {
+  } else {
     is_dynamic <- FALSE
   }
 
   # If Intervention is given, set the treatment to given value
-  if (!is.null(intervention) &  is.na(mediation_type) & !is_dynamic) {
+  if (!is.null(intervention) & is.na(mediation_type) & !is_dynamic) {
     data[[exposure]] <- intervention
   }
 
@@ -40,7 +39,6 @@ simulate_data <- function(data,
 
   # Loop through models
   for (indx in seq_along(models)) {
-
     model <- models[[indx]]
     # Get the name of the response variable for the current model
     resp_var <- model$rsp_vars
@@ -84,9 +82,9 @@ simulate_data <- function(data,
       }
 
       # Get the predicted values for the outcome
-      if(mod_type %in% c("outcome", "survival"))
+      if (mod_type %in% c("outcome", "survival")) {
         data[["Pred_Y"]][cond] <- predict(model$fitted, newdata = data[cond, ], type = "response")
-
+      }
     }
   }
 

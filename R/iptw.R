@@ -1,7 +1,7 @@
 
 iptw_med <- function(data,
-                     id.vars,
-                     time.var,
+                     id_vars,
+                     time_var,
                      baseline.vars,
                      exposure.model,
                      exposure.vars,
@@ -23,16 +23,16 @@ iptw_med <- function(data,
     stop("bound.value should be between 0 and 0.5!")
   }
 
-  id.vars <- substitute(id.vars)
-  time.var <- substitute(time.var)
+  id_vars <- substitute(id_vars)
+  time_var <- substitute(time_var)
   outcome <- substitute(outcome)
 
   dfm <- data.table::data.table(data)
-  dfm[order(get(time.var)), cum_Y := get(outcome) + shift(get(outcome), fill = 0), by = id.vars]
+  dfm[order(get(time_var)), cum_Y := get(outcome) + shift(get(outcome), fill = 0), by = id_vars]
 
-  splited <- split(dfm, f = dfm[[id.vars]])
+  splited <- split(dfm, f = dfm[[id_vars]])
 
-  sample_id <- unique(dfm[[id.vars]])
+  sample_id <- unique(dfm[[id_vars]])
 
   args$data <- substitute(sample_id)
 
@@ -47,7 +47,7 @@ iptw_med <- function(data,
 
     cl <- list(...)
     cl$data <- substitute(samp_df)
-    cl$id.vars <- "newID"
+    cl$id_vars <- "newID"
     cl$R <- NULL
     res <- do.call(calc_iptw, cl)
     res$iptw.med
@@ -77,8 +77,8 @@ iptw_med <- function(data,
 #' Calculate total effect, natural direct and indirect effect.
 #'
 #' @param data Data to be used to ceate matrix.
-#' @param id.vars ID variable name.
-#' @param time.var Time indexing varaible name.
+#' @param id_vars ID variable name.
+#' @param time_var Time indexing varaible name.
 #' @param baseline.vars A vector of baseline variables and time-fixed variable names.
 #' @param exposure.model Exposure model, only binomial outcome supported.
 #' @param exposure.vars A vector of exposure variables, including lagged exposure variables.
@@ -95,8 +95,8 @@ iptw_med <- function(data,
 #' @import data.table data.table
 #'
 calc_iptw <- function(data,
-                      id.vars,
-                      time.var,
+                      id_vars,
+                      time_var,
                       baseline.vars,
                       exposure.model,
                       exposure.vars,
@@ -106,16 +106,16 @@ calc_iptw <- function(data,
                       is.expL = TRUE,
                       censor.model = NULL,
                       bound.value = 0) {
-  id.vars <- substitute(id.vars)
-  time.var <- substitute(time.var)
+  id_vars <- substitute(id_vars)
+  time_var <- substitute(time_var)
   outcome <- substitute(outcome)
 
   dfm <- data.table::data.table(data)
-  dfm <- dfm[order(get(id.vars)), ]
+  dfm <- dfm[order(get(id_vars)), ]
 
-  fit_mods <- lapply(sort(unique(data[[time.var]])), function(t) {
-    dt <- dfm[get(time.var) == t, ]
-    dt <- dt[order(get(id.vars)), ]
+  fit_mods <- lapply(sort(unique(data[[time_var]])), function(t) {
+    dt <- dfm[get(time_var) == t, ]
+    dt <- dt[order(get(id_vars)), ]
 
     # Weight for mediators
     ip_m1 <- fit_and_predict(
@@ -163,7 +163,7 @@ calc_iptw <- function(data,
     out
   })
 
-  final_node <- length(unique(data[[time.var]]))
+  final_node <- length(unique(data[[time_var]]))
 
   calc_prod <- function(obj, pos) {
     res <- lapply(obj, function(x) x[, pos])
@@ -189,8 +189,8 @@ calc_iptw <- function(data,
   exposure <- all.vars(as.formula(exposure.model))[1]
   censor <- all.vars(as.formula(censor.model))[1]
 
-  dt <- dfm[get(time.var) == max(unique(data[[time.var]])), ]
-  dt <- dt[order(get(id.vars)), ]
+  dt <- dfm[get(time_var) == max(unique(data[[time_var]])), ]
+  dt <- dt[order(get(id_vars)), ]
 
   # Returns the intervention match for the closest A node.
   # It will carry forward from the last A point if not available at the next
