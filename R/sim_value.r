@@ -9,13 +9,12 @@
 #' @param newdt a data frame in which to look for variables with which to predict.
 #'
 #' @return A simulated random vector using the predicted value from model and newdt.
-#' 
+#'
 #' @keywords internal
-#' 
+#'
 sim_value <- function(model, newdt) {
   var_type <- model$var_type
   fit <- model$fitted
-  rmse <- sqrt(mean((stats::fitted(fit) - fit$y)^2, na.rm = TRUE))
 
   # If the cunstom simulation function is defined.
   if (!is.null(model$custom_sim)) {
@@ -37,6 +36,7 @@ sim_value <- function(model, newdt) {
     pred <- predict(fit, newdata = newdt, type = "response")
     return(rbinom(nrow(newdt), 1, pred))
   } else {
+    rmse <- sqrt(mean((stats::fitted(fit) - fit$y)^2, na.rm = TRUE))
     pred <- predict(fit, newdata = newdt, type = "response")
     out <- rnorm(nrow(newdt), pred, rmse)
 

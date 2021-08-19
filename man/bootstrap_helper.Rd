@@ -17,14 +17,11 @@ bootstrap_helper(
   out_recode,
   mc_sample = 10000,
   mediation_type = c(NA, "N", "I"),
-  R = 500,
-  ncores = 1L
+  R = 500
 )
 }
 \arguments{
 \item{R}{The number of bootstrap replicates, default is 500. Same with \code{boot}, see \code{\link[boot]{boot}} for detail.}
-
-\item{ncores}{integer: number of processes to be used in parallel operation: typically one would chose this to the number of available CPUs.}
 
 \item{object}{Object returned from gformula function (see \code{\link[calsalMed]{gformula}}).}
 }

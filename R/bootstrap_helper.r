@@ -6,10 +6,7 @@
 #'
 #' @param R The number of bootstrap replicates, default is 500. Same with \code{boot}, see \code{\link[boot]{boot}} for detail.
 #'
-#' @param ncores integer: number of processes to be used in parallel operation: typically one would chose this to the number of available CPUs.
-#'
-#' @importFrom parallel makePSOCKcluster clusterSetRNGStream stopCluster clusterExport clusterEvalQ
-#' @importFrom pbapply pblapply
+#' @importFrom future.apply future_lapply
 #'
 bootstrap_helper <- function(data,
                              id_var,
@@ -23,47 +20,47 @@ bootstrap_helper <- function(data,
                              out_recode,
                              mc_sample = 10000,
                              mediation_type = c(NA, "N", "I"),
-                             R = 500,
-                             ncores = 1L) {
+                             R = 500) {
   mediation_type <- match.arg(mediation_type)
 
-  set.seed(12345)
+  # Progress bar
+  progressr::handlers(global = TRUE)
+  progressr::handlers(list(
+    progressr::handler_progress(
+      format   = ":spin :current/:total (:message) [:bar] :percent in :elapsedfull ETA: :eta",
+      # width    = 60,
+      complete = "+"
+    )
+  ))
+  p <- progressr::progressor(steps = R)
 
-  dfm <- lapply(1:R, function(x) data[sample(1:nrow(data), nrow(data), replace = TRUE), ])
+  boot_res <- future.apply::future_lapply(1:R, function(i) {
+    set.seed(12345 * i)
+    indx <- sample(1:nrow(data), nrow(data), replace = TRUE)
 
-  if (ncores > 1L) {
-    if (have_mc) {
-      cl <- ncores
-    } else {
-      cl <- parallel::makePSOCKcluster(rep("localhost", ncores))
-      parallel::clusterSetRNGStream(cl)
-      parallel::clusterExport(cl, ls(all.names = TRUE, env = environment()), envir = environment())
-      parallel::clusterExport(cl, ls(all.names = TRUE, env = globalenv()), envir = globalenv())
-      parallel::clusterExport(cl, c("monte_g", "simulate_data", "sim_value"))
-      parallel::clusterEvalQ(cl, library(data.table))
+    p(message = "Bootstrapping", amount = 0)
 
-      on.exit(parallel::stopCluster(cl))
-    }
-  } else {
-    cl <- NULL
-  }
+    r <- .gformula(
+      data = data[indx, ],
+      id_var = id_var,
+      base_vars = base_vars,
+      time_var = time_var,
+      exposure = exposure,
+      models = models,
+      intervention = intervention,
+      init_recode = init_recode,
+      in_recode = in_recode,
+      out_recode = out_recode,
+      mc_sample = mc_sample,
+      mediation_type = mediation_type,
+      return_data = FALSE,
+      progress_bar = FALSE
+    )
 
-  cat("\nBootstrapping:\n")
+    p(message = "Bootstrapping")
 
-  boot_res <- pbapply::pblapply(dfm, .gformula,
-    id_var = id_var,
-    base_vars = base_vars,
-    time_var = time_var,
-    exposure = exposure,
-    models = models,
-    intervention = intervention,
-    in_recode = in_recode,
-    out_recode = out_recode,
-    init_recode = init_recode,
-    mc_sample = mc_sample,
-    mediation_type = mediation_type,
-    cl = cl
-  )
+    return(r)
+  }, future.seed = TRUE)
 
   return(boot_res)
 }

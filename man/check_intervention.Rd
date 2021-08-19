@@ -18,6 +18,12 @@ in this process.}
 if kept as NULL (default), the natural intervention course will be calculated.
  eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0))}
 
+\item{ref_int}{Integer or character string denoting the intervention to be used as
+the reference for calculating the risk ratio and risk difference. 0 or \code{"natural"}
+ denotes the natural course, while subsequent integers denote user-specified
+interventions in the order that they are named in \code{intervention}. Or if the character
+is the name of the intervention. The default is 0.}
+
 \item{time_len}{length of the time in the data.}
 }
 \description{

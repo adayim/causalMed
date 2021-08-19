@@ -6,25 +6,20 @@
 \usage{
 monte_g(
   data,
-  exposure,
-  time_seq,
-  time_var,
   models,
+  exposure,
+  time_var,
+  time_seq,
   intervention = NULL,
+  init_recode = NULL,
   in_recode = NULL,
   out_recode = NULL,
-  init_recode = NULL,
-  mediation_type = c(NA, "N", "I")
+  mediation_type = c(NA, "N", "I"),
+  progress_bar = NULL
 )
 }
 \arguments{
 \item{data}{Data set to be sued}
-
-\item{exposure}{Intervention/Exposure variable}
-
-\item{time_seq}{Time sequence vector of the data.}
-
-\item{time_var}{Time variable.}
 
 \item{models}{A list of models for the G-formula, including exposure model,
  covariate model (if any), mediator model (if any), outcome model or
@@ -33,9 +28,19 @@ monte_g(
  variables, in another way data generation process. The model will be evaluated
 in this process.}
 
+\item{exposure}{Intervention/Exposure variable}
+
+\item{time_var}{Time variable.}
+
+\item{time_seq}{Time sequence vector of the data.}
+
 \item{intervention}{A named list with a value of intervention on exposure.
 if kept as NULL (default), the natural intervention course will be calculated.
  eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0))}
+
+\item{init_recode}{optional, recoding of variables done at the
+beginning of the Monte Carlo loop. Needed for operations initialize baseline variables.
+This is executed at beginning of the Monte Carlo g-formula, executed only once at time 0.}
 
 \item{in_recode}{optional, On the fly recoding of variables done before the Monte
 Carlo loop starts. Needed to do any kind of functional forms for entry times.
@@ -46,13 +51,7 @@ end of the Monte Carlo loop. Needed for operations like counting the number of
 days with a treatment or creating lagged variables. This is executed at each end
  of the Monte Carlo g-formula time steps.}
 
-\item{init_recode}{optional, recoding of variables done at the
-beginning of the Monte Carlo loop. Needed for operations initialize baseline variables.
-This is executed at beginning of the Monte Carlo g-formula, executed only once at time 0.}
-
-\item{mediation_type}{Type of the mediation analysis, if the value is \code{NA} 
-no mediation analysis will be performed (default). It will be ignored if the intervention
- is not \code{NULL}}
+\item{progress_bar}{Progress bar object.}
 }
 \description{
 Internal use only. Monte Carlo simulation.

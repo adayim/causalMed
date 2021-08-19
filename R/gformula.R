@@ -29,9 +29,12 @@
 #'
 #' @param intervention A named list with a value of intervention on exposure.
 #' if kept as NULL (default), the natural intervention course will be calculated.
-#'  eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0))
+#'  eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0)). Note that
+#' the function will add the natural effect by default if the natural effect is
+#' not define here, and the reference intervention in \code{ref_int} will be set
+#' to the natural effect.
 #'
-#' @param ref.int Integer or character string denoting the intervention to be used as
+#' @param ref_int Integer or character string denoting the intervention to be used as
 #' the reference for calculating the risk ratio and risk difference. 0 or \code{"natural"}
 #'  denotes the natural course, while subsequent integers denote user-specified
 #' interventions in the order that they are named in \code{intervention}. Or if the character
@@ -50,11 +53,20 @@
 #' days with a treatment or creating lagged variables. This is executed at each end
 #'  of the Monte Carlo g-formula time steps.
 #'
-#' @param is.survival Is the data survival data, default is FALSE.
+#' @param return_fitted Logical scalar indicating whether to return the fitted model. Default
+#' is \code{FALSE}, and only the summary of coefficients will be returned.
 #'
-#' @param mc_sample Sample size of Monte Carlo simulation.
+#' @param mc_sample Integer, sample size of Monte Carlo simulation.
 #'
-#' @param R The number of bootstrap replicates, default is 500.
+#' @param return_data Logical scalar indicating whether to return the Monte Carlo simulated data set,
+#'  default is \code{FALSE}. In the case of large \code{mc_sample} and long follow-up, the simulated
+#' data will be very large causing problems no enough memory to allocate the objects.
+#'
+#' @param R The number of bootstrap replicates, default is 500. If the R is larger than 1,
+#' \code{\link[future.apply]{future_lapply}} is used for the parallel computation. This will
+#'  run in sequential if no parallel planed, see \code{\link[future]{plan}} for more details.
+#' If the parallel plan was set to \code{plan(multisession)} in Windows or \code{plan(multicore)}
+#' in other system, multiple session/core is used for bootstrap calculation.
 #'
 #' @param ncores integer: number of processes to be used in parallel operation: typically one would chose this to the number of
 #'  available CPUs. Parallel computation for bootstrap will be applied if \code{ncores} larger than 1.
@@ -77,39 +89,43 @@ gformula <- function(data,
                      time_var,
                      models,
                      intervention = NULL,
-                     ref.int = 0,
+                     ref_int = 0,
                      init_recode = NULL,
                      in_recode = NULL,
                      out_recode = NULL,
                      return_fitted = FALSE,
                      mc_sample = nrow(data),
-                     R = 500,
-                     ncores = 1L) {
+                     return_data = FALSE,
+                     R = 500) {
   tpcall <- match.call()
 
   # Check for error
   check_error(data, id_var, base_vars, exposure, time_var, models)
 
-  orig.seed <- .Random.seed
-  on.exit(.Random.seed <<- orig.seed)
+  if (exists(".Random.seed")) {
+    orig.seed <- get(".Random.seed", .GlobalEnv)
+    on.exit(.Random.seed <<- orig.seed)
+  }
 
   # Get time length
   time_len <- length(unique(na.omit(data[[time_var]])))
 
   if (!is.null(intervention)) {
-    check_intervention(models, intervention, ref.int, time_len)
+    check_intervention(models, intervention, ref_int, time_len)
 
     # If any intervention is set to NULL, but reference not defined.
-    if (ref.int == 0 & length(intervention) > 1) {
+    if (ref_int == 0 & length(intervention) >= 1) {
       interv_value <- sapply(intervention, is.null)
       if (any(interv_value)) {
-        ref.int <- which(interv_value)
+        ref_int <- which(interv_value)
+      } else {
+        intervention <- c(list(natural = NULL), intervention)
+        ref_int <- 1
       }
-    } else {
-      intervention <- c(list(natural = NULL), intervention)
-      ref.int <- 1
     }
   }
+
+  data <- data.table::as.data.table(data)
 
   if (is.null(intervention)) {
     intervention <- list(intervention = NULL)
@@ -126,8 +142,13 @@ gformula <- function(data,
   est_ori <- do.call(.gformula, arg_est)
 
   # Mean value of the outcome at each time point by intervention
-  est_out <- data.table::rbindlist(est_ori$gform.data, idcol = "Intervention")
-  est_out <- est_out[, list(Est = mean(Pred_Y)), by = c("Intervention")]
+  if(return_data){
+    est_out <- data.table::rbindlist(est_ori$gform.data, idcol = "Intervention")
+    est_out <- est_out[, list(Est = sum(Pred_Y) / length(Pred_Y)), by = c("Intervention")]
+  }else{
+    est_out <- data.table::as.data.table(utils::stack(est_ori$gform.data))
+    colnames(est_out) <- c("Est", "Intervention")
+  }
 
   # Run bootstrap
   if (R > 1) {
@@ -136,16 +157,16 @@ gformula <- function(data,
 
     # Get the mean of bootstrap results
     pools_res <- lapply(pools, function(bt) {
-      out <- sapply(bt, function(x) {
-        x[, list(Est = mean(Pred_Y))]
-      }, simplify = FALSE)
-      data.table::rbindlist(out, idcol = "Intervention")
+      out <- utils::stack(bt)
+      colnames(out) <- c("Est", "Intervention")
+      return(out)
     })
     pools_res <- data.table::rbindlist(pools_res)
 
     # Calculate Sd and percentile confidence interval
     pools_res <- pools_res[, .(
-      Sd = sd(Est), perct_lcl = quantile(Est, 0.025),
+      Sd = sd(Est),
+      perct_lcl = quantile(Est, 0.025),
       perct_ucl = quantile(Est, 0.975)
     ),
     by = c("Intervention")
@@ -160,9 +181,9 @@ gformula <- function(data,
   }
 
   # Risk difference and risk ratio calculation function
-  risk_calc <- function(data_list, ref.int) {
+  risk_calc <- function(data_list, ref_int) {
     # Get reference
-    ref_nam <- names(intervention)[ref.int]
+    ref_nam <- names(intervention)[ref_int]
     ref_dat <- data_list[[ref_nam]]
     vs_nam <- setdiff(names(intervention), ref_nam)
 
@@ -171,8 +192,14 @@ gformula <- function(data,
       tmp_dt <- data_list[[x]]
 
       # Calculate difference and ratio of mean at each time
-      ref_mean <- mean(ref_dat[["Pred_Y"]])
-      vs_mean <- mean(tmp_dt[["Pred_Y"]])
+      if(return_data){
+        ref_mean <- sum(ref_dat[["Pred_Y"]]) / length(ref_dat[["Pred_Y"]])
+        vs_mean <- sum(tmp_dt[["Pred_Y"]]) / length(tmp_dt[["Pred_Y"]])
+      }else{
+        ref_mean <- ref_dat
+        vs_mean <- tmp_dt
+      }
+
       data.table(
         Risk_type = c("Risk difference", "Risk ratio"),
         Estimate = c(vs_mean - ref_mean, vs_mean / ref_mean)
@@ -182,11 +209,11 @@ gformula <- function(data,
   }
 
   # Calculate the difference and ratio
-  if (length(intervention) >= 1) {
-    risk_est <- risk_calc(est_ori$gform.data, ref.int)
+  if (length(intervention) > 1) {
+    risk_est <- risk_calc(est_ori$gform.data, ref_int)
 
     if (R > 1) {
-      res_pools <- lapply(pools, risk_calc, ref.int)
+      res_pools <- lapply(pools, risk_calc, ref_int)
       res_pools <- data.table::rbindlist(res_pools)
       # Calculate Sd and percentile confidence interval
       res_pools <- res_pools[, .(
@@ -204,6 +231,8 @@ gformula <- function(data,
         norm_ucl = Estimate + stats::qnorm(0.975) * Sd
       )]
     }
+  } else {
+    risk_est <- NULL
   }
 
   # Extract fitted model information
@@ -222,11 +251,18 @@ gformula <- function(data,
   }
   names(fitted_mods) <- resp_vars_list
 
+  # Return data
+  if(return_data){
+    dat_out <- data.table::rbindlist(est_ori$gform.data, idcol = "Intervention")
+  }else{
+    dat_out <- NULL
+  }
+
   return(list(
     call = tpcall,
     estimate = risk_est,
     risk_size = est_out,
-    gform.data = data.table::rbindlist(est_ori$gform.data, idcol = "Intervention"),
-    fitted.models = fitted_mods
+    sim_data = dat_out,
+    fitted_models = fitted_mods
   ))
 }

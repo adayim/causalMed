@@ -1,14 +1,17 @@
 #' Main calculation function
-#' 
+#'
 #' This function will receive the parameters and fit model. After the model is fitted,
-#' random samples will be drawn from the data and apply the intervention. 
+#' random samples will be drawn from the data and apply the intervention.
 #'
 #' @inheritParams gformula
-#' @param mediation_type Type of the mediation effect.
+#' @param mediation_type Type of the mediation analysis, if the value is \code{NA}
+#' no mediation analysis will be performed (default). It will be ignored if the intervention
+#'  is not \code{NULL}
 #' @param return_fitted Return the fitted model (default is FALSE).
+#' @param progress_bar Show progress bar (default).
 #'
-#' @importFrom pbapply pbsapply
-#' 
+#' @importFrom progressr handlers handler_progress progressor
+#'
 #' @keywords internal
 
 .gformula <- function(data,
@@ -23,7 +26,9 @@
                       init_recode,
                       mediation_type = c(NA, "N", "I"),
                       mc_sample = 10000,
-                      return_fitted = FALSE) {
+                      return_fitted = FALSE,
+                      return_data = FALSE,
+                      progress_bar = TRUE) {
   mediation_type <- match.arg(mediation_type)
 
   fit_mods <- lapply(models, function(mods) {
@@ -61,30 +66,54 @@
   set.seed(12345 * mc_sample)
 
   # Baseline variables for Monte Carlo Sampling
-  base_dat <- unique(data[, unique(c(id_var, base_vars))])
-  df_mc <- data.table::as.data.table(base_dat[sample(1:nrow(base_dat), mc_sample, replace = TRUE), ])
+  base_dat <- unique(data[, unique(c(id_var, base_vars)), with = FALSE])
+  df_mc <- data.table::as.data.table(base_dat[sample(1:length(base_dat[[id_var]]), mc_sample, replace = TRUE), ])
   df_mc[, new_ID := seq_len(.N)]
 
   if (!is.na(mediation_type)) {
     intervention <- list(always = 1, never = 0, mediation = NULL)
   }
 
-  #
-  cat("\nLooping interventions:\n")
+  # Setup progress bar
+  if (progress_bar) {
+    progressr::handlers(global = TRUE)
+    progressr::handlers(list(
+      progressr::handler_progress(
+        format   = ":spin :current/:total (:message) [:bar] :percent in :elapsedfull ETA: :eta",
+        # width    = 60,
+        complete = "+"
+      )
+    ))
+    p <- progressr::progressor(steps = length(intervention))
+  } else {
+    p <- NULL
+  }
 
-  res <- pbapply::pbsapply(intervention, function(i) {
-    monte_g(
+  res <- sapply(intervention, function(i) {
+    if (progress_bar) {
+      p(message = "Running intervention", amount = 0)
+    }
+
+    r <- monte_g(
       data = df_mc,
-      time_var = time_var,
-      time_seq = unique(data[[time_var]]),
-      exposure = exposure,
       models = fit_mods,
+      exposure = exposure,
+      time_var = time_var,
+      time_seq = sort(unique(data[[time_var]])),
       intervention = i,
+      init_recode = init_recode,
       in_recode = in_recode,
       out_recode = out_recode,
-      init_recode = init_recode,
-      mediation_type = mediation_type
+      mediation_type = mediation_type,
+      return_data = return_data,
+      progress_bar = p
     )
+
+    if (progress_bar) {
+      p(message = "Running intervention")
+    }
+
+    return(r)
   }, simplify = FALSE)
 
   if (return_fitted) {
@@ -101,24 +130,24 @@
 #'
 #' @inheritParams gformula
 #' @param time_seq Time sequence vector of the data.
-#' @param mediation_type Type of the mediation analysis, if the value is \code{NA} 
-#' no mediation analysis will be performed (default). It will be ignored if the intervention
-#'  is not \code{NULL}
-#' 
-#' @importFrom pbapply timerProgressBar setTimerProgressBar
+#' @param progress_bar Progress bar object.
+#'
 #'
 #' @keywords internal
 #'
 monte_g <- function(data,
-                    exposure,
-                    time_seq,
-                    time_var,
                     models,
+                    exposure,
+                    time_var,
+                    time_seq,
                     intervention = NULL,
+                    init_recode = NULL,
                     in_recode = NULL,
                     out_recode = NULL,
-                    init_recode = NULL,
-                    mediation_type = c(NA, "N", "I")) {
+                    mediation_type = c(NA, "N", "I"),
+                    return_data = FALSE,
+                    progress_bar = NULL) {
+
   mediation_type <- match.arg(mediation_type)
 
   # Replicate to intervention to the same length of the time.
@@ -148,76 +177,87 @@ monte_g <- function(data,
   # Simulate
   max_time <- max(time_seq, na.rm = TRUE)
   min_time <- min(time_seq, na.rm = TRUE)
-  dat_y <- data
 
   # Run normal g-formula
   for (t_index in sort(time_seq)) {
-    dat_y[[time_var]] <- t_index
+
+    # Spin for running
+    if (!is.null(progress_bar) & t_index %% 10 == 0) {
+      progress_bar(amount = 0)
+    }
+
+    set(data, j = time_var, value = t_index)
 
     # Recode baseline variables at initiation
     if (t_index == min_time) {
       if (!is.null(init_recode)) {
-        dat_y <- within(dat_y, eval(parse(text = init_recode)))
+        data <- within(data, eval(parse(text = init_recode)))
       }
     }
 
     # Recode data before simulating
     if (!is.null(in_recode)) {
-      dat_y <- within(dat_y, eval(parse(text = in_recode)))
+      data <- within(data, eval(parse(text = in_recode)))
     }
 
     # Use the model to calculate the simulated value
-    dat_y <- simulate_data(data = dat_y, exposure = exposure, models = models, intervention = intervention[t_index], mediation_type = mediation_type)
+    data <- simulate_data(data = data, exposure = exposure, models = models, intervention = intervention[t_index], mediation_type = mediation_type)
 
     if (!is.null(out_recode)) {
-      dat_y <- within(dat_y, eval(parse(text = out_recode)))
+      data <- within(data, eval(parse(text = out_recode)))
     }
 
     # For survival outcome
     if (is_survival) {
       # If the intervention is defined, no censoring applied.
       if (!is.null(intervention) & cen_flag != 0) {
-        dat_y[[censor]] <- 0
+        set(data, j = censor, value = 0)
       }
 
       # If censored outcome equals to 1, then the survival outcome is not observed.
       if (cen_flag != 0) {
-        dat_y[[outcome]] <- ifelse(dat_y[[censor]] == 1, 0, dat_y[[outcome]])
+        data[[outcome]] <- ifelse(data[[censor]] == 1, 0, data[[outcome]])
       }
 
       # Output data
       if (t_index == min_time) {
-        out_y <- dat_y[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE]
+        out_y <- data[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE]
       } else {
-        out_y <- rbind(out_y, dat_y[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE])
+        out_y <- rbind(out_y, data[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE])
       }
 
       # Continue for the not censored or no event observed
       if (cen_flag != 0) {
-        dat_y <- dat_y[!(dat_y[[outcome]] == 1 | dat_y[[censor]] == 1), ]
+        data <- data[!(data[[outcome]] == 1 | data[[censor]] == 1), ]
       } else {
-        dat_y <- dat_y[dat_y[[outcome]] != 1, ]
+        data <- data[data[[outcome]] != 1, ]
       }
 
       # If no data left
-      if (nrow(dat_y) == 0) {
+      if (nrow(data) == 0) {
         break
       }
 
       # If all loop complete
       if (t_index == max_time) {
-        out_y <- rbind(out_y, dat_y[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE])
+        out_y <- rbind(out_y, data[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE])
       }
     } else {
       # Output data
       if (t_index == min_time) {
-        out_y <- dat_y[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE]
+        out_y <- data[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE]
       } else {
-        out_y <- rbind(out_y, dat_y[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE])
+        out_y <- rbind(out_y, data[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE])
       }
     }
   }
   # loop ends here
 
-  return(out_y)
+  if(return_data){
+    return(out_y)
+  }else {
+    # Calculate mean, this is faster than mean function
+    sum(out_y[["Pred_Y"]])/length(out_y[["Pred_Y"]])
+  }
+  
 }

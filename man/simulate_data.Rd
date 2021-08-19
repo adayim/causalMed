@@ -21,7 +21,7 @@ simulate_data(
 if the value is \code{NULL}. If the value contains any logical operators, the intervention
 will be evaluated and the exposure variable will be set to 1 if it is \code{TRUE}.}
 
-\item{mediation_type}{Type of the mediation analysis, if the value is \code{NA} 
+\item{mediation_type}{Type of the mediation analysis, if the value is \code{NA}
 no mediation analysis will be performed (default). It will be ignored if the intervention
  is not \code{NULL}}
 }

@@ -57,7 +57,11 @@ days with a treatment or creating lagged variables. This is executed at each end
 
 \item{mediation_type}{Type of the mediation effect, natural effect (\code{"N"}) or interventional effect (\code{"I"}).}
 
-\item{R}{The number of bootstrap replicates, default is 500.}
+\item{R}{The number of bootstrap replicates, default is 500. If the R is larger than 1, 
+\code{\link[future.apply]{future_lapply}} is used for the parallel computation. This will
+ run in sequential if no parallel planed, see \code{\link[future]{plan}} for more details. 
+If the parallel plan was set to \code{plan(multisession)} in Windows or \code{plan(multicore)} 
+in other system, multiple session/core is used for bootstrap calculation.}
 
 \item{ncores}{integer: number of processes to be used in parallel operation: typically one would chose this to the number of
 available CPUs. Parallel computation for bootstrap will be applied if \code{ncores} larger than 1.}

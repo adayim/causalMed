@@ -12,14 +12,13 @@ gformula(
   time_var,
   models,
   intervention = NULL,
-  ref.int = 0,
+  ref_int = 0,
   init_recode = NULL,
   in_recode = NULL,
   out_recode = NULL,
   return_fitted = FALSE,
   mc_sample = nrow(data),
-  R = 500,
-  ncores = 1L
+  R = 500
 )
 }
 \arguments{
@@ -44,7 +43,7 @@ in this process.}
 if kept as NULL (default), the natural intervention course will be calculated.
  eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0))}
 
-\item{ref.int}{Integer or character string denoting the intervention to be used as
+\item{ref_int}{Integer or character string denoting the intervention to be used as
 the reference for calculating the risk ratio and risk difference. 0 or \code{"natural"}
  denotes the natural course, while subsequent integers denote user-specified
 interventions in the order that they are named in \code{intervention}. Or if the character
@@ -65,12 +64,16 @@ days with a treatment or creating lagged variables. This is executed at each end
 
 \item{mc_sample}{Sample size of Monte Carlo simulation.}
 
-\item{R}{The number of bootstrap replicates, default is 500.}
+\item{R}{The number of bootstrap replicates, default is 500. If the R is larger than 1, 
+\code{\link[future.apply]{future_lapply}} is used for the parallel computation. This will
+ run in sequential if no parallel planed, see \code{\link[future]{plan}} for more details. 
+If the parallel plan was set to \code{plan(multisession)} in Windows or \code{plan(multicore)} 
+in other system, multiple session/core is used for bootstrap calculation.}
+
+\item{is.survival}{Is the data survival data, default is FALSE.}
 
 \item{ncores}{integer: number of processes to be used in parallel operation: typically one would chose this to the number of
 available CPUs. Parallel computation for bootstrap will be applied if \code{ncores} larger than 1.}
-
-\item{is.survival}{Is the data survival data, default is FALSE.}
 }
 \description{
 Mediation analysis for time varying mediator, estimation based

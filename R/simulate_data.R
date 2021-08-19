@@ -1,20 +1,20 @@
 
 #' Simulate Data
-#' 
-#' Loop through the models and apply any recoding or subset. 
+#'
+#' Loop through the models and apply any recoding or subset.
 #'
 #' @param data Data to be used for the data generation
 #' @param models Model list passed from \code{\link{gformula}} or \code{\link{mediation}}.
 #' @param intervention A vector, intervention treatment, natural course will be evaluated
 #' if the value is \code{NULL}. If the value contains any logical operators, the intervention
 #' will be evaluated and the exposure variable will be set to 1 if it is \code{TRUE}.
-#' @param mediation_type Type of the mediation analysis, if the value is \code{NA} 
+#' @param mediation_type Type of the mediation analysis, if the value is \code{NA}
 #' no mediation analysis will be performed (default). It will be ignored if the intervention
 #'  is not \code{NULL}
-#' 
-#' @details 
-#' If the intervention is \code{NULL}, and the \code{mediation_type} 
-#' 
+#'
+#' @details
+#' If the intervention is \code{NULL}, and the \code{mediation_type}
+#'
 #'
 #' @keywords internal
 #'
@@ -34,13 +34,13 @@ simulate_data <- function(data,
 
   # If Intervention is given, set the treatment to given value
   if (!is.null(intervention) & is.na(mediation_type) & !is_dynamic) {
-    data[[exposure]] <- intervention
+    set(data, j = exposure, value = intervention)
   }
 
   # if the mediation type is defined, than set the intervention to 1. But 0
   # for mediator. This is to calculate the phi_10
   if (!is.na(mediation_type) & is.null(intervention)) {
-    data[[exposure]] <- 1
+    set(data, j = exposure, value = 1)
     interv0 <- parse(text = paste0(exposure, " = 0"))
   }
 
@@ -55,7 +55,7 @@ simulate_data <- function(data,
     if (resp_var == exposure & !is.null(intervention)) {
       # Evaluate if the intervention is dynamic
       if (is_dynamic) {
-        data[[exposure]] <- as.numeric(eval(parse(text = intervention), envir = data))
+        set(data, j = exposure, value = as.numeric(eval(parse(text = intervention), envir = data)))
         # data <- within(data, eval(parse(text = intervention)))
       }
 

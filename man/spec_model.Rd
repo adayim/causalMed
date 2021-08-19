@@ -33,16 +33,16 @@ be used for dynamic recoding of the variables.}
  of the model. The possible values are: \code{"binomial"}, \code{"normal"},
  \code{"categorical"}, and \code{"custom"}. The binomial distribution, normal distribution
 or multinomial distribution will be used to simulate the value of the responsible variable
- for \code{"binomial"}, \code{"normal"} and \code{"categorical"}, respectively. 
+ for \code{"binomial"}, \code{"normal"} and \code{"categorical"}, respectively.
 The simulation of the response variable will be based on normal distribution if the \code{custom_sim}
 is \code{NULL}. The simulated value of the \code{"normal"} and \code{"custom"} variable type
 will be truncated within the observed value.}
 
-\item{mod_type}{Type of the model. Covariate model (\code{"covariate"}), exposure model 
+\item{mod_type}{Type of the model. Covariate model (\code{"covariate"}), exposure model
 (\code{"exposure"}), mediator model (\code{"mediator"}), outcome model (\code{"outcome"}),
  survival model (\code{"survival"}) or censoring model (\code{"censor"}).}
 
-\item{custom_fit}{Custom model fitting function. The \code{var_type} should be set to 
+\item{custom_fit}{Custom model fitting function. The \code{var_type} should be set to
 \code{"custom"} to pass the `custom_fit`. If the \code{var_type} is \code{"custom"} and the
 \code{custom_fit} is node defined, the \code{\link[stats]{glm}} will be used for modelling.
 This can be used to define the modeling fitting function other than \code{\link[stats]{glm}}
@@ -50,9 +50,9 @@ This can be used to define the modeling fitting function other than \code{\link[
  parallel computation. For example, if a truncated regression to be used for this model,
  one should define the parameter value with \code{truncreg::truncreg}.}
 
-\item{custom_sim}{Custom simulation function for the model. Only two parameters will be passed 
+\item{custom_sim}{Custom simulation function for the model. Only two parameters will be passed
 to this function during the simulation. The first argument is the fitted model object
- and the second one is the data to be used in the prediction. The simulated value will be 
+ and the second one is the data to be used in the prediction. The simulated value will be
 truncated within observed value range. If the custom simulation function was not provided
  and the variable type is custom, the variable will be simulated using the normal distribution.}
 
@@ -70,7 +70,7 @@ The list returned is:
 }
 \description{
 Specify regression model for the time-varying variables. This is will be used for
- g-formula. This function will create unevaluated model and can further pass to 
+ g-formula. This function will create unevaluated model and can further pass to
 \code{\link{gformula}} or \code{\link{mediation}}.
 }
 \details{
@@ -78,24 +78,26 @@ This function will be used to create an unevaluated model for the g-formula.
 }
 \examples{
 mod_cov1 <- spec_model(platnorm ~ all + cmv + male + age + agecurs1 +
-                       agecurs2 + gvhdm1 + daysgvhd + daysnorelapse + wait,
-                       var_type = "binomial",
-                       mod_type = "covriate",
-                       subset = platnormm1 == 0)
+  agecurs2 + gvhdm1 + daysgvhd + daysnorelapse + wait,
+var_type = "binomial",
+mod_type = "covriate",
+subset = platnormm1 == 0
+)
 ## For Poisson regression
-predict_poisson <- function(fit, newdf){
+predict_poisson <- function(fit, newdf) {
   theta <- stats::predict(object = fitcov, type = "response", newdata = newdf)
   prediction <- rpois(n = nrow(newdf), lambda = theta)
   return(prediction)
 }
 mod_cov1 <- spec_model(platnorm ~ all + cmv + male + age + agecurs1 +
-                       agecurs2 + gvhdm1 + daysgvhd + daysnorelapse + wait,
-                       var_type = "custom",
-                       mod_type = "covriate",
-                       subset = platnormm1 == 0,
-                       custom_sim = predict_poisson,
-                       family = "poisson"(link = "log"),
-                       y = TRUE)
+  agecurs2 + gvhdm1 + daysgvhd + daysnorelapse + wait,
+var_type = "custom",
+mod_type = "covriate",
+subset = platnormm1 == 0,
+custom_sim = predict_poisson,
+family = "poisson"(link = "log"),
+y = TRUE
+)
 }
 \seealso{
 \code{\link{gformula}},\code{\link{mediation}}

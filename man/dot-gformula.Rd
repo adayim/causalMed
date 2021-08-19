@@ -17,7 +17,8 @@
   init_recode,
   mediation_type = c(NA, "N", "I"),
   mc_sample = 10000,
-  return_fitted = FALSE
+  return_fitted = FALSE,
+  progress_bar = TRUE
 )
 }
 \arguments{
@@ -55,11 +56,15 @@ days with a treatment or creating lagged variables. This is executed at each end
 beginning of the Monte Carlo loop. Needed for operations initialize baseline variables.
 This is executed at beginning of the Monte Carlo g-formula, executed only once at time 0.}
 
-\item{mediation_type}{Type of the mediation effect.}
+\item{mediation_type}{Type of the mediation analysis, if the value is \code{NA}
+no mediation analysis will be performed (default). It will be ignored if the intervention
+ is not \code{NULL}}
 
 \item{mc_sample}{Sample size of Monte Carlo simulation.}
 
 \item{return_fitted}{Return the fitted model (default is FALSE).}
+
+\item{progress_bar}{Show progress bar (default).}
 }
 \description{
 This function will receive the parameters and fit model. After the model is fitted,
