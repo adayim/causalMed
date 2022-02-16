@@ -7,6 +7,7 @@
 #' @param R The number of bootstrap replicates, default is 500. Same with \code{boot}, see \code{\link[boot]{boot}} for detail.
 #'
 #' @importFrom future.apply future_lapply
+#' @importFrom progressr handler_progress handlers progressor
 #'
 bootstrap_helper <- function(data,
                              id_var,
@@ -40,26 +41,26 @@ bootstrap_helper <- function(data,
 
     p(message = "Bootstrapping", amount = 0)
 
-    r <- .gformula(
-      data = data[indx, ],
-      id_var = id_var,
-      base_vars = base_vars,
-      time_var = time_var,
-      exposure = exposure,
-      models = models,
-      intervention = intervention,
-      init_recode = init_recode,
-      in_recode = in_recode,
-      out_recode = out_recode,
-      mc_sample = mc_sample,
-      mediation_type = mediation_type,
-      return_data = FALSE,
-      progress_bar = FALSE
-    )
+    res <- .gformula(data = data[indx, ],
+                     id_var = id_var,
+                     base_vars = base_vars,
+                     time_var = time_var,
+                     exposure = exposure,
+                     models = models,
+                     intervention = intervention,
+                     init_recode = init_recode,
+                     in_recode = in_recode,
+                     out_recode = out_recode,
+                     mc_sample = mc_sample,
+                     mediation_type = mediation_type,
+                     return_fitted = FALSE,
+                     return_data = FALSE,
+                     progress_bar = FALSE)
 
     p(message = "Bootstrapping")
 
-    return(r)
+    return(res)
+
   }, future.seed = TRUE)
 
   return(boot_res)

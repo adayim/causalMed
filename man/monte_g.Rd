@@ -15,6 +15,7 @@ monte_g(
   in_recode = NULL,
   out_recode = NULL,
   mediation_type = c(NA, "N", "I"),
+  return_data = FALSE,
   progress_bar = NULL
 )
 }
@@ -36,7 +37,10 @@ in this process.}
 
 \item{intervention}{A named list with a value of intervention on exposure.
 if kept as NULL (default), the natural intervention course will be calculated.
- eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0))}
+ eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0)). Note that
+the function will add the natural effect by default if the natural effect is
+not define here, and the reference intervention in \code{ref_int} will be set
+to the natural effect.}
 
 \item{init_recode}{optional, recoding of variables done at the
 beginning of the Monte Carlo loop. Needed for operations initialize baseline variables.
@@ -50,6 +54,10 @@ Carlo loop starts. Needed to do any kind of functional forms for entry times.
 end of the Monte Carlo loop. Needed for operations like counting the number of
 days with a treatment or creating lagged variables. This is executed at each end
  of the Monte Carlo g-formula time steps.}
+
+\item{return_data}{Logical scalar indicating whether to return the Monte Carlo simulated data set,
+ default is \code{FALSE}. In the case of large \code{mc_sample} and long follow-up, the simulated
+data will be very large causing problems no enough memory to allocate the objects.}
 
 \item{progress_bar}{Progress bar object.}
 }

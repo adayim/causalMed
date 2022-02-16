@@ -174,11 +174,11 @@ monte_g <- function(data,
     censor <- all.vars(formula(models[[cen_flag]]$fitted)[[2]])
   }
 
-  # Simulate
+  # Get minimum and maximum time
   max_time <- max(time_seq, na.rm = TRUE)
   min_time <- min(time_seq, na.rm = TRUE)
 
-  # Run normal g-formula
+  # Run g-formula
   for (t_index in sort(time_seq)) {
 
     # Spin for running
@@ -201,11 +201,11 @@ monte_g <- function(data,
     }
 
     # Use the model to calculate the simulated value
-    data <- simulate_data(data = data, exposure = exposure, models = models, intervention = intervention[t_index], mediation_type = mediation_type)
-
-    if (!is.null(out_recode)) {
-      data <- within(data, eval(parse(text = out_recode)))
-    }
+    data <- simulate_data(data = data,
+                          exposure = exposure, 
+                          models = models, 
+                          intervention = intervention[t_index], 
+                          mediation_type = mediation_type)
 
     # For survival outcome
     if (is_survival) {
@@ -254,10 +254,10 @@ monte_g <- function(data,
   # loop ends here
 
   if(return_data){
-    return(out_y)
+    return(data)
   }else {
     # Calculate mean, this is faster than mean function
-    sum(out_y[["Pred_Y"]])/length(out_y[["Pred_Y"]])
+    sum(data[["Pred_Y"]])/length(data[["Pred_Y"]])
   }
   
 }

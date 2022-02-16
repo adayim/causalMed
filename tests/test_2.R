@@ -79,6 +79,24 @@ out_recode <- c(
 )
 
 devtools::load_all()
+df <- gvhd[gvhd$day <= 100, ]
+natural <- gformula(df,
+                    id_var = "id",
+                    base_vars = c(
+                      "age", "agesq", "agecurs1", "agecurs2", "male",
+                      "cmv", "all", "wait"),
+                    exposure = "gvhd",
+                    time_var = "day",
+                    models = list(mod_cov1, mod_cov2, mod_exp, mod_cens, mod_out),
+                    intervention = list(always = 1, never = 0),
+                    init_recode = init_recode,
+                    in_recode = in_recode,
+                    out_recode = out_recode,
+                    mc_sample = 1370,
+                    R = 0
+)
+
+devtools::load_all()
 library(future)
 plan(multisession)
 df <- gvhd[gvhd$day <= 100, ]

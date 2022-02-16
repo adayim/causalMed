@@ -18,6 +18,7 @@
   mediation_type = c(NA, "N", "I"),
   mc_sample = 10000,
   return_fitted = FALSE,
+  return_data = FALSE,
   progress_bar = TRUE
 )
 }
@@ -41,7 +42,10 @@ in this process.}
 
 \item{intervention}{A named list with a value of intervention on exposure.
 if kept as NULL (default), the natural intervention course will be calculated.
- eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0))}
+ eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0)). Note that
+the function will add the natural effect by default if the natural effect is
+not define here, and the reference intervention in \code{ref_int} will be set
+to the natural effect.}
 
 \item{in_recode}{optional, On the fly recoding of variables done before the Monte
 Carlo loop starts. Needed to do any kind of functional forms for entry times.
@@ -60,9 +64,13 @@ This is executed at beginning of the Monte Carlo g-formula, executed only once a
 no mediation analysis will be performed (default). It will be ignored if the intervention
  is not \code{NULL}}
 
-\item{mc_sample}{Sample size of Monte Carlo simulation.}
+\item{mc_sample}{Integer, sample size of Monte Carlo simulation.}
 
 \item{return_fitted}{Return the fitted model (default is FALSE).}
+
+\item{return_data}{Logical scalar indicating whether to return the Monte Carlo simulated data set,
+ default is \code{FALSE}. In the case of large \code{mc_sample} and long follow-up, the simulated
+data will be very large causing problems no enough memory to allocate the objects.}
 
 \item{progress_bar}{Show progress bar (default).}
 }

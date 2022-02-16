@@ -44,7 +44,7 @@ mediation <- function(data,
   mediation_type <- match.arg(mediation_type)
 
   # Calculate mediation effect
-  risk_calc <- function(data_list) {
+  risk_calc <- function(data_list, return_data) {
     if(return_data){
       phi_11 <- sum(data_list$always[["Pred_Y"]]) / length(data_list$always[["Pred_Y"]])
       phi_00 <- sum(data_list$never[["Pred_Y"]]) / length(data_list$never[["Pred_Y"]])
@@ -81,11 +81,6 @@ mediation <- function(data,
     stop("Mediator model was not defined.", domain = "causalMed")
   }
 
-  # Run along the models
-  if (verbose) {
-    cat("\n====== Fitting models =======\n")
-  }
-
   # Run original estimate
   arg_est <- get_args_for(.gformula)
   arg_est$return_fitted <- TRUE
@@ -103,7 +98,7 @@ mediation <- function(data,
     est_out <- data.table::as.data.table(utils::stack(est_ori$gform.data))
     colnames(est_out) <- c("Est", "Intervention")
   }
-  risk_est <- risk_calc(est_ori$gform.data)
+  risk_est <- risk_calc(est_ori$gform.data, return_data = return_data)
   
 
   # Get the mean of bootstrap results
@@ -118,8 +113,8 @@ mediation <- function(data,
     # Calculate Sd and percentile confidence interval
     pools_res <- pools_res[, .(
       Sd = sd(Est), 
-      perct_lcl = quantile(Est, 0.025),
-      perct_ucl = quantile(Est, 0.975)
+      perct_lcl = quantile(Est, 0.025, na.rm = TRUE),
+      perct_ucl = quantile(Est, 0.975, na.rm = TRUE)
     ),
     by = c("Intervention")
     ]
@@ -131,7 +126,7 @@ mediation <- function(data,
       norm_ucl = Est + stats::qnorm(0.975) * Sd
     )]
 
-    res_pools <- lapply(pools, risk_calc)
+    res_pools <- lapply(pools, risk_calc, return_data = return_data)
     res_pools <- data.table::rbindlist(res_pools)
     # Calculate Sd and percentile confidence interval
     res_pools <- res_pools[, .(
@@ -160,7 +155,7 @@ mediation <- function(data,
     })
   } else {
     fitted_mods <- lapply(est_ori$fitted.models, function(x) {
-      summary(x$fitted)$coefficients
+      list(call = x$fitted$call, coeff = summary(x$fitted)$coefficients)
     })
   }
   names(fitted_mods) <- resp_vars_list
@@ -175,7 +170,7 @@ mediation <- function(data,
   return(list(
     call = tpcall,
     estimate = risk_est,
-    risk_size = est_out,
+    effect_size = est_out,
     sim_data = dat_out,
     fitted_models = fitted_mods
   ))

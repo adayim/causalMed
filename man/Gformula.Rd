@@ -18,6 +18,7 @@ gformula(
   out_recode = NULL,
   return_fitted = FALSE,
   mc_sample = nrow(data),
+  return_data = FALSE,
   R = 500
 )
 }
@@ -41,7 +42,10 @@ in this process.}
 
 \item{intervention}{A named list with a value of intervention on exposure.
 if kept as NULL (default), the natural intervention course will be calculated.
- eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0))}
+ eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0)). Note that
+the function will add the natural effect by default if the natural effect is
+not define here, and the reference intervention in \code{ref_int} will be set
+to the natural effect.}
 
 \item{ref_int}{Integer or character string denoting the intervention to be used as
 the reference for calculating the risk ratio and risk difference. 0 or \code{"natural"}
@@ -62,15 +66,20 @@ end of the Monte Carlo loop. Needed for operations like counting the number of
 days with a treatment or creating lagged variables. This is executed at each end
  of the Monte Carlo g-formula time steps.}
 
-\item{mc_sample}{Sample size of Monte Carlo simulation.}
+\item{return_fitted}{Logical scalar indicating whether to return the fitted model. Default
+is \code{FALSE}, only the summary of coefficients will be returned.}
 
-\item{R}{The number of bootstrap replicates, default is 500. If the R is larger than 1, 
+\item{mc_sample}{Integer, sample size of Monte Carlo simulation.}
+
+\item{return_data}{Logical scalar indicating whether to return the Monte Carlo simulated data set,
+ default is \code{FALSE}. In the case of large \code{mc_sample} and long follow-up, the simulated
+data will be very large causing problems no enough memory to allocate the objects.}
+
+\item{R}{The number of bootstrap replicates, default is 500. If the R is larger than 1,
 \code{\link[future.apply]{future_lapply}} is used for the parallel computation. This will
- run in sequential if no parallel planed, see \code{\link[future]{plan}} for more details. 
-If the parallel plan was set to \code{plan(multisession)} in Windows or \code{plan(multicore)} 
+ run in sequential if no parallel planed, see \code{\link[future]{plan}} for more details.
+If the parallel plan was set to \code{plan(multisession)} in Windows or \code{plan(multicore)}
 in other system, multiple session/core is used for bootstrap calculation.}
-
-\item{is.survival}{Is the data survival data, default is FALSE.}
 
 \item{ncores}{integer: number of processes to be used in parallel operation: typically one would chose this to the number of
 available CPUs. Parallel computation for bootstrap will be applied if \code{ncores} larger than 1.}

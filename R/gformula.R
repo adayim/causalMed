@@ -54,7 +54,7 @@
 #'  of the Monte Carlo g-formula time steps.
 #'
 #' @param return_fitted Logical scalar indicating whether to return the fitted model. Default
-#' is \code{FALSE}, and only the summary of coefficients will be returned.
+#' is \code{FALSE}, only the summary of coefficients will be returned.
 #'
 #' @param mc_sample Integer, sample size of Monte Carlo simulation.
 #'
@@ -125,7 +125,7 @@ gformula <- function(data,
     }
   }
 
-  data <- data.table::as.data.table(data)
+  data.table::setDT(data)
 
   if (is.null(intervention)) {
     intervention <- list(intervention = NULL)
@@ -166,8 +166,8 @@ gformula <- function(data,
     # Calculate Sd and percentile confidence interval
     pools_res <- pools_res[, .(
       Sd = sd(Est),
-      perct_lcl = quantile(Est, 0.025),
-      perct_ucl = quantile(Est, 0.975)
+      perct_lcl = quantile(Est, 0.025, na.rm = TRUE),
+      perct_ucl = quantile(Est, 0.975, na.rm = TRUE)
     ),
     by = c("Intervention")
     ]
@@ -181,7 +181,7 @@ gformula <- function(data,
   }
 
   # Risk difference and risk ratio calculation function
-  risk_calc <- function(data_list, ref_int) {
+  risk_calc <- function(data_list, ref_int, return_data) {
     # Get reference
     ref_nam <- names(intervention)[ref_int]
     ref_dat <- data_list[[ref_nam]]
@@ -210,10 +210,10 @@ gformula <- function(data,
 
   # Calculate the difference and ratio
   if (length(intervention) > 1) {
-    risk_est <- risk_calc(est_ori$gform.data, ref_int)
+    risk_est <- risk_calc(est_ori$gform.data, ref_int = ref_int, return_data = return_data)
 
     if (R > 1) {
-      res_pools <- lapply(pools, risk_calc, ref_int)
+      res_pools <- lapply(pools, risk_calc, ref_int = ref_int, return_data = return_data)
       res_pools <- data.table::rbindlist(res_pools)
       # Calculate Sd and percentile confidence interval
       res_pools <- res_pools[, .(
@@ -246,7 +246,7 @@ gformula <- function(data,
     })
   } else {
     fitted_mods <- lapply(est_ori$fitted.models, function(x) {
-      summary(x$fitted)$coefficients
+      list(call = x$fitted$call, coeff = summary(x$fitted)$coefficients)
     })
   }
   names(fitted_mods) <- resp_vars_list
@@ -261,7 +261,7 @@ gformula <- function(data,
   return(list(
     call = tpcall,
     estimate = risk_est,
-    risk_size = est_out,
+    effect_size = est_out,
     sim_data = dat_out,
     fitted_models = fitted_mods
   ))

@@ -18,8 +18,8 @@ mediation(
   mc_sample = nrow(data),
   mediation_type = c("N", "I"),
   return_fitted = FALSE,
-  R = 500,
-  ncores = 1L
+  return_data = FALSE,
+  R = 500
 )
 }
 \arguments{
@@ -53,18 +53,22 @@ end of the Monte Carlo loop. Needed for operations like counting the number of
 days with a treatment or creating lagged variables. This is executed at each end
  of the Monte Carlo g-formula time steps.}
 
-\item{mc_sample}{Sample size of Monte Carlo simulation.}
+\item{mc_sample}{Integer, sample size of Monte Carlo simulation.}
 
 \item{mediation_type}{Type of the mediation effect, natural effect (\code{"N"}) or interventional effect (\code{"I"}).}
 
-\item{R}{The number of bootstrap replicates, default is 500. If the R is larger than 1, 
-\code{\link[future.apply]{future_lapply}} is used for the parallel computation. This will
- run in sequential if no parallel planed, see \code{\link[future]{plan}} for more details. 
-If the parallel plan was set to \code{plan(multisession)} in Windows or \code{plan(multicore)} 
-in other system, multiple session/core is used for bootstrap calculation.}
+\item{return_fitted}{Logical scalar indicating whether to return the fitted model. Default
+is \code{FALSE}, only the summary of coefficients will be returned.}
 
-\item{ncores}{integer: number of processes to be used in parallel operation: typically one would chose this to the number of
-available CPUs. Parallel computation for bootstrap will be applied if \code{ncores} larger than 1.}
+\item{return_data}{Logical scalar indicating whether to return the Monte Carlo simulated data set,
+ default is \code{FALSE}. In the case of large \code{mc_sample} and long follow-up, the simulated
+data will be very large causing problems no enough memory to allocate the objects.}
+
+\item{R}{The number of bootstrap replicates, default is 500. If the R is larger than 1,
+\code{\link[future.apply]{future_lapply}} is used for the parallel computation. This will
+ run in sequential if no parallel planed, see \code{\link[future]{plan}} for more details.
+If the parallel plan was set to \code{plan(multisession)} in Windows or \code{plan(multicore)}
+in other system, multiple session/core is used for bootstrap calculation.}
 }
 \description{
 Mediation analysis for time varying mediator, estimation based

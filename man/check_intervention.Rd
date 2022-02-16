@@ -16,7 +16,10 @@ in this process.}
 
 \item{intervention}{A named list with a value of intervention on exposure.
 if kept as NULL (default), the natural intervention course will be calculated.
- eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0))}
+ eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0)). Note that
+the function will add the natural effect by default if the natural effect is
+not define here, and the reference intervention in \code{ref_int} will be set
+to the natural effect.}
 
 \item{ref_int}{Integer or character string denoting the intervention to be used as
 the reference for calculating the risk ratio and risk difference. 0 or \code{"natural"}
