@@ -21,9 +21,9 @@
                       exposure,
                       models,
                       intervention,
-                      in_recode,
-                      out_recode,
-                      init_recode,
+                      in_recode = NULL,
+                      out_recode = NULL,
+                      init_recode = NULL,
                       mediation_type = c(NA, "N", "I"),
                       mc_sample = 10000,
                       return_fitted = FALSE,
@@ -165,8 +165,14 @@ monte_g <- function(data,
   surv_flag <- sapply(models, function(mods) mods$mod_type == "survival")
   if (any(cen_flag) | any(surv_flag)) {
     is_survival <- TRUE
+  }else {
+    is_survival
   }
-  cen_flag <- which(cen_flag)
+
+  if(any(cen_flag))
+    cen_flag <- which(cen_flag)
+  else
+    cen_flag <- 0
 
   # Get the variable name of outcome and censor
   outcome <- all.vars(formula(models[[out_flag]]$fitted)[[2]])
@@ -179,8 +185,8 @@ monte_g <- function(data,
   min_time <- min(time_seq, na.rm = TRUE)
 
   # Run g-formula
-  for (t_index in sort(time_seq)) {
-
+  for (indx in seq_along(time_seq)) {
+    t_index <- sort(time_seq)[indx]
     # Spin for running
     if (!is.null(progress_bar) & t_index %% 10 == 0) {
       progress_bar(amount = 0)
@@ -202,9 +208,9 @@ monte_g <- function(data,
 
     # Use the model to calculate the simulated value
     data <- simulate_data(data = data,
-                          exposure = exposure, 
-                          models = models, 
-                          intervention = intervention[t_index], 
+                          exposure = exposure,
+                          models = models,
+                          intervention = intervention[indx],
                           mediation_type = mediation_type)
 
     # For survival outcome
@@ -259,5 +265,5 @@ monte_g <- function(data,
     # Calculate mean, this is faster than mean function
     sum(data[["Pred_Y"]])/length(data[["Pred_Y"]])
   }
-  
+
 }

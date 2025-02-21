@@ -68,8 +68,7 @@
 #' If the parallel plan was set to \code{plan(multisession)} in Windows or \code{plan(multicore)}
 #' in other system, multiple session/core is used for bootstrap calculation.
 #'
-#' @param ncores integer: number of processes to be used in parallel operation: typically one would chose this to the number of
-#'  available CPUs. Parallel computation for bootstrap will be applied if \code{ncores} larger than 1.
+#' @param quiet if \code{TRUE} then the progress bar will be suppressed.
 #'
 #' @references
 #' Lin, S. H., Young, J. G., Logan, R., & VanderWeele, T. J. (2017). Mediation analysis for a survival outcome with time-varying exposures, mediators, and confounders. \emph{Statistics in medicine}, 36(26), 4153-4166. DOI:10.1002/sim.7426
@@ -96,7 +95,8 @@ gformula <- function(data,
                      return_fitted = FALSE,
                      mc_sample = nrow(data),
                      return_data = FALSE,
-                     R = 500) {
+                     R = 500,
+                     quiet = FALSE) {
   tpcall <- match.call()
 
   # Check for error
@@ -139,6 +139,7 @@ gformula <- function(data,
   # Run original estimate
   arg_est <- get_args_for(.gformula)
   arg_est$return_fitted <- TRUE
+  arg_est$progress_bar <- substitute(quiet, env = parent.frame())
   est_ori <- do.call(.gformula, arg_est)
 
   # Mean value of the outcome at each time point by intervention
@@ -153,6 +154,7 @@ gformula <- function(data,
   # Run bootstrap
   if (R > 1) {
     arg_pools <- get_args_for(bootstrap_helper)
+    arg_pools$progress_bar <- substitute(quiet, env = parent.frame())
     pools <- do.call(bootstrap_helper, arg_pools)
 
     # Get the mean of bootstrap results

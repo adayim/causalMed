@@ -2,12 +2,10 @@
 #'
 #' @description Used to calculate confidence interval using non-parametric bootstrap methods.
 #'
-#' @param object Object returned from gformula function (see \code{\link[calsalMed]{gformula}}).
-#'
-#' @param R The number of bootstrap replicates, default is 500. Same with \code{boot}, see \code{\link[boot]{boot}} for detail.
-#'
+#' @inheritParams gformula
 #' @importFrom future.apply future_lapply
 #' @importFrom progressr handler_progress handlers progressor
+#' @keywords internal
 #'
 bootstrap_helper <- function(data,
                              id_var,
@@ -16,30 +14,35 @@ bootstrap_helper <- function(data,
                              exposure,
                              models,
                              intervention,
-                             init_recode,
-                             in_recode,
-                             out_recode,
+                             init_recode = NULL,
+                             in_recode = NULL,
+                             out_recode = NULL,
                              mc_sample = 10000,
                              mediation_type = c(NA, "N", "I"),
-                             R = 500) {
+                             R = 500,
+                             progress_bar = TRUE) {
   mediation_type <- match.arg(mediation_type)
 
   # Progress bar
-  progressr::handlers(global = TRUE)
-  progressr::handlers(list(
-    progressr::handler_progress(
-      format   = ":spin :current/:total (:message) [:bar] :percent in :elapsedfull ETA: :eta",
-      # width    = 60,
-      complete = "+"
-    )
-  ))
-  p <- progressr::progressor(steps = R)
+  if(progress_bar){
+    progressr::handlers(global = TRUE)
+    progressr::handlers(list(
+      progressr::handler_progress(
+        format   = ":spin :current/:total (:message) [:bar] :percent in :elapsedfull ETA: :eta",
+        # width    = 60,
+        complete = "+"
+      )
+    ))
+    p <- progressr::progressor(steps = R)
+  }
+  
 
   boot_res <- future.apply::future_lapply(1:R, function(i) {
     set.seed(12345 * i)
     indx <- sample(1:nrow(data), nrow(data), replace = TRUE)
 
-    p(message = "Bootstrapping", amount = 0)
+    if(progress_bar)
+      p(message = "Bootstrapping", amount = 0)
 
     res <- .gformula(data = data[indx, ],
                      id_var = id_var,
@@ -56,8 +59,9 @@ bootstrap_helper <- function(data,
                      return_fitted = FALSE,
                      return_data = FALSE,
                      progress_bar = FALSE)
-
-    p(message = "Bootstrapping")
+    
+    if(progress_bar)
+      p(message = "Bootstrapping")
 
     return(res)
 
