@@ -100,7 +100,7 @@ gformula <- function(data,
   tpcall <- match.call()
 
   # Check for error
-  check_error(data, id_var, base_vars, exposure, time_var, models)
+  #check_error(data, id_var, base_vars, exposure, time_var, models) #在只有outcome没有survival模型的情况下会报错
 
   if (exists(".Random.seed")) {
     orig.seed <- get(".Random.seed", .GlobalEnv)
@@ -209,13 +209,35 @@ gformula <- function(data,
     }, simplify = FALSE)
     data.table::rbindlist(out, idcol = "Intervention")
   }
+  
+  risk_calc2 <- function(data_list, ref_int, return_data) {
+    ref_nam <- names(intervention)[ref_int]
+    ref_dat <- data_list[[ref_nam]]
+    vs_nam <- setdiff(names(intervention), ref_nam)
+    out <- sapply(vs_nam, function(x) {
+      tmp_dt <- data_list[[x]]
+      if(return_data){
+        ref_mean <- sum(unlist(ref_dat)) / length(ref_dat)
+        vs_mean <- sum(unlist(tmp_dt)) / length(tmp_dt)
+      }else{
+        ref_mean <- ref_dat
+        vs_mean <- tmp_dt
+      }
+      data.table(
+        Risk_type = c("Risk difference", "Risk ratio"),
+        Estimate = c(vs_mean - ref_mean, vs_mean / ref_mean)
+      )
+    }, simplify = FALSE)
+    data.table::rbindlist(out, idcol = "Intervention")
+  }
+  
 
   # Calculate the difference and ratio
   if (length(intervention) > 1) {
     risk_est <- risk_calc(est_ori$gform.data, ref_int = ref_int, return_data = return_data)
 
     if (R > 1) {
-      res_pools <- lapply(pools, risk_calc, ref_int = ref_int, return_data = return_data)
+      res_pools <- lapply(pools, risk_calc2, ref_int = ref_int, return_data = return_data)
       res_pools <- data.table::rbindlist(res_pools)
       # Calculate Sd and percentile confidence interval
       res_pools <- res_pools[, .(

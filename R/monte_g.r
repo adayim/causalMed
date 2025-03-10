@@ -166,7 +166,7 @@ monte_g <- function(data,
   if (any(cen_flag) | any(surv_flag)) {
     is_survival <- TRUE
   }else {
-    is_survival
+    is_survival <- FALSE
   }
 
   if(any(cen_flag))
