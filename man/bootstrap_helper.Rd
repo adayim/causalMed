@@ -12,19 +12,62 @@ bootstrap_helper(
   exposure,
   models,
   intervention,
-  init_recode,
-  in_recode,
-  out_recode,
+  init_recode = NULL,
+  in_recode = NULL,
+  out_recode = NULL,
   mc_sample = 10000,
   mediation_type = c(NA, "N", "I"),
-  R = 500
+  R = 500,
+  progress_bar = TRUE
 )
 }
 \arguments{
-\item{R}{The number of bootstrap replicates, default is 500. Same with \code{boot}, see \code{\link[boot]{boot}} for detail.}
+\item{data}{Data set to be sued}
 
-\item{object}{Object returned from gformula function (see \code{\link[calsalMed]{gformula}}).}
+\item{id_var}{ID variable per subject.}
+
+\item{base_vars}{A vector of time fixed baseline variables.}
+
+\item{time_var}{Time variable.}
+
+\item{exposure}{Intervention/Exposure variable}
+
+\item{models}{A list of models for the G-formula, including exposure model,
+ covariate model (if any), mediator model (if any), outcome model or
+ censoring model (if any). See details in \code{\link{spec_model}}.
+ The order appeared in the list should reflect the temporal ordering of the
+ variables, in another way data generation process. The model will be evaluated
+in this process.}
+
+\item{intervention}{A named list with a value of intervention on exposure.
+if kept as NULL (default), the natural intervention course will be calculated.
+ eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0)). Note that
+the function will add the natural effect by default if the natural effect is
+not define here, and the reference intervention in \code{ref_int} will be set
+to the natural effect.}
+
+\item{init_recode}{optional, recoding of variables done at the
+beginning of the Monte Carlo loop. Needed for operations initialize baseline variables.
+This is executed at beginning of the Monte Carlo g-formula, executed only once at time 0.}
+
+\item{in_recode}{optional, On the fly recoding of variables done before the Monte
+Carlo loop starts. Needed to do any kind of functional forms for entry times.
+ This is executed at each start of the Monte Carlo g-formula time steps}
+
+\item{out_recode}{optional, On the fly recoding of variables done at the
+end of the Monte Carlo loop. Needed for operations like counting the number of
+days with a treatment or creating lagged variables. This is executed at each end
+ of the Monte Carlo g-formula time steps.}
+
+\item{mc_sample}{Integer, sample size of Monte Carlo simulation.}
+
+\item{R}{The number of bootstrap replicates, default is 500. If the R is larger than 1,
+\code{\link[future.apply]{future_lapply}} is used for the parallel computation. This will
+ run in sequential if no parallel planed, see \code{\link[future]{plan}} for more details.
+If the parallel plan was set to \code{plan(multisession)} in Windows or \code{plan(multicore)}
+in other system, multiple session/core is used for bootstrap calculation.}
 }
 \description{
 Used to calculate confidence interval using non-parametric bootstrap methods.
 }
+\keyword{internal}
