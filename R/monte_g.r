@@ -28,7 +28,8 @@
                       mc_sample = 10000,
                       return_fitted = FALSE,
                       return_data = FALSE,
-                      progress_bar = TRUE) {
+                      progress_bar = TRUE,
+                      seed=mc_sample*100) {
   mediation_type <- match.arg(mediation_type)
 
   fit_mods <- lapply(models, function(mods) {
@@ -63,7 +64,7 @@
   })
 
   # Setting seeds
-  set.seed(12345 * mc_sample)
+  set.seed(seed)
 
   # Baseline variables for Monte Carlo Sampling
   base_dat <- unique(data[, unique(c(id_var, base_vars)), with = FALSE])
