@@ -58,7 +58,7 @@ days with a treatment or creating lagged variables. This is executed at each end
 \item{mediation_type}{Type of the mediation effect, natural effect (\code{"N"}) or interventional effect (\code{"I"}).}
 
 \item{return_fitted}{Logical scalar indicating whether to return the fitted model. Default
-is \code{FALSE}, only the summary of coefficients will be returned.}
+is \code{FALSE}, only the summary of coefficients will be returned to reduce the memory usage.}
 
 \item{return_data}{Logical scalar indicating whether to return the Monte Carlo simulated data set,
  default is \code{FALSE}. In the case of large \code{mc_sample} and long follow-up, the simulated

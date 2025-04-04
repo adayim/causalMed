@@ -65,6 +65,8 @@ check_error <- function(data,
 
   if (any(cen_flag) | any(surv_flag)) {
     is_survival <- TRUE
+  }else{
+    is_survival <- FALSE
   }
 
   if (is_survival & !all.equal(sort(unique(na.omit(data[[outcome]]))), c(0, 1))) {

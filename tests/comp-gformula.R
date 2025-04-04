@@ -1,5 +1,5 @@
 
-
+# Compare the output from the gfoRmula package
 library(gfoRmula)
 
 

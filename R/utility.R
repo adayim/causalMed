@@ -63,7 +63,7 @@ extract_boot <- function(x,
                          conf.level = 0.95,
                          conf.method = c("perc", "bca", "basic", "norm"),
                          ...) {
-  conf.method <- rlang::arg_match(conf.method)
+  conf.method <- match.arg(conf.method)
 
   # calculate the bias and standard error
   # this is an adapted version of the code in print.boot, where the bias

@@ -19,7 +19,8 @@ gformula(
   return_fitted = FALSE,
   mc_sample = nrow(data),
   return_data = FALSE,
-  R = 500
+  R = 500,
+  quiet = FALSE
 )
 }
 \arguments{
@@ -67,7 +68,7 @@ days with a treatment or creating lagged variables. This is executed at each end
  of the Monte Carlo g-formula time steps.}
 
 \item{return_fitted}{Logical scalar indicating whether to return the fitted model. Default
-is \code{FALSE}, only the summary of coefficients will be returned.}
+is \code{FALSE}, only the summary of coefficients will be returned to reduce the memory usage.}
 
 \item{mc_sample}{Integer, sample size of Monte Carlo simulation.}
 
@@ -81,8 +82,7 @@ data will be very large causing problems no enough memory to allocate the object
 If the parallel plan was set to \code{plan(multisession)} in Windows or \code{plan(multicore)}
 in other system, multiple session/core is used for bootstrap calculation.}
 
-\item{ncores}{integer: number of processes to be used in parallel operation: typically one would chose this to the number of
-available CPUs. Parallel computation for bootstrap will be applied if \code{ncores} larger than 1.}
+\item{quiet}{if \code{TRUE} then the progress bar will be suppressed.}
 }
 \description{
 Mediation analysis for time varying mediator, estimation based
