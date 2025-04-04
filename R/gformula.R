@@ -96,8 +96,8 @@ gformula <- function(data,
                      mc_sample = nrow(data),
                      return_data = FALSE,
                      R = 500,
-                     quiet = FALSE) {
-
+                     quiet = FALSE,
+                     seed=mc_sample*100) {
   tpcall <- match.call()
 
   # Check for error
@@ -145,7 +145,7 @@ gformula <- function(data,
 
   # Mean value of the outcome at each time point by intervention
   if(return_data){
-    est_out <- data.table::rbindlist(est_ori$gform.data, idcol = "Intervention")
+    est_out <- data.table::rbindlist(est_ori$gform.data, idcol = "Intervention",use.names=T)
     est_out <- est_out[, list(Est = sum(Pred_Y) / length(Pred_Y)), by = c("Intervention")]
   }else{
     est_out <- data.table::as.data.table(utils::stack(est_ori$gform.data))
@@ -164,7 +164,7 @@ gformula <- function(data,
       colnames(out) <- c("Est", "Intervention")
       return(out)
     })
-    pools_res <- data.table::rbindlist(pools_res)
+    pools_res <- data.table::rbindlist(pools_res,use.names=T)
 
     # Calculate Sd and percentile confidence interval
     pools_res <- pools_res[, .(
@@ -229,7 +229,7 @@ gformula <- function(data,
         Estimate = c(vs_mean - ref_mean, vs_mean / ref_mean)
       )
     }, simplify = FALSE)
-    data.table::rbindlist(out, idcol = "Intervention")
+    data.table::rbindlist(out, idcol = "Intervention",use.names=T)
   }
 
 
@@ -278,7 +278,7 @@ gformula <- function(data,
 
   # Return data
   if(return_data){
-    dat_out <- data.table::rbindlist(est_ori$gform.data, idcol = "Intervention")
+    dat_out <- data.table::rbindlist(est_ori$gform.data, idcol = "Intervention",use.names=T)
   }else{
     dat_out <- NULL
   }
