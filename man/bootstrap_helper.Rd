@@ -59,7 +59,8 @@ end of the Monte Carlo loop. Needed for operations like counting the number of
 days with a treatment or creating lagged variables. This is executed at each end
  of the Monte Carlo g-formula time steps.}
 
-\item{mc_sample}{Integer, sample size of Monte Carlo simulation.}
+\item{mc_sample}{Integer, sample size of Monte Carlo simulation. Default is 100 times of
+original sample.}
 
 \item{R}{The number of bootstrap replicates, default is 500. If the R is larger than 1,
 \code{\link[future.apply]{future_lapply}} is used for the parallel computation. This will

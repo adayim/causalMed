@@ -102,6 +102,10 @@ spec_model <- function(formula,
                        ...) {
   tmpcall <- match.call(expand.dots = TRUE)
 
+  if(!is.formula(formula)) {
+    stop("`formula` is not a formula object.", domain = "causalMed")
+  }
+
   args_list <- tmpcall
 
   if (mod_type %in% c("censor", "survival") & var_type != "binomial") {

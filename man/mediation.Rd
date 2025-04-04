@@ -15,11 +15,13 @@ mediation(
   init_recode = NULL,
   in_recode = NULL,
   out_recode = NULL,
-  mc_sample = nrow(data),
+  mc_sample = nrow(data) * 100,
   mediation_type = c("N", "I"),
   return_fitted = FALSE,
   return_data = FALSE,
-  R = 500
+  R = 500,
+  quiet = FALSE,
+  seed = mc_sample * 100
 )
 }
 \arguments{
@@ -53,7 +55,8 @@ end of the Monte Carlo loop. Needed for operations like counting the number of
 days with a treatment or creating lagged variables. This is executed at each end
  of the Monte Carlo g-formula time steps.}
 
-\item{mc_sample}{Integer, sample size of Monte Carlo simulation.}
+\item{mc_sample}{Integer, sample size of Monte Carlo simulation. Default is 100 times of
+original sample.}
 
 \item{mediation_type}{Type of the mediation effect, natural effect (\code{"N"}) or interventional effect (\code{"I"}).}
 
@@ -69,6 +72,8 @@ data will be very large causing problems no enough memory to allocate the object
  run in sequential if no parallel planed, see \code{\link[future]{plan}} for more details.
 If the parallel plan was set to \code{plan(multisession)} in Windows or \code{plan(multicore)}
 in other system, multiple session/core is used for bootstrap calculation.}
+
+\item{quiet}{if \code{TRUE} then the progress bar will be suppressed.}
 }
 \description{
 Mediation analysis for time varying mediator, estimation based

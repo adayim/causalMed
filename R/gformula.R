@@ -56,7 +56,8 @@
 #' @param return_fitted Logical scalar indicating whether to return the fitted model. Default
 #' is \code{FALSE}, only the summary of coefficients will be returned to reduce the memory usage.
 #'
-#' @param mc_sample Integer, sample size of Monte Carlo simulation.
+#' @param mc_sample Integer, sample size of Monte Carlo simulation. Default is 100 times of
+#' original sample.
 #'
 #' @param return_data Logical scalar indicating whether to return the Monte Carlo simulated data set,
 #'  default is \code{FALSE}. In the case of large \code{mc_sample} and long follow-up, the simulated
@@ -93,20 +94,17 @@ gformula <- function(data,
                      in_recode = NULL,
                      out_recode = NULL,
                      return_fitted = FALSE,
-                     mc_sample = nrow(data),
+                     mc_sample = nrow(data)*100,
                      return_data = FALSE,
                      R = 500,
                      quiet = FALSE,
-                     seed=mc_sample*100) {
+                     seed = 12345) {
   tpcall <- match.call()
 
   # Check for error
-  check_error(data, id_var, base_vars, exposure, time_var, models) 
+  check_error(data, id_var, base_vars, exposure, time_var, models)
 
-  if (exists(".Random.seed")) {
-    orig.seed <- get(".Random.seed", .GlobalEnv)
-    on.exit(.Random.seed <<- orig.seed)
-  }
+  set.seed(seed)
 
   # Get time length
   time_len <- length(unique(na.omit(data[[time_var]])))
@@ -145,12 +143,16 @@ gformula <- function(data,
 
   # Mean value of the outcome at each time point by intervention
   if(return_data){
-    est_out <- data.table::rbindlist(est_ori$gform.data, idcol = "Intervention",use.names=T)
-    est_out <- est_out[, list(Est = sum(Pred_Y) / length(Pred_Y)), by = c("Intervention")]
+    est_out <- data.table::rbindlist(est_ori$gform.data,
+                                     idcol = "Intervention",
+                                     use.names = TRUE)
+    est_out <- est_out[, list(Est = sum(Pred_Y) / length(Pred_Y)),
+                       by = c("Intervention")]
   }else{
     est_out <- data.table::as.data.table(utils::stack(est_ori$gform.data))
     colnames(est_out) <- c("Est", "Intervention")
   }
+  setcolorder(est_out, c("Intervention", "Est"))
 
   # Run bootstrap
   if (R > 1) {
@@ -164,7 +166,7 @@ gformula <- function(data,
       colnames(out) <- c("Est", "Intervention")
       return(out)
     })
-    pools_res <- data.table::rbindlist(pools_res,use.names=T)
+    pools_res <- data.table::rbindlist(pools_res, use.names = TRUE)
 
     # Calculate Sd and percentile confidence interval
     pools_res <- pools_res[, .(
@@ -185,33 +187,6 @@ gformula <- function(data,
 
   # Risk difference and risk ratio calculation function
   risk_calc <- function(data_list, ref_int, return_data) {
-    # Get reference
-    ref_nam <- names(intervention)[ref_int]
-    ref_dat <- data_list[[ref_nam]]
-    vs_nam <- setdiff(names(intervention), ref_nam)
-
-    # Loop through each intervention name
-    out <- sapply(vs_nam, function(x) {
-      tmp_dt <- data_list[[x]]
-
-      # Calculate difference and ratio of mean at each time
-      if(return_data){
-        ref_mean <- sum(ref_dat[["Pred_Y"]]) / length(ref_dat[["Pred_Y"]])
-        vs_mean <- sum(tmp_dt[["Pred_Y"]]) / length(tmp_dt[["Pred_Y"]])
-      }else{
-        ref_mean <- ref_dat
-        vs_mean <- tmp_dt
-      }
-
-      data.table(
-        Risk_type = c("Risk difference", "Risk ratio"),
-        Estimate = c(vs_mean - ref_mean, vs_mean / ref_mean)
-      )
-    }, simplify = FALSE)
-    data.table::rbindlist(out, idcol = "Intervention")
-  }
-
-  risk_calc2 <- function(data_list, ref_int, return_data) {
     ref_nam <- names(intervention)[ref_int]
     ref_dat <- data_list[[ref_nam]]
     vs_nam <- setdiff(names(intervention), ref_nam)
@@ -229,7 +204,7 @@ gformula <- function(data,
         Estimate = c(vs_mean - ref_mean, vs_mean / ref_mean)
       )
     }, simplify = FALSE)
-    data.table::rbindlist(out, idcol = "Intervention",use.names=T)
+    data.table::rbindlist(out, idcol = "Intervention", use.names = TRUE)
   }
 
 
@@ -238,7 +213,7 @@ gformula <- function(data,
     risk_est <- risk_calc(est_ori$gform.data, ref_int = ref_int, return_data = return_data)
 
     if (R > 1) {
-      res_pools <- lapply(pools, risk_calc2, ref_int = ref_int, return_data = return_data)
+      res_pools <- lapply(pools, risk_calc, ref_int = ref_int, return_data = return_data)
       res_pools <- data.table::rbindlist(res_pools)
       # Calculate Sd and percentile confidence interval
       res_pools <- res_pools[, .(
@@ -267,11 +242,22 @@ gformula <- function(data,
 
   if (return_fitted) {
     fitted_mods <- lapply(est_ori$fitted.models, function(x) {
-      x$fitted
+      structure(x$fitted,
+                recodes = x$recodes,
+                subset = x$subset,
+                var_type = x$var_type,
+                mod_type = x$mod_type)
     })
   } else {
     fitted_mods <- lapply(est_ori$fitted.models, function(x) {
-      list(call = x$fitted$call, coeff = summary(x$fitted)$coefficients)
+      r <- list(call = x$fitted$call,
+                coeff = summary(x$fitted)$coefficients)
+
+      structure(r,
+                recodes = x$recodes,
+                subset = x$subset,
+                var_type = x$var_type,
+                mod_type = x$mod_type)
     })
   }
   names(fitted_mods) <- resp_vars_list
@@ -283,11 +269,13 @@ gformula <- function(data,
     dat_out <- NULL
   }
 
-  return(list(
-    call = tpcall,
-    estimate = risk_est,
-    effect_size = est_out,
-    sim_data = dat_out,
-    fitted_models = fitted_mods
-  ))
+  y <- list(
+            call = tpcall,
+            estimate = risk_est,
+            effect_size = est_out,
+            sim_data = dat_out,
+            fitted_models = fitted_mods
+          )
+  class(y) <- c("gformula", class(y))
+  return(y)
 }

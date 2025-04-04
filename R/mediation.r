@@ -34,11 +34,13 @@ mediation <- function(data,
                       init_recode = NULL,
                       in_recode = NULL,
                       out_recode = NULL,
-                      mc_sample = nrow(data),
+                      mc_sample = nrow(data)*100,
                       mediation_type = c("N", "I"),
                       return_fitted = FALSE,
                       return_data = FALSE,
-                      R = 500) {
+                      R = 500,
+                      quiet = FALSE,
+                      seed = mc_sample*100) {
 
   tpcall <- match.call()
   mediation_type <- match.arg(mediation_type)
@@ -62,10 +64,7 @@ mediation <- function(data,
     
   }
 
-  if (exists(".Random.seed")) {
-    orig.seed <- get(".Random.seed", .GlobalEnv)
-    on.exit(.Random.seed <<- orig.seed)
-  }
+  set.seed(seed)
 
   # Check for error
   check_error(data, id_var, base_vars, exposure, time_var, models)
@@ -84,6 +83,7 @@ mediation <- function(data,
   # Run original estimate
   arg_est <- get_args_for(.gformula)
   arg_est$return_fitted <- TRUE
+  arg_est$progress_bar <- substitute(quiet, env = parent.frame())
   est_ori <- do.call(.gformula, arg_est)
 
   # Run bootstrap
@@ -167,11 +167,13 @@ mediation <- function(data,
     dat_out <- NULL
   }
 
-  return(list(
-    call = tpcall,
-    estimate = risk_est,
-    effect_size = est_out,
-    sim_data = dat_out,
-    fitted_models = fitted_mods
-  ))
+  y <- list(
+            call = tpcall,
+            estimate = risk_est,
+            effect_size = est_out,
+            sim_data = dat_out,
+            fitted_models = fitted_mods
+          )
+  class(y) <- c("gformula", class(y))
+  return(y)
 }

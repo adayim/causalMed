@@ -19,7 +19,8 @@
   mc_sample = 10000,
   return_fitted = FALSE,
   return_data = FALSE,
-  progress_bar = TRUE
+  progress_bar = TRUE,
+  seed = mc_sample * 100
 )
 }
 \arguments{
@@ -64,7 +65,8 @@ This is executed at beginning of the Monte Carlo g-formula, executed only once a
 no mediation analysis will be performed (default). It will be ignored if the intervention
  is not \code{NULL}}
 
-\item{mc_sample}{Integer, sample size of Monte Carlo simulation.}
+\item{mc_sample}{Integer, sample size of Monte Carlo simulation. Default is 100 times of
+original sample.}
 
 \item{return_fitted}{Return the fitted model (default is FALSE).}
 

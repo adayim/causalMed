@@ -17,10 +17,11 @@ gformula(
   in_recode = NULL,
   out_recode = NULL,
   return_fitted = FALSE,
-  mc_sample = nrow(data),
+  mc_sample = nrow(data) * 100,
   return_data = FALSE,
   R = 500,
-  quiet = FALSE
+  quiet = FALSE,
+  seed = 12345
 )
 }
 \arguments{
@@ -70,7 +71,8 @@ days with a treatment or creating lagged variables. This is executed at each end
 \item{return_fitted}{Logical scalar indicating whether to return the fitted model. Default
 is \code{FALSE}, only the summary of coefficients will be returned to reduce the memory usage.}
 
-\item{mc_sample}{Integer, sample size of Monte Carlo simulation.}
+\item{mc_sample}{Integer, sample size of Monte Carlo simulation. Default is 100 times of
+original sample.}
 
 \item{return_data}{Logical scalar indicating whether to return the Monte Carlo simulated data set,
  default is \code{FALSE}. In the case of large \code{mc_sample} and long follow-up, the simulated
