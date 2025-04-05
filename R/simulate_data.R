@@ -23,6 +23,7 @@ simulate_data <- function(data,
                           models,
                           intervention = NULL,
                           mediation_type = c(NA, "N", "I")) {
+  
   mediation_type <- match.arg(mediation_type)
 
   # Check if the intervention is dynamic
@@ -55,7 +56,9 @@ simulate_data <- function(data,
     if (resp_var == exposure & !is.null(intervention)) {
       # Evaluate if the intervention is dynamic
       if (is_dynamic) {
-        set(data, j = exposure, value = as.numeric(eval(parse(text = intervention), envir = data)))
+        set(data, 
+            j = exposure, 
+            value = as.numeric(eval(parse(text = intervention), envir = data)))
         # data <- within(data, eval(parse(text = intervention)))
       }
 

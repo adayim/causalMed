@@ -54,7 +54,7 @@
 #'  of the Monte Carlo g-formula time steps.
 #'
 #' @param return_fitted Logical scalar indicating whether to return the fitted model. Default
-#' is \code{FALSE}, only the summary of coefficients will be returned.
+#' is \code{FALSE}, only the summary of coefficients will be returned to reduce the memory usage.
 #'
 #' @param mc_sample Integer, sample size of Monte Carlo simulation.
 #'
@@ -101,7 +101,7 @@ gformula <- function(data,
   tpcall <- match.call()
 
   # Check for error
-  #check_error(data, id_var, base_vars, exposure, time_var, models) #在只有outcome没有survival模型的情况下会报错
+  check_error(data, id_var, base_vars, exposure, time_var, models) 
 
   if (exists(".Random.seed")) {
     orig.seed <- get(".Random.seed", .GlobalEnv)
@@ -210,7 +210,7 @@ gformula <- function(data,
     }, simplify = FALSE)
     data.table::rbindlist(out, idcol = "Intervention")
   }
-  
+
   risk_calc2 <- function(data_list, ref_int, return_data) {
     ref_nam <- names(intervention)[ref_int]
     ref_dat <- data_list[[ref_nam]]
@@ -231,7 +231,7 @@ gformula <- function(data,
     }, simplify = FALSE)
     data.table::rbindlist(out, idcol = "Intervention",use.names=T)
   }
-  
+
 
   # Calculate the difference and ratio
   if (length(intervention) > 1) {
