@@ -203,7 +203,7 @@ monte_g <- function(data,
     }
 
     # Recode data before simulating
-    if (!is.null(in_recode)) {
+    if (!is.null(in_recode) & t_index != min_time) {
       data <- within(data, eval(parse(text = in_recode)))
     }
 
@@ -257,6 +257,12 @@ monte_g <- function(data,
         out_y <- rbind(out_y, data[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE])
       }
     }
+    
+    # Recode data after simulating
+    if (!is.null(out_recode) & t_index != min_time) {
+      data <- within(data, eval(parse(text = out_recode)))
+    }
+    
   }
   # loop ends here
 
