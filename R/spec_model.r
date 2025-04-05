@@ -102,6 +102,7 @@ spec_model <- function(formula,
                        ...) {
   tmpcall <- match.call(expand.dots = TRUE)
 
+  is.formula <- function(x) is.call(x) && x[[1]] == quote(`~`)
   if(!is.formula(formula)) {
     stop("`formula` is not a formula object.", domain = "causalMed")
   }

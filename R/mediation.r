@@ -43,6 +43,8 @@ mediation <- function(data,
                       seed = mc_sample*100) {
 
   tpcall <- match.call()
+  all.args <- mget(names(formals()),sys.frame(sys.nframe()))
+
   mediation_type <- match.arg(mediation_type)
 
   # Calculate mediation effect
@@ -167,8 +169,8 @@ mediation <- function(data,
     dat_out <- NULL
   }
 
-  y <- list(
-            call = tpcall,
+  y <- list(call = tpcall,
+            all.args = all.args,
             estimate = risk_est,
             effect_size = est_out,
             sim_data = dat_out,

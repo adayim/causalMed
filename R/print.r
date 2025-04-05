@@ -32,6 +32,12 @@ print.gformula <- function(x, models = FALSE, ...){
   cat("Call:\n")
   print(x$call)
 
+  # cat(sprintf("\nID variable: %s\n", x$all.args$id_var))
+  # cat(sprintf("Baseline variables: %s\n",
+  #             paste(x$all.args$base_vars, collapse = ", ")))
+  # cat(sprintf("Exposure variable: %s\n", x$all.args$exposure))
+  # cat(sprintf("Time variable: %s\n", x$all.args$time_var))
+
   text1 <- "Estimated effect size of risk ratio/difference"
   cat("\n", text1, "\n")
   row <- paste(rep("=", nchar(text1)), collapse = "")
@@ -65,19 +71,25 @@ print.gformula <- function(x, models = FALSE, ...){
       cat(row, "\n")
       cat(text4, "\n")
       # cat("Model call:\n")
-      print(fitmod$call)
       if(!is.null(attr_lst$recodes)){
         cat("\nData recodes:\n")
         print(attr_lst$recodes)
       }
-      if(!is.null(attr_lst$subset)){
-        cat("\nData subset in the fitting process:\n")
-        print(attr_lst$subset)
-      }
+      # if(!is.null(attr_lst$subset)){
+      #   cat("\nData subset in the fitting process:\n")
+      #   print(attr_lst$subset)
+      # }
 
       # cat(row, "\n")
-      cat("Model coefficients :\n")
-      print(fitmod$coeff)
+      if(x$all.args$return_fitted){
+        cat("Model summary :\n")
+        summary(fitmod)
+      }else{
+        print(fitmod$call)
+        cat("Model coefficients :\n")
+        print(fitmod$coeff)
+      }
+
     }
   }
 

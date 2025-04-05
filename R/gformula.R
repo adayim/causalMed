@@ -99,7 +99,9 @@ gformula <- function(data,
                      R = 500,
                      quiet = FALSE,
                      seed = 12345) {
+  
   tpcall <- match.call()
+  all.args <- mget(names(formals()),sys.frame(sys.nframe()))
 
   # Check for error
   check_error(data, id_var, base_vars, exposure, time_var, models)
@@ -269,8 +271,8 @@ gformula <- function(data,
     dat_out <- NULL
   }
 
-  y <- list(
-            call = tpcall,
+  y <- list(call = tpcall,
+            all.args = all.args,
             estimate = risk_est,
             effect_size = est_out,
             sim_data = dat_out,
