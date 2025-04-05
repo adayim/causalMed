@@ -13,6 +13,8 @@ Imports: boot,
          data.table
 Suggests: knitr,
     nnet,
+    future.apply,
+    progressr,
     rmarkdown,
     testthat
 URL: https://github.com/adayim/causalMed

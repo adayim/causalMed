@@ -1,14 +1,14 @@
 
-#' G-formula Analysis
+#' G-formula based mediation analysis
 #'
 #' @description Mediation analysis for time varying mediator, estimation based
-#'  on g-formula. Output contains total effect, #' natural direct effect and natural
+#'  on g-formula. Output contains total effect, natural direct effect and natural
 #'   indirect effect for mediation or regular g-formula. data.frame will be returned.
 #'
 #' @note Not that final outcome must be the same for in all rows per subject.
-#'   If the dataset is  survival settings, records after the interested outcome
+#'   If the dataset is  survival settings, records after the interested outcome event
 #'    must be deleted. The function it self do some data manipulation internally.
-#'    Please prepare the data as longitudinal format.
+#'    Please prepare the data as longitudinal (long data) format.
 #'
 #' @inheritParams gformula
 #'
@@ -17,9 +17,6 @@
 #' @references
 #' Lin, S. H., Young, J. G., Logan, R., & VanderWeele, T. J. (2017). Mediation analysis for a survival outcome with time-varying exposures, mediators, and confounders. \emph{Statistics in medicine}, 36(26), 4153-4166. DOI:10.1002/sim.7426
 #' Zheng, W., & van der Laan, M. (2017). Longitudinal mediation analysis with time-varying mediators and exposures, with application to survival outcomes. \emph{Journal of causal inference}, 5(2). DOI:10.1515/jci-2016-0006
-#'
-#'
-#' TODO: weights, time varying intervention
 #'
 #' @export
 #'
@@ -44,6 +41,9 @@ mediation <- function(data,
 
   tpcall <- match.call()
   all.args <- mget(names(formals()),sys.frame(sys.nframe()))
+
+  # Initilise warning
+  init_warn()
 
   mediation_type <- match.arg(mediation_type)
 
@@ -167,6 +167,11 @@ mediation <- function(data,
     dat_out <- data.table::rbindlist(est_ori$gform.data, idcol = "Intervention")
   }else{
     dat_out <- NULL
+  }
+
+  if(length(causalmed_env$warning)>0){
+    message(paste(causalmed_env$warning, collapse = "\n=============\n"),
+            domain = "causalMed")
   }
 
   y <- list(call = tpcall,

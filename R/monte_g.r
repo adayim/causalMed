@@ -51,8 +51,13 @@
 
     mods$call$data <- substitute(data, env = parent.frame())
 
+    fitmodel <- run_withwarning_collect(
+      eval(mods$call),
+      msg = sprintf("Outcome model: %s", rsp_vars)
+    )
+
     list(
-      fitted = eval(mods$call),
+      fitted = fitmodel,
       recodes = mods$recode,
       subset = mods$subset,
       var_type = mods$var_type,

@@ -72,8 +72,9 @@
 #' @param quiet if \code{TRUE} then the progress bar will be suppressed.
 #'
 #' @references
-#' Lin, S. H., Young, J. G., Logan, R., & VanderWeele, T. J. (2017). Mediation analysis for a survival outcome with time-varying exposures, mediators, and confounders. \emph{Statistics in medicine}, 36(26), 4153-4166. DOI:10.1002/sim.7426
-#' Zheng, W., & van der Laan, M. (2017). Longitudinal mediation analysis with time-varying mediators and exposures, with application to survival outcomes. \emph{Journal of causal inference}, 5(2). DOI:10.1515/jci-2016-0006
+#' Robins, J. (1986). A new approach to causal inference in mortality studies with a sustained exposure period—application to control of the healthy worker survivor effect. Mathematical modelling, 7(9-12), 1393-1512.
+#' 
+#' Keil, A. P., Edwards, J. K., Richardson, D. B., Naimi, A. I., & Cole, S. R. (2014). The parametric g-formula for time-to-event data: intuition and a worked example. Epidemiology, 25(6), 889-897.
 #'
 #'
 #' @import data.table
@@ -102,6 +103,9 @@ gformula <- function(data,
   
   tpcall <- match.call()
   all.args <- mget(names(formals()),sys.frame(sys.nframe()))
+
+  # Initilise warning
+  init_warn()
 
   # Check for error
   check_error(data, id_var, base_vars, exposure, time_var, models)
@@ -269,6 +273,11 @@ gformula <- function(data,
     dat_out <- data.table::rbindlist(est_ori$gform.data, idcol = "Intervention",use.names=T)
   }else{
     dat_out <- NULL
+  }
+
+  if(length(causalmed_env$warning)>0){
+    message(paste(causalmed_env$warning, collapse = "\n=============\n"),
+            domain = "causalMed")
   }
 
   y <- list(call = tpcall,

@@ -81,7 +81,7 @@ out_recode <- c(
 devtools::load_all()
 df <- gvhd[gvhd$day <= 100, ]
 df <- df[df$id %in% 1:50, ]
-debugonce(gformula)
+debugonce(.gformula)
 
 natural <- gformula(df,
                     id_var = "id",
