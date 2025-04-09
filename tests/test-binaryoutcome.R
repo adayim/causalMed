@@ -1,7 +1,7 @@
 #data preparation
 devtools::install_github("CausalInference/gfoRmula")
 library(gfoRmula)
-load("C:/Users/16074/AppData/Local/Temp/MicrosoftEdgeDownloads/1b793faa-5323-43a2-9da1-1eb8ced81ace/binary_eofdata.rda")
+data(binary_eofdata)
 binary_eofdata$time_f <- ifelse(binary_eofdata$time <= 1, 0,
                                 ifelse(binary_eofdata$time <= 3, 1,
                                        ifelse(binary_eofdata$time <= 5, 2, 3)))
