@@ -1,14 +1,14 @@
 
-#' G-formula based mediation analysis
+#' G-formula Analysis
 #'
 #' @description Mediation analysis for time varying mediator, estimation based
-#'  on g-formula. Output contains total effect, natural direct effect and natural
+#'  on g-formula. Output contains total effect, #' natural direct effect and natural
 #'   indirect effect for mediation or regular g-formula. data.frame will be returned.
 #'
 #' @note Not that final outcome must be the same for in all rows per subject.
-#'   If the dataset is  survival settings, records after the interested outcome event
+#'   If the dataset is  survival settings, records after the interested outcome
 #'    must be deleted. The function it self do some data manipulation internally.
-#'    Please prepare the data as longitudinal (long data) format.
+#'    Please prepare the data as longitudinal format.
 #'
 #' @inheritParams gformula
 #'
@@ -17,6 +17,9 @@
 #' @references
 #' Lin, S. H., Young, J. G., Logan, R., & VanderWeele, T. J. (2017). Mediation analysis for a survival outcome with time-varying exposures, mediators, and confounders. \emph{Statistics in medicine}, 36(26), 4153-4166. DOI:10.1002/sim.7426
 #' Zheng, W., & van der Laan, M. (2017). Longitudinal mediation analysis with time-varying mediators and exposures, with application to survival outcomes. \emph{Journal of causal inference}, 5(2). DOI:10.1515/jci-2016-0006
+#'
+#'
+#' TODO: weights, time varying intervention
 #'
 #' @export
 #'
@@ -31,20 +34,13 @@ mediation <- function(data,
                       init_recode = NULL,
                       in_recode = NULL,
                       out_recode = NULL,
-                      mc_sample = nrow(data)*100,
+                      mc_sample = nrow(data),
                       mediation_type = c("N", "I"),
                       return_fitted = FALSE,
                       return_data = FALSE,
-                      R = 500,
-                      quiet = FALSE,
-                      seed = mc_sample*100) {
+                      R = 500) {
 
   tpcall <- match.call()
-  all.args <- mget(names(formals()),sys.frame(sys.nframe()))
-
-  # Initilise warning
-  init_warn()
-
   mediation_type <- match.arg(mediation_type)
 
   # Calculate mediation effect
@@ -58,15 +54,35 @@ mediation <- function(data,
                 )
     }else{
       data.table(Effect = c("Indirect effect", "Direct effect", "Total effect"),
-                 Est = c(data_list$always - data_list$mediation, 
-                         data_list$mediation - data_list$never,
-                         data_list$always - data_list$never)
+                 Est = c(data_list$always[["Pred_Y"]] - data_list$mediation[["Pred_Y"]], 
+                         data_list$mediation[["Pred_Y"]] - data_list$never[["Pred_Y"]],
+                         data_list$always[["Pred_Y"]] - data_list$never[["Pred_Y"]])
                 )
     }
     
   }
+  risk_calc2 <- function(data_list, return_data) {
+    if(return_data){
+      phi_11 <- sum(data_list$always) / length(data_list$always)
+      phi_00 <- sum(data_list$never) / length(data_list$never)
+      phi_10 <- sum(data_list$mediation) / length(data_list$mediation)
+      data.table(Effect = c("Indirect effect", "Direct effect", "Total effect"),
+                 Est = c(phi_11 - phi_10, phi_10 - phi_00, phi_11 - phi_00)
+      )
+    }else{
+      data.table(Effect = c("Indirect effect", "Direct effect", "Total effect"),
+                 Est = c(data_list$always - data_list$mediation, 
+                         data_list$mediation - data_list$never,
+                         data_list$always - data_list$never)
+      )
+    }
+    
+  }
 
-  set.seed(seed)
+  if (exists(".Random.seed")) {
+    orig.seed <- get(".Random.seed", .GlobalEnv)
+    on.exit(.Random.seed <<- orig.seed)
+  }
 
   # Check for error
   check_error(data, id_var, base_vars, exposure, time_var, models)
@@ -85,7 +101,6 @@ mediation <- function(data,
   # Run original estimate
   arg_est <- get_args_for(.gformula)
   arg_est$return_fitted <- TRUE
-  arg_est$progress_bar <- substitute(quiet, env = parent.frame())
   est_ori <- do.call(.gformula, arg_est)
 
   # Run bootstrap
@@ -128,7 +143,7 @@ mediation <- function(data,
       norm_ucl = Est + stats::qnorm(0.975) * Sd
     )]
 
-    res_pools <- lapply(pools, risk_calc, return_data = return_data)
+    res_pools <- lapply(pools, risk_calc2, return_data = return_data)
     res_pools <- data.table::rbindlist(res_pools)
     # Calculate Sd and percentile confidence interval
     res_pools <- res_pools[, .(
@@ -169,18 +184,11 @@ mediation <- function(data,
     dat_out <- NULL
   }
 
-  if(length(causalmed_env$warning)>0){
-    message(paste(causalmed_env$warning, collapse = "\n=============\n"),
-            domain = "causalMed")
-  }
-
-  y <- list(call = tpcall,
-            all.args = all.args,
-            estimate = risk_est,
-            effect_size = est_out,
-            sim_data = dat_out,
-            fitted_models = fitted_mods
-          )
-  class(y) <- c("gformula", class(y))
-  return(y)
+  return(list(
+    call = tpcall,
+    estimate = risk_est,
+    effect_size = est_out,
+    sim_data = dat_out,
+    fitted_models = fitted_mods
+  ))
 }

@@ -51,13 +51,8 @@
 
     mods$call$data <- substitute(data, env = parent.frame())
 
-    fitmodel <- run_withwarning_collect(
-      eval(mods$call),
-      msg = sprintf("Outcome model: %s", rsp_vars)
-    )
-
     list(
-      fitted = fitmodel,
+      fitted = eval(mods$call),
       recodes = mods$recode,
       subset = mods$subset,
       var_type = mods$var_type,
@@ -125,7 +120,7 @@
   if (return_fitted) {
     return(list(fitted.models = fit_mods, gform.data = res))
   } else {
-    return(list(gform.data = res))
+    return(res)
   }
 }
 
@@ -208,7 +203,7 @@ monte_g <- function(data,
     }
 
     # Recode data before simulating
-    if (!is.null(in_recode) & t_index != min_time) {
+    if (!is.null(in_recode)) {
       data <- within(data, eval(parse(text = in_recode)))
     }
 

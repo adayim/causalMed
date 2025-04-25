@@ -23,7 +23,6 @@ simulate_data <- function(data,
                           models,
                           intervention = NULL,
                           mediation_type = c(NA, "N", "I")) {
-  
   mediation_type <- match.arg(mediation_type)
 
   # Check if the intervention is dynamic
@@ -37,6 +36,12 @@ simulate_data <- function(data,
   if (!is.null(intervention) & is.na(mediation_type) & !is_dynamic) {
     set(data, j = exposure, value = intervention)
   }
+  
+  # Set the exposure to given value in mediation analysis
+  if (!is.null(intervention) & !is.na(mediation_type) & !is_dynamic) {
+    set(data, j = exposure, value =rep(intervention, length.out = nrow(data)))
+  }
+  
 
   # if the mediation type is defined, than set the intervention to 1. But 0
   # for mediator. This is to calculate the phi_10
@@ -56,9 +61,7 @@ simulate_data <- function(data,
     if (resp_var == exposure & !is.null(intervention)) {
       # Evaluate if the intervention is dynamic
       if (is_dynamic) {
-        set(data, 
-            j = exposure, 
-            value = as.numeric(eval(parse(text = intervention), envir = data)))
+        set(data, j = exposure, value = as.numeric(eval(parse(text = intervention), envir = data)))
         # data <- within(data, eval(parse(text = intervention)))
       }
 
@@ -100,3 +103,4 @@ simulate_data <- function(data,
 
   return(data)
 }
+
