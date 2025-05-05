@@ -1,5 +1,5 @@
 
-#' G-formula Analysis
+#' G-formula based mediation analysis
 #'
 #' @description Mediation analysis for time varying mediator, estimation based
 #'  on g-formula. Output contains total effect, #' natural direct effect and natural
