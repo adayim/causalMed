@@ -33,14 +33,10 @@ simulate_data <- function(data,
   }
 
   # If Intervention is given, set the treatment to given value
-  if (!is.null(intervention) & is.na(mediation_type) & !is_dynamic) {
+  if (!is.null(intervention) & !is_dynamic) {
     set(data, j = exposure, value = intervention)
   }
-  
-  # Set the exposure to given value in mediation analysis
-  if (!is.null(intervention) & !is.na(mediation_type) & !is_dynamic) {
-    set(data, j = exposure, value =rep(intervention, length.out = nrow(data)))
-  }
+
   
 
   # if the mediation type is defined, than set the intervention to 1. But 0
