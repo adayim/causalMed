@@ -57,7 +57,7 @@
     )
 
     list(
-      fitted = eval(mods$call),
+      fitted = fitmodel,
       recodes = mods$recode,
       subset = mods$subset,
       var_type = mods$var_type,
