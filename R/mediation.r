@@ -140,7 +140,7 @@ mediation <- function(data,
       norm_ucl = Est + stats::qnorm(0.975) * Sd
     )]
 
-    res_pools <- lapply(pools, risk_calc2, return_data = return_data)
+    res_pools <- lapply(pools, risk_calc, return_data = return_data)
     res_pools <- data.table::rbindlist(res_pools)
     # Calculate Sd and percentile confidence interval
     res_pools <- res_pools[, .(
