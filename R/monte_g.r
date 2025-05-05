@@ -125,7 +125,7 @@
   if (return_fitted) {
     return(list(fitted.models = fit_mods, gform.data = res))
   } else {
-    return(res)
+    return(list(gform.data = res))
   }
 }
 
