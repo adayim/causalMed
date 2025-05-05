@@ -58,7 +58,7 @@ mediation <- function(data,
     }
     
   }
-  risk_calc2 <- function(data_list, return_data) {
+  risk_calc <- function(data_list, return_data) {
     if(return_data){
       phi_11 <- sum(data_list$always) / length(data_list$always)
       phi_00 <- sum(data_list$never) / length(data_list$never)
