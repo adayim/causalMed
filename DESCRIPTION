@@ -1,18 +1,25 @@
 Package: causalMed
 Title: Causal Mediation Analysis in Survival settings
 Version: 0.0.1.5
-Authors@R: person("Alimu", "Dayimu", email = "alimdayim@hotmail.com", role = c("aut", "cre"))
-Description: This package mainly for analysis causal mediation in survival settings.
-    Mainly for single time point survival mediation analysis for single or multiple
-    mediator. It also can handle time-varying single mediator.
+Authors@R: c(person("Alimu", "Dayimu", 
+                    email = "alimdayim@hotmail.com", 
+                    role = c("aut", "cre")))
+Description: This package implements the time-varying causal mediation analysis 
+    (<doi:10.1002/sim.7426> and <doi:10.1515/jci-2016-0006>). The algorithm behind this
+    is based on g-formula (<doi:10.1016/0270-0255(86)90088-6>), hence the g-formula in this package
+    can estimate counterfactual mean or risk under hypothetical interventions, including time-varying
+    interventions, and confounders.  
 Depends: R (>= 3.5.1)
 License: GPL (>= 2)
 Encoding: UTF-8
 LazyData: true
-Imports: boot,
-         data.table
-Suggests: knitr,
+Imports: 
+    boot,
+    data.table
+Suggests: 
+    knitr,
     nnet,
+    Hmisc,
     future.apply,
     progressr,
     rmarkdown,

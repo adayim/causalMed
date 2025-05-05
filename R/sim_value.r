@@ -31,7 +31,7 @@ sim_value <- function(model, newdt) {
   # Random number generation for Monte Carlo simulation
   if (var_type == "categorical") {
     pred <- predict(fit, newdata = newdt, type = "probs")
-    return(rMultinom(pred, 1))
+    return(Hmisc::rMultinom(pred, 1))
   } else if (var_type == "binomial") {
     pred <- predict(fit, newdata = newdt, type = "response")
     return(rbinom(nrow(newdt), 1, pred))
