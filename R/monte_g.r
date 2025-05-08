@@ -208,7 +208,7 @@ monte_g <- function(data,
     }
 
     # Recode data before simulating
-    if (!is.null(in_recode) & t_index != min_time) {
+    if (!is.null(in_recode)) {
       data <- within(data, eval(parse(text = in_recode)))
     }
 

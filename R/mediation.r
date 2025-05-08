@@ -50,9 +50,9 @@ mediation <- function(data,
   # Calculate mediation effect
   risk_calc <- function(data_list, return_data) {
     if(return_data){
-      phi_11 <- sum(data_list$always[["Pred_Y"]]) / length(data_list$always[["Pred_Y"]])
-      phi_00 <- sum(data_list$never[["Pred_Y"]]) / length(data_list$never[["Pred_Y"]])
-      phi_10 <- sum(data_list$mediation[["Pred_Y"]]) / length(data_list$mediation[["Pred_Y"]])
+      phi_11 <- sum(data_list$always) / length(data_list$always)
+      phi_00 <- sum(data_list$never) / length(data_list$never)
+      phi_10 <- sum(data_list$mediation) / length(data_list$mediation)
       data.table(Effect = c("Indirect effect", "Direct effect", "Total effect"),
                  Est = c(phi_11 - phi_10, phi_10 - phi_00, phi_11 - phi_00)
                 )
