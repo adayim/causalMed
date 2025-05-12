@@ -1,5 +1,5 @@
 #数据准备
-devtools::install_github("CausalInference/gfoRmula")
+# devtools::install_github("CausalInference/gfoRmula")
 library(gfoRmula)
 
 data(binary_eofdata, package = "gfoRmula")

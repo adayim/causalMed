@@ -102,6 +102,9 @@ spec_model <- function(formula,
                        ...) {
   tmpcall <- match.call(expand.dots = TRUE)
 
+  var_type <- match.arg(var_type)
+  mod_type <- match.arg(mod_type)
+
   is.formula <- function(x) is.call(x) && x[[1]] == quote(`~`)
   if(!is.formula(formula)) {
     stop("`formula` is not a formula object.", domain = "causalMed")
@@ -123,8 +126,6 @@ spec_model <- function(formula,
     "custom_sim", "var_type"
   )]
 
-  var_type <- match.arg(var_type)
-
   if (var_type == "categorical") {
     args_list[[1]] <- substitute(nnet::multinom)
   } else if (var_type == "normal") {
@@ -141,11 +142,11 @@ spec_model <- function(formula,
 
   out <- list(
     call = args_list,
-    subset = tmpcall$subset,
-    recode = tmpcall$recode,
-    var_type = tmpcall$var_type,
-    mod_type = tmpcall$mod_type,
-    custom_sim = tmpcall$custom_sim
+    subset = subset,
+    recode = recode,
+    var_type = var_type,
+    mod_type = mod_type,
+    custom_sim = custom_sim
   )
 
   class(out) <- "gmodel"

@@ -33,6 +33,10 @@ check_error <- function(data,
   # Check variables in the data
   check_var_in(c(id_var, base_vars, exposure, outcome, time_var), data)
 
+  if(!is.numeric(data[[time_var]])) {
+    stop("The time variable must be numeric.", domain = "causalMed")
+  }
+
   # Check if variables in the formula included in the data
   vars_models <- unlist(sapply(models, function(x) all.vars(formula(x$call))))
   check_var_in(vars_models, data)

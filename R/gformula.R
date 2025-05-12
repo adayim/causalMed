@@ -122,10 +122,10 @@ gformula <- function(data,
     if (ref_int == 0 & length(intervention) >= 1) {
       interv_value <- sapply(intervention, is.null)
       if (any(interv_value)) {
-        ref_int <- which(interv_value)
+        ref_int <- names(which(interv_value))
       } else {
         intervention <- c(list(natural = NULL), intervention)
-        ref_int <- 1
+        ref_int <- "natural"
       }
     }
   }
@@ -189,54 +189,14 @@ gformula <- function(data,
       norm_lcl = Est - stats::qnorm(0.975) * Sd,
       norm_ucl = Est + stats::qnorm(0.975) * Sd
     )]
-  }
-
-  # Risk difference and risk ratio calculation function
-  risk_calc1 <- function(data_list, ref_int, return_data) {
-    ref_nam <- names(intervention)[ref_int]
-    ref_dat <- data_list[[ref_nam]]
-    vs_nam <- setdiff(names(intervention), ref_nam)
-    out <- sapply(vs_nam, function(x) {
-      tmp_dt <- data_list[[x]]
-      if(return_data){
-        ref_mean <- sum(unlist(ref_dat[["Pred_Y"]])) / length(ref_dat[["Pred_Y"]])
-        vs_mean <- sum(unlist(tmp_dt[["Pred_Y"]])) / length(tmp_dt[["Pred_Y"]])
-      }else{
-        ref_mean <- ref_dat
-        vs_mean <- tmp_dt
-      }
-      data.table(
-        Risk_type = c("Risk difference", "Risk ratio"),
-        Estimate = c(vs_mean - ref_mean, vs_mean / ref_mean)
-      )
-    }, simplify = FALSE)
-    data.table::rbindlist(out, idcol = "Intervention", use.names = TRUE)
-  }
-  risk_calc2 <- function(data_list, ref_int, return_data) {
-    ref_nam <- names(intervention)[ref_int]
-    ref_dat <- data_list[data_list$Intervention==ref_nam,]
-    vs_nam <- setdiff(names(intervention), ref_nam)
-    out <- sapply(vs_nam, function(x) {
-      tmp_dt <- data_list[data_list$Intervention==x,]
-      if(return_data){
-        ref_mean <- sum(ref_dat[["Est"]]) / length(ref_dat[["Est"]])
-        vs_mean <- sum(tmp_dt[["Est"]]) / length(tmp_dt[["Est"]])
-      }else{
-        ref_mean <- ref_dat$Est
-        vs_mean <- tmp_dt$Est
-      }
-      data.table(
-        Risk_type = c("Risk difference", "Risk ratio"),
-        Estimate = c(vs_mean - ref_mean, vs_mean / ref_mean)
-      )
-    }, simplify = FALSE)
-    data.table::rbindlist(out, idcol = "Intervention", use.names = TRUE)
-  }
-  
+  }  
 
   # Calculate the difference and ratio
   if (length(intervention) > 1) {
-    risk_est <- risk_calc1(est_ori$gform.data, ref_int = ref_int, return_data = return_data)
+    risk_est <- risk_estimate1(est_ori$gform.data, 
+                               ref_int = ref_int, 
+                               intervention = intervention,
+                               return_data = return_data)
 
     if (R > 1) {
       pools2 <- lapply(pools, function(bt) {
@@ -244,7 +204,11 @@ gformula <- function(data,
         colnames(out) <- c("Est", "Intervention")
         return(out)
       })
-      res_pools <- lapply(pools2, risk_calc2, ref_int = ref_int, return_data = return_data)
+      res_pools <- lapply(pools2, 
+                          risk_estimate2, 
+                          ref_int = ref_int, 
+                          intervention = intervention,
+                          return_data = return_data)
       res_pools <- data.table::rbindlist(res_pools)
       # Calculate Sd and percentile confidence interval
       res_pools <- res_pools[, .(

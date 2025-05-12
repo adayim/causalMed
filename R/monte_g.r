@@ -76,10 +76,6 @@
   df_mc <- data.table::as.data.table(base_dat[sample(1:length(base_dat[[id_var]]), mc_sample, replace = TRUE), ])
   df_mc[, new_ID := seq_len(.N)]
 
-  if (!is.na(mediation_type)) {
-    intervention <- list(always = 1, never = 0, mediation = NULL)
-  }
-
   # Setup progress bar
   if (progress_bar) {
     progressr::handlers(global = TRUE)
@@ -186,90 +182,107 @@ monte_g <- function(data,
     censor <- all.vars(formula(models[[cen_flag]]$fitted)[[2]])
   }
 
-  # Get minimum and maximum time
-  max_time <- max(time_seq, na.rm = TRUE)
-  min_time <- min(time_seq, na.rm = TRUE)
+  # if the mediation type is defined, than set the intervention to 1. But 0
+  # for mediator. This is to calculate the phi_10
+  if (!is.na(mediation_type) & is.null(intervention)) {
+    data <- mediantion_phi10(data = data,
+                             exposure = exposure,
+                             models = models,
+                             mediation_type = mediation_type,
+                             time_seq = time_seq,
+                             time_var = time_var, 
+                             init_recode = init_recode,
+                             in_recode = in_recode,
+                             out_recode = out_recode,
+                             return_data = return_data,
+                             progress_bar = progress_bar)
 
-  # Run g-formula
-  for (indx in seq_along(time_seq)) {
-    t_index <- sort(time_seq)[indx]
-    # Spin for running
-    if (!is.null(progress_bar) & t_index %% 10 == 0) {
-      progress_bar(amount = 0)
-    }
+  }else{
 
-    set(data, j = time_var, value = t_index)
+    # Get minimum and maximum time
+    max_time <- max(time_seq, na.rm = TRUE)
+    min_time <- min(time_seq, na.rm = TRUE)
 
-    # Recode baseline variables at initiation
-    if (t_index == min_time) {
-      if (!is.null(init_recode)) {
-        data <- within(data, eval(parse(text = init_recode)))
-      }
-    }
-
-    # Recode data before simulating
-    if (!is.null(in_recode) & t_index != min_time) {
-      data <- within(data, eval(parse(text = in_recode)))
-    }
-
-    # Use the model to calculate the simulated value
-    data <- simulate_data(data = data,
-                          exposure = exposure,
-                          models = models,
-                          intervention = intervention[indx],
-                          mediation_type = mediation_type)
-
-    # For survival outcome
-    if (is_survival) {
-      # If the intervention is defined, no censoring applied.
-      if (!is.null(intervention) & cen_flag != 0) {
-        set(data, j = censor, value = 0)
+    # Run g-formula
+    for (indx in seq_along(time_seq)) {
+      t_index <- sort(time_seq)[indx]
+      # Spin for running
+      if (!is.null(progress_bar) & t_index %% 10 == 0) {
+        progress_bar(amount = 0)
       }
 
-      # If censored outcome equals to 1, then the survival outcome is not observed.
-      if (cen_flag != 0) {
-        data[[outcome]] <- ifelse(data[[censor]] == 1, 0, data[[outcome]])
-      }
+      set(data, j = time_var, value = t_index)
 
-      # Output data
+      # Re-code baseline variables at initiation
       if (t_index == min_time) {
-        out_y <- data[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE]
-      } else {
-        out_y <- rbind(out_y, data[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE])
+        if (!is.null(init_recode)) {
+          data <- within(data, eval(parse(text = init_recode)))
+        }
       }
 
-      # Continue for the not censored or no event observed
-      if (cen_flag != 0) {
-        data <- data[!(data[[outcome]] == 1 | data[[censor]] == 1), ]
-      } else {
-        data <- data[data[[outcome]] != 1, ]
+      # Re-code data before simulating
+      if (!is.null(in_recode) & t_index != min_time) {
+        data <- within(data, eval(parse(text = in_recode)))
       }
 
-      # If no data left
-      if (nrow(data) == 0) {
-        break
-      }
+      # Use the model to calculate the simulated value
+      data <- simulate_data(data = data,
+                            exposure = exposure,
+                            models = models,
+                            intervention = intervention[indx])
 
-      # If all loop complete
-      if (t_index == max_time) {
-        out_y <- rbind(out_y, data[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE])
+      # For survival outcome
+      if (is_survival) {
+        # If the intervention is defined, no censoring applied.
+        if (!is.null(intervention) & cen_flag != 0) {
+          set(data, j = censor, value = 0)
+        }
+
+        # If censored outcome equals to 1, then the survival outcome is not observed.
+        if (cen_flag != 0) {
+          data[[outcome]] <- ifelse(data[[censor]] == 1, 0, data[[outcome]])
+        }
+
+        # # Output data
+        # if (t_index == min_time) {
+        #   out_y <- data[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE]
+        # } else {
+        #   out_y <- rbind(out_y, data[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE])
+        # }
+
+        # Continue for the not censored or no event observed
+        if (cen_flag != 0) {
+          data <- data[!(data[[outcome]] == 1 | data[[censor]] == 1), ]
+        } else {
+          data <- data[data[[outcome]] != 1, ]
+        }
+
+        # If no data left
+        if (nrow(data) == 0) {
+          break
+        }
+
+        # # If all loop complete
+        # if (t_index == max_time) {
+        #   out_y <- rbind(out_y, data[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE])
+        # }
       }
-    } else {
-      # Output data
-      if (t_index == min_time) {
-        out_y <- data[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE]
-      } else {
-        out_y <- rbind(out_y, data[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE])
+      # else {
+      #   # Output data
+      #   if (t_index == min_time) {
+      #     out_y <- data[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE]
+      #   } else {
+      #     out_y <- rbind(out_y, data[, c("new_ID", time_var, outcome, "Pred_Y"), with = FALSE])
+      #   }
+      # }
+
+      # Recode data after simulating
+      if (!is.null(out_recode) & t_index != min_time) {
+        data <- within(data, eval(parse(text = out_recode)))
       }
     }
-    
-    # Recode data after simulating
-    if (!is.null(out_recode) & t_index != min_time) {
-      data <- within(data, eval(parse(text = out_recode)))
-    }
-    
+    # loop ends here
   }
-  # loop ends here
 
   if(return_data){
     return(data)

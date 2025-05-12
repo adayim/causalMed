@@ -47,42 +47,6 @@ mediation <- function(data,
 
   mediation_type <- match.arg(mediation_type)
 
-  # Calculate mediation effect for point estimates
-  risk_calc1 <- function(data_list, return_data) {
-    if(return_data){
-      phi_11 <- sum(data_list$always[["Pred_Y"]]) / length(data_list$always[["Pred_Y"]])
-      phi_00 <- sum(data_list$never[["Pred_Y"]]) / length(data_list$never[["Pred_Y"]])
-      phi_10 <- sum(data_list$mediation[["Pred_Y"]]) / length(data_list$mediation[["Pred_Y"]])
-      data.table(Effect = c("Indirect effect", "Direct effect", "Total effect"),
-                 Est = c(phi_11 - phi_10, phi_10 - phi_00, phi_11 - phi_00)
-                )
-    }else{
-      data.table(Effect = c("Indirect effect", "Direct effect", "Total effect"),
-                 Est = c(data_list$always - data_list$mediation, 
-                         data_list$mediation - data_list$never,
-                         data_list$always - data_list$never)
-                )
-    }
-    
-  }
-  # Calculate mediation effect for bootstrap
-  risk_calc2 <- function(data_list, return_data) {
-    if(return_data){
-      phi_11 <- sum(data_list$always) / length(data_list$always)
-      phi_00 <- sum(data_list$never) / length(data_list$never)
-      phi_10 <- sum(data_list$mediation) / length(data_list$mediation)
-      data.table(Effect = c("Indirect effect", "Direct effect", "Total effect"),
-                 Est = c(phi_11 - phi_10, phi_10 - phi_00, phi_11 - phi_00)
-      )
-    }else{
-      data.table(Effect = c("Indirect effect", "Direct effect", "Total effect"),
-                 Est = c(data_list$always - data_list$mediation, 
-                         data_list$mediation - data_list$never,
-                         data_list$always - data_list$never)
-      )
-    }
-    
-  }
   set.seed(seed)
 
   # Check for error
@@ -91,7 +55,7 @@ mediation <- function(data,
   # Get time length
   time_len <- length(unique(na.omit(data[[time_var]])))
 
-  intervention <- list(always = 1, never = 0, mediation = NULL)
+  intervention <- list(Ph11 = 1, Phi00 = 0, Phi10 = NULL)
 
   # Test if mediator model exists
   med_flag <- sapply(models, function(mods) mods$mod_type == "mediator")
@@ -117,7 +81,7 @@ mediation <- function(data,
     est_out <- data.table::as.data.table(utils::stack(est_ori$gform.data))
     colnames(est_out) <- c("Est", "Intervention")
   }
-  risk_est <- risk_calc1(est_ori$gform.data, return_data = return_data)
+  risk_est <- risk_estimate.mediation1(est_ori$gform.data, return_data = return_data)
   
 
   # Get the mean of bootstrap results
@@ -146,7 +110,7 @@ mediation <- function(data,
     )]
 
     res_pools <- lapply(pools, function(x) x$gform.data)
-    res_pools <- lapply(res_pools, risk_calc2, return_data = return_data)
+    res_pools <- lapply(res_pools, risk_estimate.mediation2, return_data = return_data)
     res_pools <- data.table::rbindlist(res_pools)
     # Calculate Sd and percentile confidence interval
     res_pools <- res_pools[, .(
