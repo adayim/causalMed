@@ -184,7 +184,7 @@ gformula <- function(data,
     ]
 
     # Merge all and calculate the normal confidence interval
-    est_out <- merge(est_out, pools_res, by = c("Intervention"))
+    est_out <- merge(est_out, pools_res, by = c("Intervention"), sort = FALSE)
     est_out <- est_out[, `:=`(
       norm_lcl = Est - stats::qnorm(0.975) * Sd,
       norm_ucl = Est + stats::qnorm(0.975) * Sd
@@ -220,7 +220,7 @@ gformula <- function(data,
       ]
 
       # Merge all and calculate the normal confidence interval
-      risk_est <- merge(risk_est, res_pools, by = c("Intervention", "Risk_type"))
+      risk_est <- merge(risk_est, res_pools, by = c("Intervention", "Risk_type"), sort = FALSE)
       risk_est <- risk_est[, `:=`(
         norm_lcl = Estimate - stats::qnorm(0.975) * Sd,
         norm_ucl = Estimate + stats::qnorm(0.975) * Sd
