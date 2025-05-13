@@ -69,10 +69,6 @@ mediation <- function(data,
   arg_est$progress_bar <- substitute(quiet, env = parent.frame())
   est_ori <- do.call(.gformula, arg_est)
 
-  # Run bootstrap
-  arg_pools <- get_args_for(bootstrap_helper)
-  pools <- do.call(bootstrap_helper, arg_pools)
-
   # Mean value of the outcome at each time point by intervention
   if(return_data){
     est_out <- data.table::rbindlist(est_ori$gform.data, idcol = "Intervention")
@@ -81,11 +77,21 @@ mediation <- function(data,
     est_out <- data.table::as.data.table(utils::stack(est_ori$gform.data))
     colnames(est_out) <- c("Est", "Intervention")
   }
-  risk_est <- risk_estimate.mediation1(est_ori$gform.data, return_data = return_data)
-  
+
+  if(return_data)
+    estimate_extract <- sapply(est_ori$gform.data, "[[", "Pred_Y", simplify = FALSE)
+  else
+    estimate_extract <- est_ori$gform.data
+
+  risk_est <- risk_estimate.mediation(estimate_extract, return_data = return_data)
+
 
   # Get the mean of bootstrap results
   if (R > 1) {
+    # Run bootstrap
+    arg_pools <- get_args_for(bootstrap_helper)
+    pools <- do.call(bootstrap_helper, arg_pools)
+
     pools_res <- lapply(pools, function(bt) {
       out <- utils::stack(bt$gform.data)
       colnames(out) <- c("Est", "Intervention")
@@ -95,7 +101,7 @@ mediation <- function(data,
 
     # Calculate Sd and percentile confidence interval
     pools_res <- pools_res[, .(
-      Sd = sd(Est), 
+      Sd = sd(Est),
       perct_lcl = quantile(Est, 0.025, na.rm = TRUE),
       perct_ucl = quantile(Est, 0.975, na.rm = TRUE)
     ),
@@ -110,7 +116,7 @@ mediation <- function(data,
     )]
 
     res_pools <- lapply(pools, function(x) x$gform.data)
-    res_pools <- lapply(res_pools, risk_estimate.mediation2, return_data = return_data)
+    res_pools <- lapply(res_pools, risk_estimate.mediation, return_data = return_data)
     res_pools <- data.table::rbindlist(res_pools)
     # Calculate Sd and percentile confidence interval
     res_pools <- res_pools[, .(

@@ -75,13 +75,12 @@ res.med <- mediation(
                  "lag_M = M"),
   return_fitted = TRUE,
   mc_sample = 250000,
-  return_data = TRUE,
-  R = 1,
+  return_data = FALSE,
+  R = 5,
   quiet = TRUE,
   seed = 1
 )
 
 res.med
 res.med$fitted_models
-
 

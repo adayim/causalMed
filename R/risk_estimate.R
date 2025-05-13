@@ -46,29 +46,12 @@ risk_estimate2 <- function(data_list, ref_int, intervention, return_data) {
 }
 
 # Calculate mediation effect for point estimates
-risk_estimate.mediation1 <- function(data_list, return_data) {
-  if(return_data){
-    phi_11 <- sum(data_list$Ph11[["Pred_Y"]]) / length(data_list$Ph11[["Pred_Y"]])
-    phi_00 <- sum(data_list$Phi00[["Pred_Y"]]) / length(data_list$Phi00[["Pred_Y"]])
-    phi_10 <- sum(data_list$Phi10[["Pred_Y"]]) / length(data_list$Phi10[["Pred_Y"]])
-    data.table(Effect = c("Indirect effect", "Direct effect", "Total effect"),
-               Est = c(phi_11 - phi_10, phi_10 - phi_00, phi_11 - phi_00)
-    )
-  }else{
-    data.table(Effect = c("Indirect effect", "Direct effect", "Total effect"),
-               Est = c(data_list$Ph11 - data_list$Phi10,
-                       data_list$Phi10 - data_list$Phi00,
-                       data_list$Ph11 - data_list$Phi00)
-    )
-  }
-}
-
-# Calculate mediation effect for bootstrap
-risk_estimate.mediation2 <- function(data_list, return_data) {
+risk_estimate.mediation <- function(data_list, return_data) {
   if(return_data){
     phi_11 <- sum(data_list$Ph11) / length(data_list$Ph11)
     phi_00 <- sum(data_list$Phi00) / length(data_list$Phi00)
     phi_10 <- sum(data_list$Phi10) / length(data_list$Phi10)
+    
     data.table(Effect = c("Indirect effect", "Direct effect", "Total effect"),
                Est = c(phi_11 - phi_10, phi_10 - phi_00, phi_11 - phi_00)
     )
