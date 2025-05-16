@@ -59,8 +59,6 @@ mediantion_phi10 <- function(data,
   max_time <- max(time_seq, na.rm = TRUE)
   min_time <- min(time_seq, na.rm = TRUE)
 
-  data0 <- copy(data)
-
   # Run g-formula
   for (indx in seq_along(time_seq)) {
     t_index <- sort(time_seq)[indx]
@@ -70,27 +68,18 @@ mediantion_phi10 <- function(data,
     }
 
     set(data, j = time_var, value = t_index)
-    set(data0, j = time_var, value = t_index)
 
     # Re-code baseline variables at initiation
     if (t_index == min_time) {
       if (!is.null(init_recode)) {
         data <- within(data, eval(parse(text = init_recode)))
-        data0 <- within(data0, eval(parse(text = init_recode)))
       }
     }
 
     # Re-code data before simulating
     if (!is.null(in_recode) & t_index != min_time) {
       data <- within(data, eval(parse(text = in_recode)))
-      data0 <- within(data0, eval(parse(text = in_recode)))
     }
-
-    # Simulate everything under no intervention
-    data0 <- simulate_data(data = data0,
-                           exposure = exposure,
-                           models = models,
-                           intervention = 0)
 
     # Use the data under no intervention to calculate mediator
     data <- simulate_data(data = data,

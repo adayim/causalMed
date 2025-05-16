@@ -9,8 +9,7 @@ simulate_data(
   exposure,
   models,
   intervention = NULL,
-  mediation_type = c(NA, "N", "I"),
-  data0 = NULL
+  mediation_type = c(NA, "N", "I")
 )
 }
 \arguments{
@@ -25,8 +24,6 @@ will be evaluated and the exposure variable will be set to 1 if it is \code{TRUE
 \item{mediation_type}{Type of the mediation analysis, if the value is \code{NA}
 no mediation analysis will be performed (default). It will be ignored if the intervention
  is not \code{NULL}}
-
-\item{data0}{Data set used for mediation analysis to caclulate phi10 for mediator.}
 }
 \description{
 Loop through the models and apply any recoding or subset.

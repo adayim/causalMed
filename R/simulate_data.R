@@ -11,7 +11,6 @@
 #' @param mediation_type Type of the mediation analysis, if the value is \code{NA}
 #' no mediation analysis will be performed (default). It will be ignored if the intervention
 #'  is not \code{NULL}
-#' @param data0 Data set used for mediation analysis to caclulate phi10 for mediator.
 #'
 #' @details
 #' If the intervention is \code{NULL}, and the \code{mediation_type}
@@ -23,8 +22,7 @@ simulate_data <- function(data,
                           exposure,
                           models,
                           intervention = NULL,
-                          mediation_type = c(NA, "N", "I"),
-                          data0 = NULL) {
+                          mediation_type = c(NA, "N", "I")) {
 
   mediation_type <- match.arg(mediation_type)
 
@@ -38,6 +36,13 @@ simulate_data <- function(data,
   # If Intervention is given, set the treatment to given value
   if (!is.null(intervention) & !is_dynamic) {
     set(data, j = exposure, value = intervention)
+  }
+
+  # if the mediation type is defined, than set the intervention to 1. But 0
+  # for mediator. This is to calculate the phi_10
+  if (!is.na(mediation_type) & is.null(intervention)) {
+    set(data, j = exposure, value = 1)
+    interv0 <- parse(text = paste0(exposure, " = 0"))
   }
 
   # Loop through models
@@ -73,8 +78,8 @@ simulate_data <- function(data,
     }
 
     if (sum(cond) != 0) {
-      if (mod_type == "mediator" & !is.null(data0)) {
-        med_value <- sim_value(model = model, newdt = data0[cond, ])
+      if (mod_type == "mediator" & !is.na(mediation_type) & is.null(intervention)) {
+        med_value <- sim_value(model = model, newdt = within(data[cond, ], eval(interv0)))
         # Set the mediator's intervention to 0
         if (mediation_type == "N") {
           data[[resp_var]][cond] <- med_value

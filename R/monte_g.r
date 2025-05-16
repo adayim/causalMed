@@ -184,22 +184,7 @@ monte_g <- function(data,
 
   # if the mediation type is defined, than set the intervention to 1. But 0
   # for mediator. This is to calculate the phi_10
-  if (!is.na(mediation_type) & is.null(intervention)) {
-    data <- mediantion_phi10(data = data,
-                             exposure = exposure,
-                             models = models,
-                             mediation_type = mediation_type,
-                             time_seq = time_seq,
-                             time_var = time_var, 
-                             init_recode = init_recode,
-                             in_recode = in_recode,
-                             out_recode = out_recode,
-                             return_data = return_data,
-                             progress_bar = progress_bar)
-
-  }else{
-
-    # Get minimum and maximum time
+  # Get minimum and maximum time
     max_time <- max(time_seq, na.rm = TRUE)
     min_time <- min(time_seq, na.rm = TRUE)
 
@@ -229,7 +214,8 @@ monte_g <- function(data,
       data <- simulate_data(data = data,
                             exposure = exposure,
                             models = models,
-                            intervention = intervention[indx])
+                            intervention = intervention[indx],
+                            mediation_type = mediation_type)
 
       # For survival outcome
       if (is_survival) {
@@ -282,7 +268,6 @@ monte_g <- function(data,
       }
     }
     # loop ends here
-  }
 
   if(return_data){
     return(data)
