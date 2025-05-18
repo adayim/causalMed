@@ -6,7 +6,7 @@ library(data.table)
 devtools::load_all()
 
 dat <- readRDS(file = "data/mediation-data.rds")
-dat <- as.data.table(dat)
+
 
 # Phi11
 phi11 <- mean(dat$Y[dat$A == 1])
@@ -26,7 +26,7 @@ total_effect <- phi11 - phi00
 total_effect
 
 
-
+dat <- as.data.table(dat)
 df <- melt(dat,
            measure.vars = patterns("^L", "^M"),
            variable.name = "time",

@@ -84,7 +84,7 @@ simulate_data <- function(data,
         if (mediation_type == "N") {
           data[[resp_var]][cond] <- med_value
         } else {
-          data[[resp_var]][cond] <- sample(med_value, length(med_value), replace = TRUE)
+          data[[resp_var]][cond] <- sample(med_value, length(med_value), replace = FALSE)
         }
       } else {
         data[[resp_var]][cond] <- sim_value(model = model, newdt = data[cond, ])
