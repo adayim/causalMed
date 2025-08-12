@@ -1,0 +1,19 @@
+---
+title: "Time varying treatment in time-to-event outcome"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Time varying treatment in time-to-event outcome}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(causalMed)
+```
