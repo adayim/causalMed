@@ -73,9 +73,15 @@ check_error <- function(data,
     is_survival <- FALSE
   }
 
-  if (is_survival & !all.equal(sort(unique(na.omit(data[[outcome]]))), c(0, 1))) {
-    # TODO: competing risk
-    stop("Only binomial outcomes for survival are currently supported, and must be set to 0 and 1.", domain = "causalMed")
+  if (is_survival) {
+    y <- as.numeric(na.omit(data[[outcome]]))
+    eps <- 1e-8
+    if (!(
+      (length(unique(y)) == 2 && all(abs(sort(unique(y)) - c(0, 1)) < eps)) ||
+      (min(y) >= -eps && max(y) <= 1 + eps)
+    )) {
+      stop("For survival, outcome must be binary {0,1} or continuous in [0,1].")
+    }
   }
 
   # Outcome model or survival model must be defined and one only

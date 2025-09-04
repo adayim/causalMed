@@ -91,10 +91,24 @@ simulate_data <- function(data,
       }
 
       # Get the predicted values for the outcome
-      if (mod_type %in% c("outcome", "survival")) {
+      if (mod_type %in% c("outcome")) {
         data[["Pred_Y"]][cond] <- predict(model$fitted,
                                           newdata = data[cond, ],
                                           type = "response")
+      }
+      if (mod_type %in% c("survival")) {
+        data[["S"]][cond] <- predict(model$fitted,
+                                       newdata = data[cond, ],
+                                       type = "response")
+        
+        if (!("Sc" %in% names(data))) {
+          data[["Sc"]][cond] <- 1-data[["S"]][cond]
+          }else{
+          data[["Sc"]][cond] <- data[["Sc"]][cond]*(1-data[["S"]][cond]) 
+          }
+        
+        data[["Pred_Y"]][cond] <-1-data[["Sc"]][cond]
+     
       }
     }
   }

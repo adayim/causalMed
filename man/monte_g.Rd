@@ -20,44 +20,38 @@ monte_g(
 )
 }
 \arguments{
-\item{data}{Data set to be sued}
+\item{data}{A \code{data.frame} (long format): one row per \code{id_var} per \code{time_var}.}
 
-\item{models}{A list of models for the G-formula, including exposure model,
- covariate model (if any), mediator model (if any), outcome model or
- censoring model (if any). See details in \code{\link{spec_model}}.
- The order appeared in the list should reflect the temporal ordering of the
- variables, in another way data generation process. The model will be evaluated
-in this process.}
+\item{models}{A list of model specifications evaluated in temporal order. The order
+appeared in the list should reflect the temporal ordering of the variables, in another
+way data generation process. See \code{\link{spec_model}} for a recommended constructor.}
 
-\item{exposure}{Intervention/Exposure variable}
+\item{exposure}{Character scalar. Exposure variable to intervene on (must be in \code{data}).}
 
-\item{time_var}{Time variable.}
+\item{time_var}{Character scalar. Time variable column name (ordered; integer/numeric).}
 
 \item{time_seq}{Time sequence vector of the data.}
 
-\item{intervention}{A named list with a value of intervention on exposure.
-if kept as NULL (default), the natural intervention course will be calculated.
- eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0)). Note that
-the function will add the natural effect by default if the natural effect is
-not define here, and the reference intervention in \code{ref_int} will be set
-to the natural effect.}
+\item{intervention}{A named list specifying exposure interventions. Each
+element is either \code{NULL} (the natural course) or a numeric/logical
+vector whose length equals the number of unique time points in
+\code{time_var}. For example,
+\code{list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0))}.
+If \code{intervention} is \code{NULL}, only the natural course is
+evaluated. If a \code{natural} arm is not provided, it is added
+automatically and \code{ref_int} is set to \code{"natural"}.}
 
-\item{init_recode}{optional, recoding of variables done at the
-beginning of the Monte Carlo loop. Needed for operations initialize baseline variables.
-This is executed at beginning of the Monte Carlo g-formula, executed only once at time 0.}
+\item{init_recode}{Optional expression/function applied once at time 0 before the Monte Carlo loop
+(e.g., initializing baseline-derived variables). See Details.}
 
-\item{in_recode}{optional, On the fly recoding of variables done before the Monte
-Carlo loop starts. Needed to do any kind of functional forms for entry times.
- This is executed at each start of the Monte Carlo g-formula time steps}
+\item{in_recode}{Optional expression/function applied at the **start** of each time step
+(e.g., entry-time functional forms). See Details.}
 
-\item{out_recode}{optional, On the fly recoding of variables done at the
-end of the Monte Carlo loop. Needed for operations like counting the number of
-days with a treatment or creating lagged variables. This is executed at each end
- of the Monte Carlo g-formula time steps.}
+\item{out_recode}{Optional expression/function applied at the **end** of each time step
+(e.g., create lags, cumulative counts). See Details.}
 
-\item{return_data}{Logical scalar indicating whether to return the Monte Carlo simulated data set,
- default is \code{FALSE}. In the case of large \code{mc_sample} and long follow-up, the simulated
-data will be very large causing problems no enough memory to allocate the objects.}
+\item{return_data}{Logical. If \code{TRUE}, return the stacked simulated data
+(all interventions) including predicted outcomes; may be large. Default \code{FALSE}.}
 
 \item{progress_bar}{Progress bar object.}
 }

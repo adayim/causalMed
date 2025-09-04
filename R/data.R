@@ -54,3 +54,24 @@
 #' @references Keil et al. (2014) Epidemiology Epidemiology, 25(6), 889–897
 #' (\href{https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4310506/}{PubMed})
 "gvhd"
+
+#' Example Dataset for a non-Survival Outcome
+#' 
+#' A dataset containing time-varying and baseline variables for 1000 subjects
+#' with 3 time points per subject, including exposure, mediator, and outcome variables.
+#'
+#' @format A data frame with 3000 rows and 10 variables:
+#' \describe{
+#'   \item{id}{Unique identifier for each subject.}
+#'   \item{time}{Time variable, indicating observation points (0 to 2), one per subject.}
+#'   \item{V}{Time-fixed baseline covariate.}
+#'   \item{L}{Time-varying covariate.}
+#'   \item{A}{Exposure variable, time-varying across the three time points.}
+#'   \item{M}{Mediator variable, time-varying, potentially influenced by exposure and covariates.}
+#'   \item{Y}{Binary outcome variable, observed at the final time point.}
+#'   \item{M_lag1}{Lagged mediator value, indicating the mediator from the previous time point.}
+#'   \item{L_lag1}{Lagged baseline covariate value from the previous time point.}
+#'   \item{A_lag1}{Lagged exposure value from the previous time point.}
+#' }
+#' @source Simulated data generated for this analysis.
+"nonsurvivaldata"

@@ -1,87 +1,175 @@
 
-#' G-formula Analysis
+#' Parametric G-formula for Time-varying Intervention Analyses
 #'
-#' @description Mediation analysis for time varying mediator, estimation based
-#'  on g-formula. Output contains total effect, #' natural direct effect and natural
-#'   indirect effect for mediation or regular g-formula. data.frame will be returned.
+#' @description
+#' Implements the **parametric g-formula** to estimate counterfactual mean outcomes
+#' under one or more user-specified exposure interventions in longitudinal data.
+#' Supports settings with time-fixed baselines, time-varying exposure/mediator/confounders,
+#' optional survival/terminal outcomes, and nonparametric uncertainty via bootstrap.
 #'
-#' @note Not that final outcome must be the same for in all rows per subject.
-#'   If the dataset is  survival settings, records after the interested outcome
-#'    must be deleted. The function it self do some data manipulation internally.
-#'    Please prepare the data as longitudinal format.
+#' @details
+#' The function evaluates a sequence of user-specified models (see \code{models})
+#' in **temporal order** to simulate counterfactual trajectories via Monte Carlo,
+#' producing: (i) intervention-specific mean outcomes, and (ii) contrasts vs. a 
+#' reference intervention (risk ratio/difference). When \code{R > 1}, percentile
+#' and normal-approximation confidence intervals are computed from bootstrap resamples.
 #'
-#' @param data Data set to be sued
+#' **Data requirements**
+#' \itemize{
+#'   \item Long format: one row per subject per time point.
+#'   \item \code{id_var}: unique subject identifier; \code{time_var}: ordered time index.
+#'   \item Final outcome must be well-defined at the last relevant time for each subject.
+#'         For survival-like settings, rows after the event of interest should be removed
+#'         (or a censoring model should be included and handled in \code{models}).
+#' }
 #'
-#' @param id_var ID variable per subject.
+#' **Interventions**
+#' Provide a named list \code{intervention} with exposure values per time
+#' (e.g., \code{list(natural = NULL, always = c(1,1,1), never = c(0,0,0))}).
+#' If \code{intervention} is \code{NULL}, the function evaluates the natural course only.
+#' If at least one element is \code{NULL} and \code{ref_int == 0}, that element is used
+#' as the reference ("natural"). Otherwise, a \code{natural} arm is added automatically,
+#' and \code{ref_int} is set to \code{"natural"}.
 #'
-#' @param base_vars A vector of time fixed baseline variables.
+#' **Model specification**
+#' Each element of \code{models} is typically created by \code{\link{spec_model}}
+#'  and must include: (i) the model formula/call, (ii) a \code{mod_type} indicating its role
+#' (\code{"exposure"}, \code{"covariate"}, \code{"outcome"}, \code{"survival"}, 
+#' or \code{"censoring"}), and (iii) a \code{var_type} specifying the
+#' variable type used for simulation/prediction (\code{"binomial"}, \code{"normal"},
+#' \code{"categorical"}, and \code{"custom"}). The list order must reflect the 
+#' data-generating process (temporal ordering). The outcome model is detected internally 
+#' and used for computing predicted outcomes (\code{Pred\_Y}) under each intervention.
 #'
-#' @param exposure Intervention/Exposure variable
+#' **Re-coding hooks**
+#' \itemize{
+#'   \item \code{init_recode}: executed once at time 0 before simulation (initialize baselines).
+#'   \item \code{in_recode}: executed at the start of each time step (e.g., entry-time logic).
+#'   \item \code{out_recode}: executed at the end of each time step (e.g., cumulative counts, lags).
+#' }
 #'
-#' @param time_var Time variable.
+#' @param data A \code{data.frame} (long format): one row per \code{id_var} per \code{time_var}.
+#' @param id_var Character scalar. Subject identifier column name.
+#' @param base_vars Character vector of time-fixed baseline covariates (may be empty).
+#' @param exposure Character scalar. Exposure variable to intervene on (must be in \code{data}).
+#' @param time_var Character scalar. Time variable column name (ordered; integer/numeric).
+#' @param models A list of model specifications evaluated in temporal order. The order
+#'   appeared in the list should reflect the temporal ordering of the variables, in another
+#'   way data generation process. See \code{\link{spec_model}} for a recommended constructor.
+#' @param intervention A named list specifying exposure interventions. Each
+#'   element is either \code{NULL} (the natural course) or a numeric/logical
+#'   vector whose length equals the number of unique time points in
+#'   \code{time_var}. For example,
+#'   \code{list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0))}.
+#'   If \code{intervention} is \code{NULL}, only the natural course is
+#'   evaluated. If a \code{natural} arm is not provided, it is added
+#'   automatically and \code{ref_int} is set to \code{"natural"}.
+#' @param ref_int Reference intervention for contrasts. Either an integer index
+#'   (\code{0} = natural course; \code{1}, \code{2}, … = elements of
+#'   \code{intervention}) or a character name matching an element (e.g.,
+#'   \code{"always"}). If no \code{natural} arm is provided, it is added and
+#'   \code{ref_int} is set to \code{"natural"}. Default: \code{0}.
+#' @param init_recode Optional expression/function applied once at time 0 before the Monte Carlo loop
+#'   (e.g., initializing baseline-derived variables). See Details.
+#' @param in_recode Optional expression/function applied at the **start** of each time step
+#'   (e.g., entry-time functional forms). See Details.
+#' @param out_recode Optional expression/function applied at the **end** of each time step
+#'   (e.g., create lags, cumulative counts). See Details.
+#' @param return_fitted Logical. If \code{TRUE}, return full fitted model objects; otherwise,
+#'   a light-weight summary (call and coefficients). Default \code{FALSE}.
+#' @param mc_sample Integer. Monte Carlo sample size used for simulation.
+#'   Default \code{nrow(data) * 100}.
+#' @param return_data Logical. If \code{TRUE}, return the stacked simulated data
+#'   (all interventions) including predicted outcomes; may be large. Default \code{FALSE}.
+#' @param R Number of bootstrap replicates. If \code{R > 1},
+#'   computation uses \code{future.apply::future_lapply} and runs sequentially
+#'   unless a parallel plan is set; see \code{future::plan}. Use
+#'   \code{plan(multisession)} on Windows and \code{plan(multicore)} on
+#'   Unix-alikes to enable parallel bootstrap. Default \code{500}.
+#' @param quiet Logical. If \code{TRUE}, suppress progress messages/bars. Default \code{FALSE}.
+#' @param seed Integer random seed for reproducibility. Default \code{12345}.
 #'
-#' @param models A list of models for the G-formula, including exposure model,
-#'  covariate model (if any), mediator model (if any), outcome model or
-#'  censoring model (if any). See details in \code{\link{spec_model}}.
-#'  The order appeared in the list should reflect the temporal ordering of the
-#'  variables, in another way data generation process. The model will be evaluated
-#' in this process.
+#' @return
+#' An object of class \code{"gformula"} with components:
+#' \itemize{
+#'   \item \code{call}: the matched call.
+#'   \item \code{all.args}: a named list of evaluated arguments for reproducibility.
+#'   \item \code{effect_size}: \code{data.table} with columns \code{Intervention} and
+#'         \code{Est} (intervention-specific mean outcome). If \code{R > 1}, also includes
+#'         \code{Sd}, percentile CIs (\code{perct_lcl}, \code{perct_ucl}) and normal CIs
+#'         (\code{norm_lcl}, \code{norm_ucl}).
+#'   \item \code{estimate}: if multiple interventions are provided, a \code{data.table}
+#'         of contrasts vs. \code{ref_int} (columns typically include \code{Intervention},
+#'         \code{Risk_type}, \code{Estimate}, and (if \code{R > 1}) CI columns).
+#'   \item \code{sim_data}: if \code{return_data = TRUE}, the stacked simulated
+#'         Monte Carlo dataset across interventions (can be large).
+#'   \item \code{fitted_models}: a named list of fitted models.
+#'         If \code{return_fitted = TRUE}, returns full model objects plus attributes
+#'         (\code{recodes}, \code{subset}, \code{var_type}, \code{mod_type});
+#'         otherwise, a compact list with \code{call} and \code{coeff}.
+#' }
 #'
-#' @param intervention A named list with a value of intervention on exposure.
-#' if kept as NULL (default), the natural intervention course will be calculated.
-#'  eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0)). Note that
-#' the function will add the natural effect by default if the natural effect is
-#' not define here, and the reference intervention in \code{ref_int} will be set
-#' to the natural effect.
-#'
-#' @param ref_int Integer or character string denoting the intervention to be used as
-#' the reference for calculating the risk ratio and risk difference. 0 or \code{"natural"}
-#'  denotes the natural course, while subsequent integers denote user-specified
-#' interventions in the order that they are named in \code{intervention}. Or if the character
-#' is the name of the intervention. The default is 0.
-#'
-#' @param init_recode optional, recoding of variables done at the
-#' beginning of the Monte Carlo loop. Needed for operations initialize baseline variables.
-#' This is executed at beginning of the Monte Carlo g-formula, executed only once at time 0.
-#'
-#' @param in_recode optional, On the fly recoding of variables done before the Monte
-#'  Carlo loop starts. Needed to do any kind of functional forms for entry times.
-#'   This is executed at each start of the Monte Carlo g-formula time steps
-#'
-#' @param out_recode optional, On the fly recoding of variables done at the
-#' end of the Monte Carlo loop. Needed for operations like counting the number of
-#' days with a treatment or creating lagged variables. This is executed at each end
-#'  of the Monte Carlo g-formula time steps.
-#'
-#' @param return_fitted Logical scalar indicating whether to return the fitted model. Default
-#' is \code{FALSE}, only the summary of coefficients will be returned to reduce the memory usage.
-#'
-#' @param mc_sample Integer, sample size of Monte Carlo simulation. Default is 100 times of
-#' original sample.
-#'
-#' @param return_data Logical scalar indicating whether to return the Monte Carlo simulated data set,
-#'  default is \code{FALSE}. In the case of large \code{mc_sample} and long follow-up, the simulated
-#' data will be very large causing problems no enough memory to allocate the objects.
-#'
-#' @param R The number of bootstrap replicates, default is 500. If the R is larger than 1,
-#' \code{\link[future.apply]{future_lapply}} is used for the parallel computation. This will
-#'  run in sequential if no parallel planed, see \code{\link[future]{plan}} for more details.
-#' If the parallel plan was set to \code{plan(multisession)} in Windows or \code{plan(multicore)}
-#' in other system, multiple session/core is used for bootstrap calculation.
-#'
-#' @param quiet if \code{TRUE} then the progress bar will be suppressed.
+#' @note
+#' Final outcome should be consistently defined at the terminal time for each subject.
+#' For survival-type applications, remove rows after the event of interest (or include
+#' and model censoring appropriately). The function may record warnings internally and
+#' print them on exit. Results depend on correct temporal ordering, model specification,
+#' positivity, and no unmeasured confounding assumptions customary for g-formula.
 #'
 #' @references
-#' Robins, J. (1986). A new approach to causal inference in mortality studies with a sustained exposure period—application to control of the healthy worker survivor effect. Mathematical modelling, 7(9-12), 1393-1512.
-#' 
-#' Keil, A. P., Edwards, J. K., Richardson, D. B., Naimi, A. I., & Cole, S. R. (2014). The parametric g-formula for time-to-event data: intuition and a worked example. Epidemiology, 25(6), 889-897.
+#' Robins, J. M. (1986). A new approach to causal inference in mortality studies with a sustained
+#' exposure period—application to control of the healthy worker survivor effect. \emph{Mathematical Modelling}, 7(9–12), 1393–1512.
 #'
+#' Keil, A. P., Edwards, J. K., Richardson, D. B., Naimi, A. I., & Cole, S. R. (2014).
+#' The parametric g-formula for time-to-event data: intuition and a worked example.
+#' \emph{Epidemiology}, 25(6), 889–897.
 #'
 #' @import data.table
-#'
+#' @importFrom stats qnorm
+#' @importFrom utils stack
 #' @export
 #'
+#' @examples
+#' \dontrun{
+#' ## Toy longitudinal data (long format)
+#' data(nonsurvivaldata)
 #'
+#' ## Specify models in temporal order, e.g.:
+#' mod1<-spec_model(A ~ A_lag1  +V,var_type= "binomial",mod_type = "exposure")
+#' mod2<-spec_model(L ~ A + L_lag1  +V,var_type  = "normal",mod_type = "covariate")
+#' mod3<-spec_model(Y ~  A + L  + V,var_type = "binomial",mod_type = "outcome")
+#' models1<-list(mod1,mod2,mod3)
+#'
+#' ## Define interventions over T time points:
+#' ints <- list(natural = NULL,
+#'              always = 1
+#'              )
+#'
+#' fit <- gformula(
+#'   data = sim_data0,
+#'   id_var = 'id',
+#'   base_vars = "V",
+#'   exposure = "A",
+#'   time_var = "time",
+#'   models = models1,
+#'   intervention = ints,
+#'   ref_int = 1,
+#'   init_recode = c("A_lag1 = 0", "L_lag1 = 0"),
+#'   in_recode = c("A_lag1 = A", "L_lag1 = L"),
+#'   out_recode = NULL,
+#'   return_fitted = TRUE,
+#'   mc_sample = 100000,
+#'   return_data = TRUE,
+#'   R = 500,
+#'   quiet = TRUE,
+#'   seed = 250817
+#' )
+#' 
+#' print(fit)
+#' summary(fit)
+#'}
+#'
+#' @export
 
 gformula <- function(data,
                      id_var,

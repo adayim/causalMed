@@ -1,5 +1,20 @@
-# Derive parameters needed for the function from current environment
-# Ref: https://stackoverflow.com/a/51002887
+#' Derive parameters for a function from the current environment
+#'
+#' @description
+#' Extracts the required parameters for a given function from the current environment.
+#'
+#' @param fun The function whose parameters are to be extracted.
+#' @param env The environment from which to extract parameters (default is the parent environment).
+#' @param ... Additional arguments passed to the function.
+#' @param dots Optional argument for handling extra dots.
+#'
+#' @return A list of arguments for the specified function.
+#' 
+#' @source \url{https://stackoverflow.com/a/51002887}
+#'
+#' @keywords internal
+#' @export
+
 get_args_for <- function(fun, env = parent.frame(), ..., dots = NULL) {
   potential <- names(formals(fun))
 
