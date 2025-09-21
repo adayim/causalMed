@@ -3,7 +3,7 @@ dat <- foreign::read.dta("https://stats.idre.ucla.edu/stat/data/truncreg.dta")
 
 mod_cov1 <- spec_model(achiv ~ langscore + prog,
   var_type = "normal",
-  mod_type = "covriate"
+  mod_type = "covariate"
 )
 
 mod_cov1$call$data <- substitute(dat)
@@ -20,9 +20,9 @@ m <- truncreg::truncreg(achiv ~ langscore + prog,
 )
 
 mod_cov1 <- spec_model(achiv ~ langscore + prog,
-  family = "truncreg",
-  type = "covriate",
-  custom_fn = truncreg::truncreg,
+  mod_type = "covariate",
+  var_type = "custom",
+  custom_fit = truncreg::truncreg,
   point = 40, direction = "left"
 )
 
@@ -40,8 +40,8 @@ hm <- Hmisc::rMultinom(pred, 1)
 rm <- rmultinom(1, 1, pred)
 
 mod_cov1 <- spec_model(prog2 ~ ses + write,
-  family = "multinomial",
-  type = "covriate",
+  var_type   = "categorical", 
+  mod_type = "covariate",
   # subset = platnormm1 == 0
 )
 

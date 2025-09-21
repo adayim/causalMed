@@ -1,29 +1,252 @@
 ---
-title: "equivalence"
-output: html_document
-date: "2025-09-02"
+title: "Time varying treatment in time-to-event outcome"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Time varying treatment in time-to-event outcome}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 7,
+  fig.height = 5
+)
+```
+## Overview
+
+This vignette illustrates binary end-of-follow-up and survival outcomes under time-varying exposure using causalMed::gformula() and compares summaries against gfoRmula::gformula().
+
+## Requirements
+
+```{r}
+library(data.table)
+library(dplyr)
+library(causalMed)   # provides spec_model(), gformula(), 
+library(gfoRmula)    # comparison implementation
 ```
 
-## R Markdown
+## test for binary outcome
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+```{r}
+data("binary_eofdata", package = "gfoRmula")
+# time group: (0-1)->0, (2-3)->1, (4-5)->2, else ->3
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+# Dataset for parametric g-formula
+data1 <- copy(binary_eofdata)
+data1$treat <- ifelse(is.na(data1$treat), NA, ifelse(data1$treat > 0, 1, 0))
 
-```{r cars}
-summary(cars)
+data1 <- data1 %>%
+  group_by(id_num) %>%
+  mutate(
+    lag1_treat    = dplyr::lag(treat, 1),
+    lag1_cov1     = dplyr::lag(cov1, 1),
+    cumavg_treat  = cummean(ifelse(is.na(treat), 0, treat)),
+    cumavg_cov1   = cummean(ifelse(is.na(cov1),  0, cov1))
+  ) %>%
+  ungroup()
+
+data1$time    <- as.numeric(binary_eofdata$time)
+data1$treat2  <- as.numeric(binary_eofdata$treat)
+
+data1 <- data1 %>%
+  mutate(
+    lag1_treat = ifelse(time == 1, NA, lag1_treat),
+    lag1_cov1  = ifelse(time == 1, NA, lag1_cov1)
+  )
+
+data2 <- copy(binary_eofdata)
+data2$treat  <- ifelse(is.na(data2$treat), NA, ifelse(data2$treat > 0, 1, 0))
+
+results_b <- data.table(
+  seed = integer(),
+  bz_natural = numeric(),
+  bz_intervention = numeric(),
+  cs_natural = numeric(),
+  cs_intervention = numeric(),
+  q_n=numeric(),
+  q_i=numeric()
+)
+for (seed_num in 130600:130650) {
+  mod1<-spec_model(treat ~ lag1_treat + cumavg_cov1 +cov3 ,var_type= "binomial",mod_type = "exposure")
+  mod2<-spec_model(cov1 ~ treat + lag1_cov1  +cov3 ,var_type  = "binomial",mod_type = "covariate")
+  mod3<-spec_model(outcome ~  lag1_treat+treat + cov1 + lag1_cov1 + cov3,var_type = "binomial",mod_type = "outcome")
+  models1<-list(mod1,mod2,mod3)
+  res2<- causalMed::gformula(data=data1,
+                  id_var='id_num',
+                  base_vars="cov3",
+                  exposure="treat",
+                  time_var="time",
+                  models=models1,
+                  intervention = list(
+                    natural = NULL,
+                    always = 1
+                  ),
+                  ref_int = 1,
+                  init_recode = c("lag1_treat = 0","lag1_cov1=0","time_f=0","cumavg_cov1=0","cumavg_treat=0"),
+                  in_recode = c("lag1_treat = treat","lag1_cov1=cov1","time_f=ifelse(time <= 1, 0, ifelse(time <= 3, 1, ifelse(time <= 5, 2,3)))",
+                                "cumavg_cov1=cummean(ifelse(is.na(cov1), 0, cov1))","cumavg_treat=cummean(ifelse(is.na(treat), 0, treat))"),
+                  out_recode = NULL,
+                  return_fitted = F,
+                  mc_sample = 50000,
+                  return_data = F,
+                  R = 5,
+                  quiet = T,
+                  seed=seed_num)  
+  ymodel <- outcome ~  lag1_treat+treat + cov1 + lag1_cov1 + cov3
+  res<- gfoRmula::gformula(obs_data = data2,
+                           outcome_type = 'binary_eof', id = 'id_num',
+                           time_name = 'time', covnames = c('cov1','treat',  'time_f'),
+                           outcome_name = 'outcome', covtypes = c('binary', 'binary', 'categorical time'),
+                           covparams = list(covmodels = c(cov1 ~ treat + lag1_cov1 + cov3 ,
+                                                          treat ~ lag1_treat + cumavg_cov1 +cov3 ,
+                                                          NA)), 
+                           ymodel = ymodel,
+                           intervention1.treat = list(gfoRmula::threshold, 1, Inf),
+                           int_descript = 'Threshold - lower bound 1',
+                           histories = c(gfoRmula::lagged, gfoRmula::cumavg),
+                           histvars = list(c('treat', 'cov1'), c('cov1')), basecovs = c("cov3"),
+                           seed = seed_num,parallel = TRUE,
+                           nsimul = 100000, ncores = 2)
+  result_dt1 <- res$result[["g-form mean"]]
+  result_dt2<-res2$effect_size[["Est"]]
+  bz_natural <- result_dt1[[1]]
+  bz_intervention <- result_dt1[[2]]
+  cs_natural<-result_dt2[[1]]
+  cs_intervention <- result_dt2[[2]]
+  
+  q_n <- (cs_natural - bz_natural) / bz_natural * 100
+  q_i <- (cs_intervention - bz_intervention) / bz_intervention * 100
+  results_b <- rbind(results_b, data.table(
+    seed = seed_num,
+    bz_natural = bz_natural,
+    bz_intervention = bz_intervention,
+    cs_natural = cs_natural,
+    cs_intervention = cs_intervention,
+    q_n=q_n,
+    q_i=q_i
+  ))
+}
+
+summary_b <- data.frame(
+  mean = sapply(results_b, mean, na.rm = TRUE),
+  sd   = sapply(results_b, sd,   na.rm = TRUE),
+  min  = sapply(results_b, min,  na.rm = TRUE),
+  max  = sapply(results_b, max,  na.rm = TRUE)
+)  
+knitr::kable(summary_b, caption = "Summary statistics across seeds (full run).")
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
+## test for survival outcome
+```{r}
+data("survivaldata", package = "causalMed")
+mod1<-spec_model(L ~ V+lag1_L+time,var_type= "normal",mod_type = "covariate")
+mod2<-spec_model(A ~  V+lag1_A +lag1_L+L+time,var_type= "binomial",mod_type = "exposure")
+mod3<-spec_model(Y ~ lag1_A +A + L+lag1_L +time,var_type = "binomial",mod_type = "survival")
+models12<-list(mod1,mod2,mod3)
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+results_s <- data.table(
+  seed = integer(),
+  bz_natural = numeric(),
+  bz_intervention1 = numeric(),
+  bz_intervention2 = numeric(),
+  cs_natural = numeric(),
+  cs_intervention1 = numeric(),
+  cs_intervention2 = numeric(),
+  q_n=numeric(),
+  q_i1=numeric(),
+  q_i2=numeric()
+)  
+for (seed_num in 500:510) {
+  res2<- causalMed::gformula(data=survivaldata,
+                  id_var='id',
+                  base_vars="V",
+                  exposure="A",
+                  time_var="time",
+                  models=models12,
+                  intervention = list(
+                    natural = NULL,
+                    never = 0,
+                    always = 1
+                  ),
+                  init_recode = c("lag1_L = 0","lag1_A=0"),
+                  in_recode =  c("lag1_L=L","lag1_A=A"),
+                  out_recode =NULL,
+                  return_fitted = T,
+                  mc_sample = 50000,
+                  return_data = T,
+                  R = 1,
+                  quiet = T,
+                  seed=seed_num) 
+  
+  
+  res <- gfoRmula::gformula(
+    obs_data    = survivaldata,
+    id          = 'id',
+    time_points = 7,
+    time_name   = 'time',
+    covnames    = c('A','L'),
+    covtypes    = c('binary','normal'),
+    basecovs    = c('V'),
+    outcome_name  = 'Y',
+    outcome_type  = 'survival',
+    covparams = list(covmodels = c(
+      A ~ V + lag1_A +lag1_L + L + time, 
+      L ~ V + lag1_L + time  
+    )),
+    ymodel = Y ~  lag1_A +A + L+lag1_L +time,                 
+    histories = c(gfoRmula::lagged),
+    histvars  = list(c('A','L')),
+    intervention1.A = list(gfoRmula::static, rep(0,7)),
+    intervention2.A = list(gfoRmula::static, rep(1,7)),
+    int_descript    = c('Never treat','Always treat'),
+    nsimul     = 50000,
+    seed       = seed_num,
+    nsamples   = 0
+  )
+  
+  result_dt1 <- res$result[k==max(k),][["g-form risk"]]
+  result_dt2<-res2$effect_size[["Est"]]
+  bz_natural <- result_dt1[[1]]
+  bz_intervention1 <- result_dt1[[2]]
+  bz_intervention2 <- result_dt1[[3]]
+  cs_natural<-result_dt2[[1]]
+  cs_intervention1 <- result_dt2[[2]]
+  cs_intervention2 <- result_dt2[[3]]
+  q_n <- (cs_natural - bz_natural) / bz_natural * 100
+  q_i1 <- (cs_intervention1 - bz_intervention1) / bz_intervention1 * 100
+  q_i2 <- (cs_intervention2 - bz_intervention2) / bz_intervention2 * 100
+  results_s <- rbind(results_s, data.table(
+    seed = seed_num,
+    bz_natural = bz_natural,
+    bz_intervention1 = bz_intervention1,
+    bz_intervention2 = bz_intervention2,
+    cs_natural = cs_natural,
+    cs_intervention1 = cs_intervention1,
+    cs_intervention2 = cs_intervention2,
+    q_n=q_n,
+    q_i1=q_i1,
+    q_i2=q_i2
+  ))
+}
+#results
+summary_s <- data.frame(
+  mean = sapply(results_s, mean, na.rm = TRUE),
+  sd   = sapply(results_s, sd,   na.rm = TRUE),
+  min  = sapply(results_s, min,  na.rm = TRUE),
+  max  = sapply(results_s, max,  na.rm = TRUE)
+)  
+knitr::kable(summary_s, caption = "Summary statistics across seeds (full run).")
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+```{r}
+sessionInfo()
+```
