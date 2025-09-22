@@ -52,18 +52,7 @@ simulate_data <- function(data,
     resp_var <- model$rsp_vars
     mod_type <- model$mod_type
 
-    # Skip if the response variable is treatment and the intervention is defined.
-    if (resp_var == exposure & !is.null(intervention)) {
-      # Evaluate if the intervention is dynamic
-      if (is_dynamic) {
-        set(data,
-            j = exposure,
-            value = as.numeric(eval(parse(text = intervention), envir = data)))
-        # data <- within(data, eval(parse(text = intervention)))
-      }
-      next
-    }
-
+    
     # Perform the recode in the model
     if (!is.null(model$recode)) {
       data <- within(data, eval(parse(text = model$recode)))
@@ -75,6 +64,22 @@ simulate_data <- function(data,
       cond <- cond & !is.na(cond) # Avoid NA in the condition list.
     } else {
       cond <- rep(TRUE, nrow(data))
+    }
+    
+    # Skip if the response variable is treatment and the intervention is defined.
+    if (resp_var == exposure & !is.null(intervention)) {
+      # Evaluate if the intervention is dynamic
+      if (is_dynamic) {
+        data <- data.table::copy(data)   
+        data.table::setDT(data)
+        data.table::setalloccol(data)    
+        vals_nat <- sim_value(model = model, newdt = data[cond])
+        data[cond, (exposure) := vals_nat]
+       
+        vals_dyn <- as.numeric(eval(parse(text = intervention), envir = data[cond]))
+        data[cond, (exposure) := vals_dyn]
+      }
+      next
     }
 
     if (sum(cond) != 0) {
@@ -90,6 +95,8 @@ simulate_data <- function(data,
         data[[resp_var]][cond] <- sim_value(model = model, newdt = data[cond, ])
       }
 
+      
+      
       # Get the predicted values for the outcome
       if (mod_type %in% c("outcome")) {
         data[["Pred_Y"]][cond] <- predict(model$fitted,
