@@ -76,11 +76,8 @@ check_error <- function(data,
   if (is_survival) {
     y <- as.numeric(na.omit(data[[outcome]]))
     eps <- 1e-8
-    if (!(
-      (length(unique(y)) == 2 && all(abs(sort(unique(y)) - c(0, 1)) < eps)) ||
-      (min(y) >= -eps && max(y) <= 1 + eps)
-    )) {
-      stop("For survival, outcome must be binary {0,1} or continuous in [0,1].")
+    if (!all(abs(y - 0) < eps | abs(y - 1) < eps)) {
+      stop("For survival, outcome must be binary {0,1}.")
     }
   }
 
@@ -93,6 +90,20 @@ check_error <- function(data,
   if (!any(out_flag) & !is_survival) {
     stop("Outcome or survival model must be defined in the `models`.", domain = "causalMed")
   }
+  
+  # Block user columns named "S" or "Sc" to avoid clashes with internal variables for survival outcome.
+  if (isTRUE(is_survival)) {
+    reserved <- c("S", "Sc")
+    hit <- intersect(names(data), reserved)
+    if (length(hit) > 0) {
+      msg <- sprintf(
+        "Column name(s) conflict with reserved internal names: %s. Please rename.",
+        paste(hit, collapse = ", ")
+      )
+      stop(msg, call. = FALSE)
+    }
+  }
+  
 
   # Models checking
   if (!is.list(models)) {
