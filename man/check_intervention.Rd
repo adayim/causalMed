@@ -7,25 +7,24 @@
 check_intervention(models, intervention, ref_int, time_len)
 }
 \arguments{
-\item{models}{A list of models for the G-formula, including exposure model,
- covariate model (if any), mediator model (if any), outcome model or
- censoring model (if any). See details in \code{\link{spec_model}}.
- The order appeared in the list should reflect the temporal ordering of the
- variables, in another way data generation process. The model will be evaluated
-in this process.}
+\item{models}{A list of model specifications evaluated in temporal order. The order
+appeared in the list should reflect the temporal ordering of the variables, in another
+way data generation process. See \code{\link{spec_model}} for a recommended constructor.}
 
-\item{intervention}{A named list with a value of intervention on exposure.
-if kept as NULL (default), the natural intervention course will be calculated.
- eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0)). Note that
-the function will add the natural effect by default if the natural effect is
-not define here, and the reference intervention in \code{ref_int} will be set
-to the natural effect.}
+\item{intervention}{A named list specifying exposure interventions. Each
+element is either \code{NULL} (the natural course) or a numeric/logical
+vector whose length equals the number of unique time points in
+\code{time_var}. For example,
+\code{list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0))}.
+If \code{intervention} is \code{NULL}, only the natural course is
+evaluated. If a \code{natural} arm is not provided, it is added
+automatically and \code{ref_int} is set to \code{"natural"}.}
 
-\item{ref_int}{Integer or character string denoting the intervention to be used as
-the reference for calculating the risk ratio and risk difference. 0 or \code{"natural"}
- denotes the natural course, while subsequent integers denote user-specified
-interventions in the order that they are named in \code{intervention}. Or if the character
-is the name of the intervention. The default is 0.}
+\item{ref_int}{Reference intervention for contrasts. Either an integer index
+(\code{0} = natural course; \code{1}, \code{2}, … = elements of
+\code{intervention}) or a character name matching an element (e.g.,
+\code{"always"}). If no \code{natural} arm is provided, it is added and
+\code{ref_int} is set to \code{"natural"}. Default: \code{0}.}
 
 \item{time_len}{length of the time in the data.}
 }

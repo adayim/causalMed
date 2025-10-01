@@ -1,3 +1,37 @@
+#' Calculate Risk Difference, Risk Ratio, or Mediation Effects based on g-formula
+#'
+#' @description
+#' These internal functions compute the Risk Difference (RD) and Risk Ratio (RR)
+#' for g-formula estimates of the total effect, natural direct effect (NDE), 
+#' and natural indirect effect (NIE). The functions also calculate confidence intervals 
+#' (for RD and RR) and mediation effects based on g-formula methodology.
+#'
+#' @details
+#' These functions are used internally within the g-formula framework for effect estimation.
+#' They are not intended for direct user input. The functions perform:
+#' - \code{risk_estimate1}: Computes point estimates for risk difference and risk ratio.
+#' - \code{risk_estimate2}: Computes confidence intervals for the effects (RD/RR).
+#' - \code{risk_estimate.mediation}: Computes total, direct, and indirect effects by subtraction.
+#'
+#' These functions operate on the output of the \code{.gformula} function, estimating 
+#' effects (both point estimates and confidence intervals) from simulated data.
+#'
+#' @param data_list A list of simulated datasets returned by \code{.gformula}.
+#' @param ref_int Reference intervention to compare against.
+#' @param intervention A vector specifying the interventions to compare.
+#' @param return_data Logical. If \code{TRUE}, returns the simulated data along with effects.
+#'
+#' @return
+#' A \code{data.table} with calculated effects (Risk Difference, Risk Ratio, or Mediation effects)
+#' and, if applicable, confidence intervals. For mediation effects, the result will show
+#' total, direct, and indirect effects.
+#'
+#' @seealso \code{\link{gformula}}, \code{\link{mediation}}
+#'
+#' @importFrom data.table data.table
+#'
+#' @keywords internal
+#' @export
 
 
 # Risk difference and risk ratio calculation function

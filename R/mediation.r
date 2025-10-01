@@ -1,26 +1,134 @@
-
 #' G-formula based mediation analysis
 #'
-#' @description Mediation analysis for time varying mediator, estimation based
-#'  on g-formula. Output contains total effect, natural direct effect and natural
-#'   indirect effect for mediation or regular g-formula. data.frame will be returned.
+#' @description 
+#' Conduct mediation analysis with time-varying mediators using the g-formula. 
+#' This function estimates total effect, natural direct effect, and natural indirect 
+#' effect for both natural mediation (\code{"N"}) and interventional mediation (\code{"I"}). 
+#' A \code{data.frame} summarizing the estimates will be returned.
 #'
-#' @note Not that final outcome must be the same for in all rows per subject.
-#'   If the dataset is  survival settings, records after the interested outcome event
-#'    must be deleted. The function it self do some data manipulation internally.
-#'    Please prepare the data as longitudinal (long data) format.
+#' @details
+#'
+#'#' **Data requirements**
+#' The function internally manipulates the data to fit the required g-formula framework. 
+#' The input dataset must be prepared in a longitudinal ("long") format, with one record 
+#' per subject per time period. 
+#' In survival settings, note that all records after the outcome event of interest must 
+#' be removed, because the final outcome must remain consistent across rows for the same subject. 
+#'
+#' **Model specification**
+#' Each element of \code{models} is typically created by \code{\link{spec_model}}
+#'  and must include: (i) the model formula/call, (ii) a \code{mod_type} indicating its role
+#' (\code{"exposure"}, \code{"covariate"}, \code{"mediator"}, \code{"outcome"},
+#' \code{"survival"}, or \code{"censoring"}), and (iii) a \code{var_type} specifying the
+#' variable type used for simulation/prediction (\code{"binomial"}, \code{"normal"},
+#' \code{"categorical"}, and \code{"custom"}). The list order must reflect the 
+#' data-generating process (temporal ordering). The outcome model is detected internally 
+#' and used for computing predicted outcomes (\code{Pred\_Y}) under each intervention.
+#'
+#' **Re-coding hooks**
+#' \itemize{
+#'   \item \code{init_recode}: executed once at time 0 before simulation (initialize baselines).
+#'   \item \code{in_recode}: executed at the start of each time step (e.g., entry-time logic).
+#'   \item \code{out_recode}: executed at the end of each time step (e.g., cumulative counts, lags).
+#' }
 #'
 #' @inheritParams gformula
 #'
-#' @param mediation_type Type of the mediation effect, natural effect (\code{"N"}) or interventional effect (\code{"I"}).
+#' @param data A \code{data.frame} in long format, containing one row per subject per time point.
+#' @param id_var Character string. The subject identifier variable.
+#' @param base_vars Character vector. Baseline covariates to be included in the models.
+#' @param exposure Character string. The exposure variable (time-varying).
+#' @param outcome Character string. The outcome variable. Must be constant within subject.
+#' @param time_var Character string. The time variable indicating observation order.
+#' @param modelsA list of model specifications evaluated in temporal order. The order
+#'   appeared in the list should reflect the temporal ordering of the variables, in another
+#'   way data generation process. See \code{\link{spec_model}} for a recommended constructor.
+#' @param init_recode Optional expression/function applied once at time 0 before the Monte Carlo loop
+#'   (e.g., initializing baseline-derived variables). See Details.
+#' @param in_recode Optional expression/function applied at the **start** of each time step
+#'   (e.g., entry-time functional forms). See Details.
+#' @param out_recode Optional expression/function applied at the **end** of each time step
+#'   (e.g., create lags, cumulative counts). See Details.
+#' @param mc_sample Integer. Number of Monte Carlo samples for g-formula simulation. 
+#'   Default is \code{nrow(data)*100}.
+#' @param mediation_type Character. Type of mediation effect: 
+#'   \code{"N"} for natural effect or \code{"I"} for interventional effect.
+#' @param return_fitted Logical. If \code{TRUE}, return fitted model objects used in estimation.
+#' @param return_data Logical. If \code{TRUE}, return simulated data along with effect estimates.
+#' @param R Integer. Number of bootstrap replications for uncertainty estimation. Default is 500.
+#' @param quiet Logical. If \code{TRUE}, suppress messages during estimation.
+#' @param seed Integer. Random seed for reproducibility. Default is \code{mc_sample*100}.
+#'
+#' @return 
+#' An object of class \code{"gformula"} with components:
+#' \itemize{
+  #'   \item \code{call}: the matched function call.
+  #'   \item \code{all.args}: a named list of evaluated arguments for reproducibility.
+  #'   \item \code{effect_size}: a \code{data.table} with columns \code{Effect} and \code{Est}.
+  #'         If \code{R > 1}, also includes \code{Sd}, percentile CIs (\code{perct_lcl}, \code{perct_ucl}),
+  #'         and normal CIs (\code{norm_lcl}, \code{norm_ucl}).Typical labels are:
+  #'         \code{Ph11 = E[Y_{1,M(1)}]}, \code{Phi10 = E[Y_{1,M(0)}]},
+  #'         \code{Phi00 = E[Y_{0,M(0)}]}, which serve as building blocks for
+  #'         natural (or interventional analogue) direct and indirect effects.
+  #'   \item \code{estimate}: a \code{data.table} summarizing the decomposition
+  #'         of effects, typically with rows:
+  #'         \itemize{
+  #'           \item \code{"Indirect effect"} = \eqn{E[Y_{1,M(1)}] - E[Y_{1,M(0)}]}
+  #'           \item \code{"Direct effect"}   = \eqn{E[Y_{1,M(0)}] - E[Y_{0,M(0)}]}
+  #'           \item \code{"Total effect"}    = \eqn{E[Y_{1,M(1)}] - E[Y_{0,M(0)}]}
+  #'         }
+  #'         Columns include \code{Est}, \code{Sd}, and confidence intervals
+  #'         (\code{perct_lcl}, \code{perct_ucl}, \code{norm_lcl}, \code{norm_ucl}).
+  #'   \item \code{sim_data}: if \code{return_data = TRUE}, the Monte Carlo simulated
+  #'         longitudinal dataset used internally (can be large).
+  #'   \item \code{fitted_models}: a named list of fitted models keyed by outcome, exposure,
+  #'         and mediator variables. If \code{return_fitted = TRUE}, returns full model objects 
+  #'         plus attributes (\code{recodes}, \code{subset}, \code{var_type}, \code{mod_type});
+  #'         otherwise, a compact list with \code{call} and \code{coeff}.
+  #' }
 #'
 #' @references
-#' Lin, S. H., Young, J. G., Logan, R., & VanderWeele, T. J. (2017). Mediation analysis for a survival outcome with time-varying exposures, mediators, and confounders. \emph{Statistics in medicine}, 36(26), 4153-4166. DOI:10.1002/sim.7426
-#' Zheng, W., & van der Laan, M. (2017). Longitudinal mediation analysis with time-varying mediators and exposures, with application to survival outcomes. \emph{Journal of causal inference}, 5(2). DOI:10.1515/jci-2016-0006
+#' Lin, S. H., Young, J. G., Logan, R., & VanderWeele, T. J. (2017). 
+#' Mediation analysis for a survival outcome with time-varying exposures, mediators, and confounders. 
+#' \emph{Statistics in Medicine}, 36(26), 4153–4166. \doi{10.1002/sim.7426}
+#'
+#' Zheng, W., & van der Laan, M. (2017). 
+#' Longitudinal mediation analysis with time-varying mediators and exposures, with application to survival outcomes. 
+#' \emph{Journal of Causal Inference}, 5(2). \doi{10.1515/jci-2016-0006}
+#'
+#' @examples 
+#' \dontrun{
+#' data(nonsurvivaldata)
+#' 
+#' models <- list(
+#'   cov_model = spec_model(L ~ V+L_lag1+A+time,var_type= "normal",mod_type = "covariate"),
+#'   mediator_model = spec_model(M ~ V + A + L + M_lag1 + time, var_type= "normal",mod_type = "mediator"),
+#'   outcome_model = spec_model(Y ~ V+A+M+A * M+L,  var_type= "binomial",mod_type ="outcome")  
+#'   )
+#'   
+#' fit <- mediation(
+#'  data = non-survivaldata,
+#'  id_var = "id",
+#'  base_vars = "V",
+#'  exposure = "A",
+#'  outcome = "Y",
+#'  time_var = "time",  
+#'  models = models10,
+#'  init_recode = c("M_lag1=0","L_lag1=0"),  
+#'  in_recode = c("M_lag1=M","L_lag1=L"),    
+#'  mediation_type = "I", 
+#'  mc_sample = 100000,
+#'  R = 500,  
+#'  return_data = T,
+#'  return_fitted = T
+#'  )
+#'  
+#' print(fit)
+#' }
 #'
 #' @export
-#'
-#'
+
+
 mediation <- function(data,
                       id_var,
                       base_vars,
