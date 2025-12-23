@@ -10,7 +10,7 @@
 #' @details
 #' The function evaluates a sequence of user-specified models (see \code{models})
 #' in **temporal order** to simulate counterfactual trajectories via Monte Carlo,
-#' producing: (i) intervention-specific mean outcomes, and (ii) contrasts vs. a 
+#' producing: (i) intervention-specific mean outcomes, and (ii) contrasts vs. a
 #' reference intervention (risk ratio/difference). When \code{R > 1}, percentile
 #' and normal-approximation confidence intervals are computed from bootstrap resamples.
 #'
@@ -34,11 +34,11 @@
 #' **Model specification**
 #' Each element of \code{models} is typically created by \code{\link{spec_model}}
 #'  and must include: (i) the model formula/call, (ii) a \code{mod_type} indicating its role
-#' (\code{"exposure"}, \code{"covariate"}, \code{"outcome"}, \code{"survival"}, 
+#' (\code{"exposure"}, \code{"covariate"}, \code{"outcome"}, \code{"survival"},
 #' or \code{"censoring"}), and (iii) a \code{var_type} specifying the
 #' variable type used for simulation/prediction (\code{"binomial"}, \code{"normal"},
-#' \code{"categorical"}, and \code{"custom"}). The list order must reflect the 
-#' data-generating process (temporal ordering). The outcome model is detected internally 
+#' \code{"categorical"}, and \code{"custom"}). The list order must reflect the
+#' data-generating process (temporal ordering). The outcome model is detected internally
 #' and used for computing predicted outcomes (\code{Pred\_Y}) under each intervention.
 #'
 #' **Re-coding hooks**
@@ -164,7 +164,7 @@
 #'   quiet = TRUE,
 #'   seed = 250817
 #' )
-#' 
+#'
 #' print(fit)
 #' summary(fit)
 #'}
@@ -188,7 +188,7 @@ gformula <- function(data,
                      R = 500,
                      quiet = FALSE,
                      seed = 12345) {
-  
+
   tpcall <- match.call()
   all.args <- mget(names(formals()),sys.frame(sys.nframe()))
 
@@ -197,6 +197,8 @@ gformula <- function(data,
 
   # Check for error
   check_error(data, id_var, base_vars, exposure, time_var, models)
+
+  data <- as.data.table(data)
 
   set.seed(seed)
 
@@ -277,12 +279,12 @@ gformula <- function(data,
       norm_lcl = Est - stats::qnorm(0.975) * Sd,
       norm_ucl = Est + stats::qnorm(0.975) * Sd
     )]
-  }  
+  }
 
   # Calculate the difference and ratio
   if (length(intervention) > 1) {
-    risk_est <- risk_estimate1(est_ori$gform.data, 
-                               ref_int = ref_int, 
+    risk_est <- risk_estimate1(est_ori$gform.data,
+                               ref_int = ref_int,
                                intervention = intervention,
                                return_data = return_data)
 
@@ -292,9 +294,9 @@ gformula <- function(data,
         colnames(out) <- c("Est", "Intervention")
         return(out)
       })
-      res_pools <- lapply(pools2, 
-                          risk_estimate2, 
-                          ref_int = ref_int, 
+      res_pools <- lapply(pools2,
+                          risk_estimate2,
+                          ref_int = ref_int,
                           intervention = intervention,
                           return_data = return_data)
       res_pools <- data.table::rbindlist(res_pools)
