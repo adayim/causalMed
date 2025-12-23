@@ -16,67 +16,73 @@ spec_model(
 )
 }
 \arguments{
-\item{formula}{an object of class formula: a symbolic description of the model
- to be fitted. Formula for specified models passed to the model. Must be
- contained within the input `data.frame` when initialized. This will passed to
-the model fitting function.}
+\item{formula}{an object of class formula: An object of class \code{formula}: symbolic model specification
+to be fitted (e.g., \code{Y ~ A + L + time}). The variables referenced in
+\code{formula} must exist in the analysis \code{data.frame} when fitting/evaluating
+the model during g-formula simulation.}
 
-\item{subset}{an optional vector specifying a subset of observations to be used
- in the fitting process and passed to the model fitting function. This wil also
-be used during the simulation of the response variable.}
+\item{subset}{Optional. A logical expression or character vector defining a subset
+of observations to fit/simulate this model on; passed through when fitting and also
+respected during simulation of the response for this model.}
 
-\item{recode}{An Optional string vector. Recoding variable before evaluating
-the model and before simulating the outcome variable in this model. This can
-be used for dynamic recoding of the variables.}
+\item{recode}{Optional character vector. One or more recoding statements (e.g.,
+\code{"L_lag1 = L"} or \code{"M_lag1 = 0"}) to be applied **before** evaluating
+the model and **before** simulating the response for this model (useful for dynamic recoding).}
 
-\item{var_type}{A character strings specifying the "type" of response variable
- of the model. The possible values are: \code{"binomial"}, \code{"normal"},
- \code{"categorical"}, and \code{"custom"}. The binomial distribution, normal distribution
-or multinomial distribution will be used to simulate the value of the responsible variable
- for \code{"binomial"}, \code{"normal"} and \code{"categorical"}, respectively.
-The simulation of the response variable will be based on normal distribution if the \code{custom_sim}
-is \code{NULL}. The simulated value of the \code{"normal"} and \code{"custom"} variable type
-will be truncated within the observed value.}
+\item{var_type}{Character. The response type for simulation/prediction:
+\code{"binomial"}, \code{"normal"}, \code{"categorical"}, or \code{"custom"}.
+By default, values are simulated via:
+\itemize{
+  \item \code{"binomial"}: Bernoulli draws using the fitted mean.
+  \item \code{"normal"}: Gaussian draws using fitted mean.
+  \item \code{"categorical"}: Multinomial draws via \code{\link[nnet]{multinom}}.
+  \item \code{"custom"}: user-specified via \code{custom_fit} and/or \code{custom_sim}.
+}}
 
-\item{mod_type}{Type of the model. Covariate model (\code{"covariate"}), exposure model
-(\code{"exposure"}), mediator model (\code{"mediator"}), outcome model (\code{"outcome"}),
- survival model (\code{"survival"}) or censoring model (\code{"censor"}).}
+\item{mod_type}{Character. The role of this model in the data-generating process:
+\code{"covariate"}, \code{"exposure"}, \code{"mediator"},
+\code{"outcome"}, \code{"censor"}, or \code{"survival"}.}
 
-\item{custom_fit}{Custom model fitting function. The \code{var_type} should be set to
-\code{"custom"} to pass the `custom_fit`. If the \code{var_type} is \code{"custom"} and the
-\code{custom_fit} is node defined, the \code{\link[stats]{glm}} will be used for modelling.
+\item{custom_fit}{Optional. A model fitting function used
+  when \code{var_type = "custom"}. If \code{var_type = "custom"} and
+  \code{custom_fit} is not provided, \code{\link[stats]{glm}} is used by default.
 This can be used to define the modeling fitting function other than \code{\link[stats]{glm}}
- and \code{\link[nnet]{multinom}}. The  function should include the package name to work in
- parallel computation. For example, if a truncated regression to be used for this model,
- one should define the parameter value with \code{truncreg::truncreg}.}
+ and \code{\link[nnet]{multinom}}. For parallel computation, provide the fully
+  qualified function name (e.g., \code{truncreg::truncreg} for truncated regression).}
 
-\item{custom_sim}{Custom simulation function for the model. Only two parameters will be passed
-to this function during the simulation. The first argument is the fitted model object
- and the second one is the data to be used in the prediction. The simulated value will be
-truncated within observed value range. If the custom simulation function was not provided
- and the variable type is custom, the variable will be simulated using the normal distribution.}
+\item{custom_sim}{Optional. A simulation function for the model. It should
+accept exactly two arguments: the fitted model object and a \code{data.frame} of
+new data to predict on, and return a vector of simulated responses of matching length.
+If omitted and \code{var_type = "custom"}, normal draws are used by default.}
 
 \item{...}{Other parameters passed to the model fitting function, \code{\link[stats]{glm}},
 \code{\link[nnet]{multinom}} or \code{custom_fit}.}
 }
 \value{
-The list returned is:
-\item{call}{An unevaluated model.}
-\item{subset}{A string vector passed by the parameter \code{subset}.}
-\item{recode}{A string vector passed by the parameter \code{recode}.}
-\item{var_type}{A character string passed by the parameter \code{var_type}.}
-\item{mod_type}{A character string passed by the parameter \code{mod_type}.}
-\item{custom_sim}{A symbolic customized simulation function name, passed by the parameter \code{custom_sim}.}
+An object of class \code{"gmodel"}:
+\describe{
+  \item{\code{call}}{An unevaluated call (function + arguments) to fit the model.}
+  \item{\code{subset}}{The subset expression/character vector provided via \code{subset}.}
+  \item{\code{recode}}{The recoding statements provided via \code{recode}.}
+  \item{\code{var_type}}{The response type, as provided.}
+  \item{\code{mod_type}}{The model role, as provided.}
+  \item{\code{custom_sim}}{A symbolic customized simulation function name, as provided.}
+}
 }
 \description{
-Specify regression model for the time-varying variables. This is will be used for
- g-formula. This function will create unevaluated model and can further pass to
-\code{\link{gformula}} or \code{\link{mediation}}.
+Specify regression models for the time-varying variables to be used
+within the g-formula simulation. This function creates unevaluated models and 
+can further pass to \code{\link{gformula}} or \code{\link{mediation}}.
 }
 \details{
 This function will be used to create an unevaluated model for the g-formula.
+\code{spec_model()} does not fit the model immediately. It returns an unevaluated
+call plus metadata (\code{var_type}, \code{mod_type}, \code{subset}, \code{recode},
+\code{custom_sim}) that are used later by \code{\link{gformula}}/\code{\link{mediation}}
+to fit in temporal order and to simulate counterfactual trajectories.
 }
 \examples{
+data(gvhd)
 mod_cov1 <- spec_model(platnorm ~ all + cmv + male + age + agecurs1 +
   agecurs2 + gvhdm1 + daysgvhd + daysnorelapse + wait,
 var_type = "binomial",

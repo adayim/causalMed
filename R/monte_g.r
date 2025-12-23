@@ -239,8 +239,6 @@ monte_g <- function(data,
         # Continue for the not censored or no event observed
         if (cen_flag != 0) {
           data <- data[!(data[[outcome]] == 1 | data[[censor]] == 1), ]
-        } else {
-          data <- data[data[[outcome]] != 1, ]
         }
 
         # If no data left

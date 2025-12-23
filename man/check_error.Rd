@@ -7,22 +7,19 @@
 check_error(data, id_var, base_vars, exposure, time_var, models)
 }
 \arguments{
-\item{data}{Data set to be sued}
+\item{data}{A \code{data.frame} (long format): one row per \code{id_var} per \code{time_var}.}
 
-\item{id_var}{ID variable per subject.}
+\item{id_var}{Character scalar. Subject identifier column name.}
 
-\item{base_vars}{A vector of time fixed baseline variables.}
+\item{base_vars}{Character vector of time-fixed baseline covariates (may be empty).}
 
-\item{exposure}{Intervention/Exposure variable}
+\item{exposure}{Character scalar. Exposure variable to intervene on (must be in \code{data}).}
 
-\item{time_var}{Time variable.}
+\item{time_var}{Character scalar. Time variable column name (ordered; integer/numeric).}
 
-\item{models}{A list of models for the G-formula, including exposure model,
- covariate model (if any), mediator model (if any), outcome model or
- censoring model (if any). See details in \code{\link{spec_model}}.
- The order appeared in the list should reflect the temporal ordering of the
- variables, in another way data generation process. The model will be evaluated
-in this process.}
+\item{models}{A list of model specifications evaluated in temporal order. The order
+appeared in the list should reflect the temporal ordering of the variables, in another
+way data generation process. See \code{\link{spec_model}} for a recommended constructor.}
 }
 \value{
 No value is returned.

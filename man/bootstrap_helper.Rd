@@ -22,51 +22,46 @@ bootstrap_helper(
 )
 }
 \arguments{
-\item{data}{Data set to be sued}
+\item{data}{A \code{data.frame} (long format): one row per \code{id_var} per \code{time_var}.}
 
-\item{id_var}{ID variable per subject.}
+\item{id_var}{Character scalar. Subject identifier column name.}
 
-\item{base_vars}{A vector of time fixed baseline variables.}
+\item{base_vars}{Character vector of time-fixed baseline covariates (may be empty).}
 
-\item{time_var}{Time variable.}
+\item{time_var}{Character scalar. Time variable column name (ordered; integer/numeric).}
 
-\item{exposure}{Intervention/Exposure variable}
+\item{exposure}{Character scalar. Exposure variable to intervene on (must be in \code{data}).}
 
-\item{models}{A list of models for the G-formula, including exposure model,
- covariate model (if any), mediator model (if any), outcome model or
- censoring model (if any). See details in \code{\link{spec_model}}.
- The order appeared in the list should reflect the temporal ordering of the
- variables, in another way data generation process. The model will be evaluated
-in this process.}
+\item{models}{A list of model specifications evaluated in temporal order. The order
+appeared in the list should reflect the temporal ordering of the variables, in another
+way data generation process. See \code{\link{spec_model}} for a recommended constructor.}
 
-\item{intervention}{A named list with a value of intervention on exposure.
-if kept as NULL (default), the natural intervention course will be calculated.
- eg: list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0)). Note that
-the function will add the natural effect by default if the natural effect is
-not define here, and the reference intervention in \code{ref_int} will be set
-to the natural effect.}
+\item{intervention}{A named list specifying exposure interventions. Each
+element is either \code{NULL} (the natural course) or a numeric/logical
+vector whose length equals the number of unique time points in
+\code{time_var}. For example,
+\code{list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0))}.
+If \code{intervention} is \code{NULL}, only the natural course is
+evaluated. If a \code{natural} arm is not provided, it is added
+automatically and \code{ref_int} is set to \code{"natural"}.}
 
-\item{init_recode}{optional, recoding of variables done at the
-beginning of the Monte Carlo loop. Needed for operations initialize baseline variables.
-This is executed at beginning of the Monte Carlo g-formula, executed only once at time 0.}
+\item{init_recode}{Optional expression/function applied once at time 0 before the Monte Carlo loop
+(e.g., initializing baseline-derived variables). See Details.}
 
-\item{in_recode}{optional, On the fly recoding of variables done before the Monte
-Carlo loop starts. Needed to do any kind of functional forms for entry times.
- This is executed at each start of the Monte Carlo g-formula time steps}
+\item{in_recode}{Optional expression/function applied at the **start** of each time step
+(e.g., entry-time functional forms). See Details.}
 
-\item{out_recode}{optional, On the fly recoding of variables done at the
-end of the Monte Carlo loop. Needed for operations like counting the number of
-days with a treatment or creating lagged variables. This is executed at each end
- of the Monte Carlo g-formula time steps.}
+\item{out_recode}{Optional expression/function applied at the **end** of each time step
+(e.g., create lags, cumulative counts). See Details.}
 
-\item{mc_sample}{Integer, sample size of Monte Carlo simulation. Default is 100 times of
-original sample.}
+\item{mc_sample}{Integer. Monte Carlo sample size used for simulation.
+Default \code{nrow(data) * 100}.}
 
-\item{R}{The number of bootstrap replicates, default is 500. If the R is larger than 1,
-\code{\link[future.apply]{future_lapply}} is used for the parallel computation. This will
- run in sequential if no parallel planed, see \code{\link[future]{plan}} for more details.
-If the parallel plan was set to \code{plan(multisession)} in Windows or \code{plan(multicore)}
-in other system, multiple session/core is used for bootstrap calculation.}
+\item{R}{Number of bootstrap replicates. If \code{R > 1},
+computation uses \code{future.apply::future_lapply} and runs sequentially
+unless a parallel plan is set; see \code{future::plan}. Use
+\code{plan(multisession)} on Windows and \code{plan(multicore)} on
+Unix-alikes to enable parallel bootstrap. Default \code{500}.}
 }
 \description{
 Used to calculate confidence interval using non-parametric bootstrap methods.

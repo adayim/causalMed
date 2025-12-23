@@ -21,30 +21,25 @@ mediantion_phi10(
 \arguments{
 \item{data}{Data to be used for the data generation}
 
-\item{exposure}{Intervention/Exposure variable}
+\item{exposure}{Character scalar. Exposure variable to intervene on (must be in \code{data}).}
 
 \item{models}{Model list passed from \code{\link{gformula}} or \code{\link{mediation}}.}
 
 \item{mediation_type}{Type of the mediation analysis.}
 
-\item{time_var}{Time variable.}
+\item{time_var}{Character scalar. Time variable column name (ordered; integer/numeric).}
 
-\item{init_recode}{optional, recoding of variables done at the
-beginning of the Monte Carlo loop. Needed for operations initialize baseline variables.
-This is executed at beginning of the Monte Carlo g-formula, executed only once at time 0.}
+\item{init_recode}{Optional expression/function applied once at time 0 before the Monte Carlo loop
+(e.g., initializing baseline-derived variables). See Details.}
 
-\item{in_recode}{optional, On the fly recoding of variables done before the Monte
-Carlo loop starts. Needed to do any kind of functional forms for entry times.
- This is executed at each start of the Monte Carlo g-formula time steps}
+\item{in_recode}{Optional expression/function applied at the **start** of each time step
+(e.g., entry-time functional forms). See Details.}
 
-\item{out_recode}{optional, On the fly recoding of variables done at the
-end of the Monte Carlo loop. Needed for operations like counting the number of
-days with a treatment or creating lagged variables. This is executed at each end
- of the Monte Carlo g-formula time steps.}
+\item{out_recode}{Optional expression/function applied at the **end** of each time step
+(e.g., create lags, cumulative counts). See Details.}
 
-\item{return_data}{Logical scalar indicating whether to return the Monte Carlo simulated data set,
- default is \code{FALSE}. In the case of large \code{mc_sample} and long follow-up, the simulated
-data will be very large causing problems no enough memory to allocate the objects.}
+\item{return_data}{Logical. If \code{TRUE}, return the stacked simulated data
+(all interventions) including predicted outcomes; may be large. Default \code{FALSE}.}
 
 \item{progress_bar}{Progress bar object.}
 }
