@@ -25,7 +25,7 @@ bootstrap_helper <- function(data,
 
   # Progress bar
   if(progress_bar){
-    progressr::handlers(global = TRUE)
+    # progressr::handlers(global = TRUE)
     progressr::handlers(list(
       progressr::handler_progress(
         format   = ":spin :current/:total (:message) [:bar] :percent in :elapsedfull ETA: :eta",
