@@ -204,7 +204,17 @@ gformula <- function(data,
 
   data <- as.data.table(data)
 
-  set.seed(seed)
+  if (!is.null(seed)) {
+    seed <- as.integer(seed)
+    if (exists(".Random.seed", envir = .GlobalEnv)) {
+      old_seed <- get(".Random.seed", envir = .GlobalEnv)
+      on.exit(assign(".Random.seed", old_seed, envir = .GlobalEnv), add = TRUE)
+    } else {
+      on.exit(rm(".Random.seed", envir = .GlobalEnv), add = TRUE)
+    }
+    set.seed(seed)
+  }
+  boot_seed <- if (!is.null(seed)) seed else TRUE
 
   # Get time length
   time_len <- length(unique(na.omit(data[[time_var]])))
@@ -258,6 +268,7 @@ gformula <- function(data,
   if (R > 1) {
     arg_pools <- get_args_for(bootstrap_helper)
     arg_pools$progress_bar <- substitute(quiet, env = parent.frame())
+    arg_pools$future_seed <- boot_seed
     pools <- do.call(bootstrap_helper, arg_pools)
 
     # Get the mean of bootstrap results

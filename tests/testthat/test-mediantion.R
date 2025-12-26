@@ -2,11 +2,9 @@
 # Only point estimates (R = 1); bootstrap CIs should be computed locally, not in CI.
 # Requires: testthat (>= 3.0.0)
 
-testthat::local_edition(3)
 
 testthat::test_that("mediation runs without error on nonsurvivaldata", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("causalMed")
 
   data("nonsurvivaldata", package = "causalMed")
 

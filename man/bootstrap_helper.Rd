@@ -18,7 +18,8 @@ bootstrap_helper(
   mc_sample = 10000,
   mediation_type = c(NA, "N", "I"),
   R = 500,
-  progress_bar = TRUE
+  progress_bar = TRUE,
+  future_seed = TRUE
 )
 }
 \arguments{
@@ -62,6 +63,8 @@ computation uses \code{future.apply::future_lapply} and runs sequentially
 unless a parallel plan is set; see \code{future::plan}. Use
 \code{plan(multisession)} on Windows and \code{plan(multicore)} on
 Unix-alikes to enable parallel bootstrap. Default \code{500}.}
+
+\item{future_seed}{Logical or integer. Seed is passed to future_lapply.}
 }
 \description{
 Used to calculate confidence interval using non-parametric bootstrap methods.

@@ -17,13 +17,13 @@ Encoding: UTF-8
 LazyData: true
 Imports: 
     boot,
-    data.table
+    data.table,
+    nnet,
+    future.apply,
+    progressr
 Suggests: 
     knitr,
-    nnet,
     Hmisc,
-    future.apply,
-    progressr,
     rmarkdown,
     testthat
 URL: https://github.com/adayim/causalMed

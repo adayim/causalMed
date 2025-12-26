@@ -3,6 +3,7 @@
 #' @description Used to calculate confidence interval using non-parametric bootstrap methods.
 #'
 #' @inheritParams gformula
+#' @param future_seed Logical or integer. Seed is passed to future_lapply.
 #' @importFrom future.apply future_lapply
 #' @importFrom progressr handler_progress handlers progressor
 #' @keywords internal
@@ -20,7 +21,8 @@ bootstrap_helper <- function(data,
                              mc_sample = 10000,
                              mediation_type = c(NA, "N", "I"),
                              R = 500,
-                             progress_bar = TRUE) {
+                             progress_bar = TRUE,
+                             future_seed = TRUE) {
   mediation_type <- match.arg(mediation_type)
 
   # Progress bar
@@ -38,7 +40,6 @@ bootstrap_helper <- function(data,
   
 
   boot_res <- future.apply::future_lapply(1:R, function(i) {
-    set.seed(12345 * i)
     indx <- sample(1:nrow(data), nrow(data), replace = TRUE)
 
     if(progress_bar)
@@ -65,7 +66,7 @@ bootstrap_helper <- function(data,
 
     return(res)
 
-  }, future.seed = TRUE)
+  }, future.seed = future_seed)
 
   return(boot_res)
 }
