@@ -34,30 +34,8 @@
 #'
 #' @inheritParams gformula
 #'
-#' @param data A \code{data.frame} in long format, containing one row per subject per time point.
-#' @param id_var Character string. The subject identifier variable.
-#' @param base_vars Character vector. Baseline covariates to be included in the models.
-#' @param exposure Character string. The exposure variable (time-varying).
-#' @param outcome Character string. The outcome variable. Must be constant within subject.
-#' @param time_var Character string. The time variable indicating observation order.
-#' @param modelsA list of model specifications evaluated in temporal order. The order
-#'   appeared in the list should reflect the temporal ordering of the variables, in another
-#'   way data generation process. See \code{\link{spec_model}} for a recommended constructor.
-#' @param init_recode Optional expression/function applied once at time 0 before the Monte Carlo loop
-#'   (e.g., initializing baseline-derived variables). See Details.
-#' @param in_recode Optional expression/function applied at the **start** of each time step
-#'   (e.g., entry-time functional forms). See Details.
-#' @param out_recode Optional expression/function applied at the **end** of each time step
-#'   (e.g., create lags, cumulative counts). See Details.
-#' @param mc_sample Integer. Number of Monte Carlo samples for g-formula simulation.
-#'   Default is \code{nrow(data)*100}.
 #' @param mediation_type Character. Type of mediation effect:
 #'   \code{"N"} for natural effect or \code{"I"} for interventional effect.
-#' @param return_fitted Logical. If \code{TRUE}, return fitted model objects used in estimation.
-#' @param return_data Logical. If \code{TRUE}, return simulated data along with effect estimates.
-#' @param R Integer. Number of bootstrap replications for uncertainty estimation. Default is 500.
-#' @param quiet Logical. If \code{TRUE}, suppress messages during estimation.
-#' @param seed Integer. Random seed for reproducibility. Default is \code{mc_sample*100}.
 #'
 #' @return
 #' An object of class \code{"gformula"} with components:
@@ -114,8 +92,8 @@
 #'  outcome = "Y",
 #'  time_var = "time",
 #'  models = models10,
-#'  init_recode = c("M_lag1=0","L_lag1=0"),
-#'  in_recode = c("M_lag1=M","L_lag1=L"),
+#'  init_recode = c(M_lag1=0,L_lag1=0),
+#'  in_recode = c(M_lag1=M,L_lag1=L),
 #'  mediation_type = "I",
 #'  mc_sample = 100000,
 #'  R = 500,
@@ -161,6 +139,10 @@ mediation <- function(data,
 
   # Check for error
   check_error(data, id_var, base_vars, exposure, time_var, models)
+
+  check_recode_param("in_recode", in_recode)
+  check_recode_param("out_recode", out_recode)
+  check_recode_param("init_recode", init_recode)
 
   # Get time length
   time_len <- length(unique(na.omit(data[[time_var]])))

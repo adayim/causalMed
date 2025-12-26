@@ -55,12 +55,12 @@ simulate_data <- function(data,
     
     # Perform the recode in the model
     if (!is.null(model$recode)) {
-      data <- within(data, eval(parse(text = model$recode)))
+      apply_recodes(data, model$recode)
     }
 
     # If condition has been defined, apply it
     if (!is.null(model$subset)) {
-      cond <- with(data, eval(model$subset))
+      cond <- eval(model$subset, envir = data, enclos = parent.frame())
       cond <- cond & !is.na(cond) # Avoid NA in the condition list.
     } else {
       cond <- rep(TRUE, nrow(data))
