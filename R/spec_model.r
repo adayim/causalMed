@@ -15,8 +15,8 @@
 #'   of observations to fit/simulate this model on; passed through when fitting and also
 #'   respected during simulation of the response for this model.
 #'
-#' @param recode Optional character vector. One or more recoding statements (e.g.,
-#'   \code{"L_lag1 = L"} or \code{"M_lag1 = 0"}) to be applied **before** evaluating
+#' @param recode Optional character vector. Should be defined with \code{\link{recodes}}. One or more recoding statements (e.g.,
+#'   \code{L_lag1 = L} or \code{M_lag1 = 0}) to be applied **before** evaluating
 #'   the model and **before** simulating the response for this model (useful for dynamic recoding).
 #'
 #' @param var_type Character. The response type for simulation/prediction:
@@ -112,6 +112,8 @@ spec_model <- function(formula,
   var_type <- match.arg(var_type)
   mod_type <- match.arg(mod_type)
 
+  check_recode_param("recode", recode)
+
   is.formula <- function(x) is.call(x) && x[[1]] == quote(`~`)
   if(!is.formula(formula)) {
     stop("`formula` is not a formula object.", domain = "causalMed")
@@ -149,7 +151,7 @@ spec_model <- function(formula,
 
   out <- list(
     call = args_list,
-    subset = subset,
+    subset = substitute(subset),
     recode = recode,
     var_type = var_type,
     mod_type = mod_type,

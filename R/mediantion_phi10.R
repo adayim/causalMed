@@ -72,13 +72,13 @@ mediantion_phi10 <- function(data,
     # Re-code baseline variables at initiation
     if (t_index == min_time) {
       if (!is.null(init_recode)) {
-        data <- within(data, eval(parse(text = init_recode)))
+        apply_recodes(data, init_recode)
       }
     }
 
     # Re-code data before simulating
     if (!is.null(in_recode) & t_index != min_time) {
-      data <- within(data, eval(parse(text = in_recode)))
+      apply_recodes(data, in_recode)
     }
 
     # Use the data under no intervention to calculate mediator
@@ -122,8 +122,8 @@ mediantion_phi10 <- function(data,
 
     # Recode data after simulating
     if (!is.null(out_recode) & t_index != min_time) {
-      data <- within(data, eval(parse(text = out_recode)))
-      data0 <- within(data0, eval(parse(text = out_recode)))
+      apply_recodes(data, out_recode)
+      apply_recodes(data0, out_recode)
     }
 
   }

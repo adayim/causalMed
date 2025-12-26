@@ -3,7 +3,9 @@ Title: Causal Mediation Analysis in Survival settings
 Version: 0.0.1.5
 Authors@R: c(person("Alimu", "Dayimu", 
                     email = "alimdayim@hotmail.com", 
-                    role = c("aut", "cre")))
+                    role = c("aut", "cre")),
+             person("Xingling", "Guo", 
+                    role = c("aut")))
 Description: This package implements the time-varying causal mediation analysis 
     (<doi:10.1002/sim.7426> and <doi:10.1515/jci-2016-0006>). The algorithm behind this
     is based on g-formula (<doi:10.1016/0270-0255(86)90088-6>), hence the g-formula in this package
@@ -26,5 +28,5 @@ Suggests:
     testthat
 URL: https://github.com/adayim/causalMed
 BugReports: https://github.com/adayim/causalMed/issues
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 VignetteBuilder: knitr

@@ -196,3 +196,30 @@ check_var_in <- function(vars, data) {
     )
   }
 }
+
+
+#' Validate recode parameters
+#' 
+#' @param param_name The name of the parameter (for error messages).
+#' @param param_value The object passed by the user.
+#' @return TRUE if valid, stops execution otherwise.
+check_recode_param <- function(param_name, param_value) {
+  
+  # Allow NULL (parameter not used)
+  if (is.null(param_value)) {
+    return(TRUE)
+  }
+  
+  # Allow your custom 'recodes()' object
+  if (inherits(param_value, "causalMed_recodes")) {
+    return(TRUE)
+  }
+  
+  # Fail otherwise
+  # This catches cases where users might try list(a=1) or other random inputs
+  stop(sprintf(
+    "Invalid input for '%s'. You must use the recodes() function or a character vector.\nExample: %s = recodes(daysq = day^2)", 
+    param_name, param_name
+  ), call. = FALSE)
+}
+

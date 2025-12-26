@@ -78,7 +78,7 @@
 
   # Setup progress bar
   if (progress_bar) {
-    progressr::handlers(global = TRUE)
+    # progressr::handlers(global = TRUE)
     progressr::handlers(list(
       progressr::handler_progress(
         format   = ":spin :current/:total (:message) [:bar] :percent in :elapsedfull ETA: :eta",
@@ -201,13 +201,13 @@ monte_g <- function(data,
       # Re-code baseline variables at initiation
       if (t_index == min_time) {
         if (!is.null(init_recode)) {
-          data <- within(data, eval(parse(text = init_recode)))
+          apply_recodes(data, init_recode)
         }
       }
 
       # Re-code data before simulating
       if (!is.null(in_recode) & t_index != min_time) {
-        data <- within(data, eval(parse(text = in_recode)))
+        apply_recodes(data, in_recode)
       }
 
       # Use the model to calculate the simulated value
@@ -262,7 +262,7 @@ monte_g <- function(data,
 
       # Recode data after simulating
       if (!is.null(out_recode) & t_index != min_time) {
-        data <- within(data, eval(parse(text = out_recode)))
+        apply_recodes(data, out_recode)
       }
     }
     # loop ends here

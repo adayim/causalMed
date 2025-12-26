@@ -13,7 +13,6 @@
 #' @source \url{https://stackoverflow.com/a/51002887}
 #'
 #' @keywords internal
-#' @export
 
 get_args_for <- function(fun, env = parent.frame(), ..., dots = NULL) {
   potential <- names(formals(fun))

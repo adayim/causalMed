@@ -7,9 +7,9 @@ testthat::local_edition(3)
 testthat::test_that("mediation runs without error on nonsurvivaldata", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("causalMed")
-  
+
   data("nonsurvivaldata", package = "causalMed")
-  
+
   models<-list(
     modA<-spec_model(A  ~ V + lag1_L1 + lag1_L2 + lag1_A + time,var_type  = "binomial",mod_type = "exposure"),
     modL1<-spec_model(L1 ~ V + A + lag1_L1 + time,var_type  = "normal",mod_type = "covariate"),
@@ -27,11 +27,11 @@ testthat::test_that("mediation runs without error on nonsurvivaldata", {
       exposure     = "A",
       outcome      = "Y_bin",
       models       = models,
-      init_recode  = c("lag1_A=0","lag1_L1=0","lag1_M=0","lag1_L2=0"),
-      in_recode    = c("lag1_A=A","lag1_L1=L1","lag1_M=M","lag1_L2=L2"),
+      init_recode  = recodes(lag1_A=0,lag1_L1=0,lag1_M=0,lag1_L2=0),
+      in_recode    = recodes(lag1_A=A,lag1_L1=L1,lag1_M=M,lag1_L2=L2),
       out_recode   = NULL,
       mediation_type = "I",
-      mc_sample    = 90000,   
+      mc_sample    = 90000,
       R            = 1,
       return_data  = FALSE,
       return_fitted = FALSE

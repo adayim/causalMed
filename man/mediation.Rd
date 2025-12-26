@@ -25,50 +25,50 @@ mediation(
 )
 }
 \arguments{
-\item{data}{A \code{data.frame} in long format, containing one row per subject per time point.}
+\item{data}{A \code{data.frame} (long format): one row per \code{id_var} per \code{time_var}.}
 
-\item{id_var}{Character string. The subject identifier variable.}
+\item{id_var}{Character scalar. Subject identifier column name.}
 
-\item{base_vars}{Character vector. Baseline covariates to be included in the models.}
+\item{base_vars}{Character vector of time-fixed baseline covariates (may be empty).}
 
-\item{exposure}{Character string. The exposure variable (time-varying).}
+\item{exposure}{Character scalar. Exposure variable to intervene on (must be in \code{data}).}
 
-\item{outcome}{Character string. The outcome variable. Must be constant within subject.}
-
-\item{time_var}{Character string. The time variable indicating observation order.}
+\item{time_var}{Character scalar. Time variable column name (ordered; integer/numeric).}
 
 \item{models}{A list of model specifications evaluated in temporal order. The order
 appeared in the list should reflect the temporal ordering of the variables, in another
 way data generation process. See \code{\link{spec_model}} for a recommended constructor.}
 
 \item{init_recode}{Optional expression/function applied once at time 0 before the Monte Carlo loop
-(e.g., initializing baseline-derived variables). See Details.}
+(e.g., initializing baseline-derived variables). Should be defined with \code{\link{recodes}}. See Details.}
 
 \item{in_recode}{Optional expression/function applied at the **start** of each time step
-(e.g., entry-time functional forms). See Details.}
+(e.g., entry-time functional forms). Should be defined with \code{\link{recodes}}. See Details.}
 
 \item{out_recode}{Optional expression/function applied at the **end** of each time step
-(e.g., create lags, cumulative counts). See Details.}
+(e.g., create lags, cumulative counts). Should be defined with \code{\link{recodes}}. See Details.}
 
-\item{mc_sample}{Integer. Number of Monte Carlo samples for g-formula simulation. 
-Default is \code{nrow(data)*100}.}
+\item{mc_sample}{Integer. Monte Carlo sample size used for simulation.
+Default \code{nrow(data) * 100}.}
 
-\item{mediation_type}{Character. Type of mediation effect: 
+\item{mediation_type}{Character. Type of mediation effect:
 \code{"N"} for natural effect or \code{"I"} for interventional effect.}
 
-\item{return_fitted}{Logical. If \code{TRUE}, return fitted model objects used in estimation.}
+\item{return_fitted}{Logical. If \code{TRUE}, return full fitted model objects; otherwise,
+a light-weight summary (call and coefficients). Default \code{FALSE}.}
 
-\item{return_data}{Logical. If \code{TRUE}, return simulated data along with effect estimates.}
+\item{return_data}{Logical. If \code{TRUE}, return the stacked simulated data
+(all interventions) including predicted outcomes; may be large. Default \code{FALSE}.}
 
-\item{R}{Integer. Number of bootstrap replications for uncertainty estimation. Default is 500.}
+\item{R}{Number of bootstrap replicates. If \code{R > 1},
+computation uses \code{future.apply::future_lapply} and runs sequentially
+unless a parallel plan is set; see \code{future::plan}. Use
+\code{plan(multisession)} on Windows and \code{plan(multicore)} on
+Unix-alikes to enable parallel bootstrap. Default \code{500}.}
 
-\item{quiet}{Logical. If \code{TRUE}, suppress messages during estimation.}
+\item{quiet}{Logical. If \code{TRUE}, suppress progress messages/bars. Default \code{FALSE}.}
 
-\item{seed}{Integer. Random seed for reproducibility. Default is \code{mc_sample*100}.}
-
-\item{modelsA}{list of model specifications evaluated in temporal order. The order
-appeared in the list should reflect the temporal ordering of the variables, in another
-way data generation process. See \code{\link{spec_model}} for a recommended constructor.}
+\item{seed}{Integer random seed for reproducibility. Default \code{12345}.}
 }
 \value{
 An object of class \code{"gformula"} with components:
@@ -93,24 +93,24 @@ An object of class \code{"gformula"} with components:
   \item \code{sim_data}: if \code{return_data = TRUE}, the Monte Carlo simulated
         longitudinal dataset used internally (can be large).
   \item \code{fitted_models}: a named list of fitted models keyed by outcome, exposure,
-        and mediator variables. If \code{return_fitted = TRUE}, returns full model objects 
+        and mediator variables. If \code{return_fitted = TRUE}, returns full model objects
         plus attributes (\code{recodes}, \code{subset}, \code{var_type}, \code{mod_type});
         otherwise, a compact list with \code{call} and \code{coeff}.
 }
 }
 \description{
-Conduct mediation analysis with time-varying mediators using the g-formula. 
-This function estimates total effect, natural direct effect, and natural indirect 
-effect for both natural mediation (\code{"N"}) and interventional mediation (\code{"I"}). 
+Conduct mediation analysis with time-varying mediators using the g-formula.
+This function estimates total effect, natural direct effect, and natural indirect
+effect for both natural mediation (\code{"N"}) and interventional mediation (\code{"I"}).
 A \code{data.frame} summarizing the estimates will be returned.
 }
 \details{
 #' **Data requirements**
-The function internally manipulates the data to fit the required g-formula framework. 
-The input dataset must be prepared in a longitudinal ("long") format, with one record 
-per subject per time period. 
-In survival settings, note that all records after the outcome event of interest must 
-be removed, because the final outcome must remain consistent across rows for the same subject. 
+The function internally manipulates the data to fit the required g-formula framework.
+The input dataset must be prepared in a longitudinal ("long") format, with one record
+per subject per time period.
+In survival settings, note that all records after the outcome event of interest must
+be removed, because the final outcome must remain consistent across rows for the same subject.
 
 **Model specification**
 Each element of \code{models} is typically created by \code{\link{spec_model}}
@@ -118,8 +118,8 @@ Each element of \code{models} is typically created by \code{\link{spec_model}}
 (\code{"exposure"}, \code{"covariate"}, \code{"mediator"}, \code{"outcome"},
 \code{"survival"}, or \code{"censoring"}), and (iii) a \code{var_type} specifying the
 variable type used for simulation/prediction (\code{"binomial"}, \code{"normal"},
-\code{"categorical"}, and \code{"custom"}). The list order must reflect the 
-data-generating process (temporal ordering). The outcome model is detected internally 
+\code{"categorical"}, and \code{"custom"}). The list order must reflect the
+data-generating process (temporal ordering). The outcome model is detected internally
 and used for computing predicted outcomes (\code{Pred\_Y}) under each intervention.
 
 **Re-coding hooks**
@@ -136,36 +136,36 @@ data(nonsurvivaldata)
 models <- list(
   cov_model = spec_model(L ~ V+L_lag1+A+time,var_type= "normal",mod_type = "covariate"),
   mediator_model = spec_model(M ~ V + A + L + M_lag1 + time, var_type= "normal",mod_type = "mediator"),
-  outcome_model = spec_model(Y ~ V+A+M+A * M+L,  var_type= "binomial",mod_type ="outcome")  
+  outcome_model = spec_model(Y ~ V+A+M+A * M+L,  var_type= "binomial",mod_type ="outcome")
   )
-  
+
 fit <- mediation(
  data = non-survivaldata,
  id_var = "id",
  base_vars = "V",
  exposure = "A",
  outcome = "Y",
- time_var = "time",  
+ time_var = "time",
  models = models10,
- init_recode = c("M_lag1=0","L_lag1=0"),  
- in_recode = c("M_lag1=M","L_lag1=L"),    
- mediation_type = "I", 
+ init_recode = c(M_lag1=0,L_lag1=0),
+ in_recode = c(M_lag1=M,L_lag1=L),
+ mediation_type = "I",
  mc_sample = 100000,
- R = 500,  
+ R = 500,
  return_data = T,
  return_fitted = T
  )
- 
+
 print(fit)
 }
 
 }
 \references{
-Lin, S. H., Young, J. G., Logan, R., & VanderWeele, T. J. (2017). 
-Mediation analysis for a survival outcome with time-varying exposures, mediators, and confounders. 
+Lin, S. H., Young, J. G., Logan, R., & VanderWeele, T. J. (2017).
+Mediation analysis for a survival outcome with time-varying exposures, mediators, and confounders.
 \emph{Statistics in Medicine}, 36(26), 4153–4166. \doi{10.1002/sim.7426}
 
-Zheng, W., & van der Laan, M. (2017). 
-Longitudinal mediation analysis with time-varying mediators and exposures, with application to survival outcomes. 
+Zheng, W., & van der Laan, M. (2017).
+Longitudinal mediation analysis with time-varying mediators and exposures, with application to survival outcomes.
 \emph{Journal of Causal Inference}, 5(2). \doi{10.1515/jci-2016-0006}
 }

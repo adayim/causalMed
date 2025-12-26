@@ -30,13 +30,13 @@ mediantion_phi10(
 \item{time_var}{Character scalar. Time variable column name (ordered; integer/numeric).}
 
 \item{init_recode}{Optional expression/function applied once at time 0 before the Monte Carlo loop
-(e.g., initializing baseline-derived variables). See Details.}
+(e.g., initializing baseline-derived variables). Should be defined with \code{\link{recodes}}. See Details.}
 
 \item{in_recode}{Optional expression/function applied at the **start** of each time step
-(e.g., entry-time functional forms). See Details.}
+(e.g., entry-time functional forms). Should be defined with \code{\link{recodes}}. See Details.}
 
 \item{out_recode}{Optional expression/function applied at the **end** of each time step
-(e.g., create lags, cumulative counts). See Details.}
+(e.g., create lags, cumulative counts). Should be defined with \code{\link{recodes}}. See Details.}
 
 \item{return_data}{Logical. If \code{TRUE}, return the stacked simulated data
 (all interventions) including predicted outcomes; may be large. Default \code{FALSE}.}

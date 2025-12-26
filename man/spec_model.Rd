@@ -25,8 +25,8 @@ the model during g-formula simulation.}
 of observations to fit/simulate this model on; passed through when fitting and also
 respected during simulation of the response for this model.}
 
-\item{recode}{Optional character vector. One or more recoding statements (e.g.,
-\code{"L_lag1 = L"} or \code{"M_lag1 = 0"}) to be applied **before** evaluating
+\item{recode}{Optional character vector. Should be defined with \code{\link{recodes}}. One or more recoding statements (e.g.,
+\code{L_lag1 = L} or \code{M_lag1 = 0}) to be applied **before** evaluating
 the model and **before** simulating the response for this model (useful for dynamic recoding).}
 
 \item{var_type}{Character. The response type for simulation/prediction:

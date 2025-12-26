@@ -70,11 +70,11 @@
 #'   \code{"always"}). If no \code{natural} arm is provided, it is added and
 #'   \code{ref_int} is set to \code{"natural"}. Default: \code{0}.
 #' @param init_recode Optional expression/function applied once at time 0 before the Monte Carlo loop
-#'   (e.g., initializing baseline-derived variables). See Details.
+#'   (e.g., initializing baseline-derived variables). Should be defined with \code{\link{recodes}}. See Details.
 #' @param in_recode Optional expression/function applied at the **start** of each time step
-#'   (e.g., entry-time functional forms). See Details.
+#'   (e.g., entry-time functional forms). Should be defined with \code{\link{recodes}}. See Details.
 #' @param out_recode Optional expression/function applied at the **end** of each time step
-#'   (e.g., create lags, cumulative counts). See Details.
+#'   (e.g., create lags, cumulative counts). Should be defined with \code{\link{recodes}}. See Details.
 #' @param return_fitted Logical. If \code{TRUE}, return full fitted model objects; otherwise,
 #'   a light-weight summary (call and coefficients). Default \code{FALSE}.
 #' @param mc_sample Integer. Monte Carlo sample size used for simulation.
@@ -154,8 +154,8 @@
 #'   models = models1,
 #'   intervention = ints,
 #'   ref_int = 1,
-#'   init_recode = c("A_lag1 = 0", "L_lag1 = 0"),
-#'   in_recode = c("A_lag1 = A", "L_lag1 = L"),
+#'   init_recode = c(A_lag1 = 0, L_lag1 = 0),
+#'   in_recode = c(A_lag1 = A, L_lag1 = L),
 #'   out_recode = NULL,
 #'   return_fitted = TRUE,
 #'   mc_sample = 100000,
@@ -198,6 +198,10 @@ gformula <- function(data,
   # Check for error
   check_error(data, id_var, base_vars, exposure, time_var, models)
 
+  check_recode_param("in_recode", in_recode)
+  check_recode_param("out_recode", out_recode)
+  check_recode_param("init_recode", init_recode)
+
   data <- as.data.table(data)
 
   set.seed(seed)
@@ -220,7 +224,7 @@ gformula <- function(data,
     }
   }
 
-  data.table::setDT(data)
+  data <- as.data.table(data)
 
   if (is.null(intervention)) {
     intervention <- list(intervention = NULL)
