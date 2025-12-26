@@ -8,8 +8,7 @@ recodes <- function(...) {
   # 1. Capture arguments as unevaluated expressions
   # alist() ensures we get 'day^2' without trying to run it
   exprs <- eval(substitute(alist(...)))
-  
-  # 2. Assign a custom class so we can verify this object later
+
   class(exprs) <- c("causalMed_recodes", "list")
   
   return(exprs)

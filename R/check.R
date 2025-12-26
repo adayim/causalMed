@@ -18,6 +18,11 @@ check_error <- function(data,
     stop("Data does not exist or not a data.frame.", domain = "causalMed")
   }
 
+
+  if (!is.list(models)) {
+    stop("Models must be provided as a list", domain = "causalMed")
+  }
+
   out_flag <- sapply(models, function(mods) mods$mod_type %in% c("outcome", "survival"))
   if (sum(out_flag) > 1) {
     stop("Only one outcome model or survival model allowed.", domain = "causalMed")
@@ -90,7 +95,7 @@ check_error <- function(data,
   if (!any(out_flag) & !is_survival) {
     stop("Outcome or survival model must be defined in the `models`.", domain = "causalMed")
   }
-  
+
   # Block user columns named "S" or "Sc" to avoid clashes with internal variables for survival outcome.
   if (isTRUE(is_survival)) {
     reserved <- c("S", "Sc")
@@ -103,17 +108,13 @@ check_error <- function(data,
       stop(msg, call. = FALSE)
     }
   }
-  
 
-  # Models checking
-  if (!is.list(models)) {
-    stop("Models must be provided as a list", domain = "causalMed")
-  }
+
 
   # Check the models class
-  cls <- sapply(models, function(x) class(x) != "gmodel")
+  cls <- sapply(models, function(x) !inherits(x, "causalMed_gmodel"))
   if (any(cls)) {
-    stop("Models in the list must be `gmodel` object, please use spec_model to create!")
+    stop("Models in the list must be `causalMed_gmodel` object, please use spec_model to create!")
   }
 }
 
@@ -199,22 +200,22 @@ check_var_in <- function(vars, data) {
 
 
 #' Validate recode parameters
-#' 
+#'
 #' @param param_name The name of the parameter (for error messages).
 #' @param param_value The object passed by the user.
 #' @return TRUE if valid, stops execution otherwise.
 check_recode_param <- function(param_name, param_value) {
-  
+
   if (is.null(param_value)) return(TRUE)
-  
+
   # Strict Check: Must be your custom class
   if (!inherits(param_value, "causalMed_recodes")) {
     stop(sprintf(
-      "Invalid input for '%s'. You must use the recodes() helper function.\n  Correct: %s = recodes(x = y^2)", 
+      "Invalid input for '%s'. You must use the recodes() helper function.\n  Correct: %s = recodes(x = y^2)",
       param_name, param_name
     ), call. = FALSE, domain = "causalMed")
   }
-  
+
   return(TRUE)
 }
 

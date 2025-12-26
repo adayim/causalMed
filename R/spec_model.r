@@ -158,7 +158,7 @@ spec_model <- function(formula,
     custom_sim = custom_sim
   )
 
-  class(out) <- "gmodel"
+  class(out) <- c("causalMed_gmodel", "list")
 
   return(out)
 }

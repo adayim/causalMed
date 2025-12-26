@@ -135,7 +135,17 @@ mediation <- function(data,
 
   data <- as.data.table(data)
 
-  set.seed(seed)
+  if (!is.null(seed)) {
+    seed <- as.integer(seed)
+    if (exists(".Random.seed", envir = .GlobalEnv)) {
+      old_seed <- get(".Random.seed", envir = .GlobalEnv)
+      on.exit(assign(".Random.seed", old_seed, envir = .GlobalEnv), add = TRUE)
+    } else {
+      on.exit(rm(".Random.seed", envir = .GlobalEnv), add = TRUE)
+    }
+    set.seed(seed)
+  }
+  boot_seed <- if (!is.null(seed)) seed else TRUE
 
   # Check for error
   check_error(data, id_var, base_vars, exposure, time_var, models)
@@ -182,6 +192,7 @@ mediation <- function(data,
   if (R > 1) {
     # Run bootstrap
     arg_pools <- get_args_for(bootstrap_helper)
+    arg_pools$future_seed <- boot_seed
     pools <- do.call(bootstrap_helper, arg_pools)
 
     pools_res <- lapply(pools, function(bt) {

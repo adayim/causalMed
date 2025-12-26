@@ -18,7 +18,8 @@ bootstrap_helper(
   mc_sample = 10000,
   mediation_type = c(NA, "N", "I"),
   R = 500,
-  progress_bar = TRUE
+  progress_bar = TRUE,
+  future_seed = TRUE
 )
 }
 \arguments{
