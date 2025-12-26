@@ -55,13 +55,13 @@ automatically and \code{ref_int} is set to \code{"natural"}.}
 \code{ref_int} is set to \code{"natural"}. Default: \code{0}.}
 
 \item{init_recode}{Optional expression/function applied once at time 0 before the Monte Carlo loop
-(e.g., initializing baseline-derived variables). See Details.}
+(e.g., initializing baseline-derived variables). Should be defined with \code{\link{recodes}}. See Details.}
 
 \item{in_recode}{Optional expression/function applied at the **start** of each time step
-(e.g., entry-time functional forms). See Details.}
+(e.g., entry-time functional forms). Should be defined with \code{\link{recodes}}. See Details.}
 
 \item{out_recode}{Optional expression/function applied at the **end** of each time step
-(e.g., create lags, cumulative counts). See Details.}
+(e.g., create lags, cumulative counts). Should be defined with \code{\link{recodes}}. See Details.}
 
 \item{return_fitted}{Logical. If \code{TRUE}, return full fitted model objects; otherwise,
 a light-weight summary (call and coefficients). Default \code{FALSE}.}
@@ -111,7 +111,7 @@ optional survival/terminal outcomes, and nonparametric uncertainty via bootstrap
 \details{
 The function evaluates a sequence of user-specified models (see \code{models})
 in **temporal order** to simulate counterfactual trajectories via Monte Carlo,
-producing: (i) intervention-specific mean outcomes, and (ii) contrasts vs. a 
+producing: (i) intervention-specific mean outcomes, and (ii) contrasts vs. a
 reference intervention (risk ratio/difference). When \code{R > 1}, percentile
 and normal-approximation confidence intervals are computed from bootstrap resamples.
 
@@ -135,11 +135,11 @@ and \code{ref_int} is set to \code{"natural"}.
 **Model specification**
 Each element of \code{models} is typically created by \code{\link{spec_model}}
  and must include: (i) the model formula/call, (ii) a \code{mod_type} indicating its role
-(\code{"exposure"}, \code{"covariate"}, \code{"outcome"}, \code{"survival"}, 
+(\code{"exposure"}, \code{"covariate"}, \code{"outcome"}, \code{"survival"},
 or \code{"censoring"}), and (iii) a \code{var_type} specifying the
 variable type used for simulation/prediction (\code{"binomial"}, \code{"normal"},
-\code{"categorical"}, and \code{"custom"}). The list order must reflect the 
-data-generating process (temporal ordering). The outcome model is detected internally 
+\code{"categorical"}, and \code{"custom"}). The list order must reflect the
+data-generating process (temporal ordering). The outcome model is detected internally
 and used for computing predicted outcomes (\code{Pred\_Y}) under each intervention.
 
 **Re-coding hooks**
@@ -181,8 +181,8 @@ fit <- gformula(
   models = models1,
   intervention = ints,
   ref_int = 1,
-  init_recode = c("A_lag1 = 0", "L_lag1 = 0"),
-  in_recode = c("A_lag1 = A", "L_lag1 = L"),
+  init_recode = c(A_lag1 = 0, L_lag1 = 0),
+  in_recode = c(A_lag1 = A, L_lag1 = L),
   out_recode = NULL,
   return_fitted = TRUE,
   mc_sample = 100000,

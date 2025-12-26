@@ -46,13 +46,13 @@ evaluated. If a \code{natural} arm is not provided, it is added
 automatically and \code{ref_int} is set to \code{"natural"}.}
 
 \item{init_recode}{Optional expression/function applied once at time 0 before the Monte Carlo loop
-(e.g., initializing baseline-derived variables). See Details.}
+(e.g., initializing baseline-derived variables). Should be defined with \code{\link{recodes}}. See Details.}
 
 \item{in_recode}{Optional expression/function applied at the **start** of each time step
-(e.g., entry-time functional forms). See Details.}
+(e.g., entry-time functional forms). Should be defined with \code{\link{recodes}}. See Details.}
 
 \item{out_recode}{Optional expression/function applied at the **end** of each time step
-(e.g., create lags, cumulative counts). See Details.}
+(e.g., create lags, cumulative counts). Should be defined with \code{\link{recodes}}. See Details.}
 
 \item{mc_sample}{Integer. Monte Carlo sample size used for simulation.
 Default \code{nrow(data) * 100}.}

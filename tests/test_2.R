@@ -49,33 +49,33 @@ var_type = "binomial",
 mod_type = "survival"
 )
 
-init_recode <- c(
-  "relapse=0", "gvhd=0", "platnorm=0", "gvhdm1=0",
-  "relapsem1=0", "platnormm1=0", "daysnorelapse=0",
-  "daysnoplatnorm=0", "daysnogvhd=0", "daysrelapse=0",
-  "daysplatnorm=0", "daysgvhd=0"
+init_recode <- recodes(
+  relapse=0, gvhd=0, platnorm=0, gvhdm1=0,
+  relapsem1=0, platnormm1=0, daysnorelapse=0,
+  daysnoplatnorm=0, daysnogvhd=0, daysrelapse=0,
+  daysplatnorm=0, daysgvhd=0
 )
 
-in_recode <- c(
-  "daysq = day^2", "daycu = day^3",
-  "daycurs1 = ((day>83.6)*((day-83.6)/83.6)^3)+((day>1862.2)*((day-1862.2)/83.6)^3)*(947.0-83.6) -((day>947.0)*((day-947.0)/83.6)^3)*(1862.2-83.6)/(1862.2-947.0)",
-  "daycurs2 = ((day>401.4)*((day-401.4)/83.6)^3)+((day>1862.2)*((day-1862.2)/83.6)^3)*(947.0-401.4) -((day>947.0)*((day-947.0)/83.6)^3)*(1862.2-401.4)/(1862.2-947.0)"
+in_recode <- recodes(
+  daysq = day^2, daycu = day^3,
+  daycurs1 = ((day>83.6)*((day-83.6)/83.6)^3)+((day>1862.2)*((day-1862.2)/83.6)^3)*(947.0-83.6) -((day>947.0)*((day-947.0)/83.6)^3)*(1862.2-83.6)/(1862.2-947.0),
+  daycurs2 = ((day>401.4)*((day-401.4)/83.6)^3)+((day>1862.2)*((day-1862.2)/83.6)^3)*(947.0-401.4) -((day>947.0)*((day-947.0)/83.6)^3)*(1862.2-401.4)/(1862.2-947.0)
 )
 
-out_recode <- c(
-  "platnormm1 = platnorm",
-  "relapsem1 = relapse",
-  "gvhdm1 = gvhd",
-  "daysnorelapse = ifelse(relapse == 0, daysnorelapse + 1, daysnorelapse)",
-  "daysrelapse = ifelse(relapse == 1, daysrelapse, daysrelapse + 1)",
-  "daysnoplatnorm = ifelse(platnorm == 0, daysnoplatnorm + 1, daysnoplatnorm)",
-  "daysplatnorm = ifelse(relapse == 1, daysplatnorm, daysplatnorm + 1)",
-  "daysnogvhd = ifelse(gvhd == 0, daysnogvhd + 1, daysnogvhd)",
-  "daysgvhd = ifelse(relapse == 1, daysgvhd, daysgvhd + 1)",
-  "platnorm = ifelse(platnormm1 == 1, 1, platnorm)",
-  "relapse = ifelse(relapsem1 == 1, 1, relapse)",
-  "gvhd = ifelse(gvhdm1 == 1, 1, gvhd)",
-  "daysplatnorm = ifelse(platnorm == 0, daysplatnorm, daysplatnorm + 1)"
+out_recode <- recodes(
+  platnormm1 = platnorm,
+  relapsem1 = relapse,
+  gvhdm1 = gvhd,
+  daysnorelapse = ifelse(relapse == 0, daysnorelapse + 1, daysnorelapse),
+  daysrelapse = ifelse(relapse == 1, daysrelapse, daysrelapse + 1),
+  daysnoplatnorm = ifelse(platnorm == 0, daysnoplatnorm + 1, daysnoplatnorm),
+  daysplatnorm = ifelse(relapse == 1, daysplatnorm, daysplatnorm + 1),
+  daysnogvhd = ifelse(gvhd == 0, daysnogvhd + 1, daysnogvhd),
+  daysgvhd = ifelse(relapse == 1, daysgvhd, daysgvhd + 1),
+  platnorm = ifelse(platnormm1 == 1, 1, platnorm),
+  relapse = ifelse(relapsem1 == 1, 1, relapse),
+  gvhd = ifelse(gvhdm1 == 1, 1, gvhd),
+  daysplatnorm = ifelse(platnorm == 0, daysplatnorm, daysplatnorm + 1)
 )
 
 devtools::load_all()

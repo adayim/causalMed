@@ -50,21 +50,21 @@ type = "outcome",
 order = 5
 )
 
-init_recode <- c(
-  "relapse=0", "gvhd=0",
-  "platnorm=0", "gvhdm1=0", "relapsem1=0", "platnormm1=0",
-  "daysnorelapse=0", "daysnoplatnorm=0", "daysnogvhd=0",
-  "daysrelapse=0", "daysplatnorm=0", "daysgvhd=0"
+init_recode <- recodes(
+  relapse=0, gvhd=0,
+  platnorm=0, gvhdm1=0, relapsem1=0, platnormm1=0,
+  daysnorelapse=0, daysnoplatnorm=0, daysnogvhd=0,
+  daysrelapse=0, daysplatnorm=0, daysgvhd=0
 )
-in_recode <- c("daysq = day^2", "daycu = day^3")
-out_recode <- c(
-  "platnorm = ifelse(platnormm1 == 1, 1, platnorm)",
-  "daysnoplatnorm = ifelse(platnorm == 0, daysnoplatnorm + 1, daysnoplatnorm)",
-  "daysplatnorm = ifelse(platnorm == 0, daysplatnorm, daysplatnorm + 1)",
-  "relapse = ifelse(relapsem1 == 1, 1, relapse)",
-  "daysnorelapse = ifelse(relapse == 0, daysnorelapse + 1, daysnorelapse)",
-  "daysrelapse = ifelse(relapse == 0, daysrelapse, daysrelapse + 1)",
-  "platnormm1 = platnorm", "relapsem1 = relapse", "gvhdm1 = gvhd"
+in_recode <- recodes(daysq = day^2, daycu = day^3)
+out_recode <- recodes(
+  platnorm = ifelse(platnormm1 == 1, 1, platnorm),
+  daysnoplatnorm = ifelse(platnorm == 0, daysnoplatnorm + 1, daysnoplatnorm),
+  daysplatnorm = ifelse(platnorm == 0, daysplatnorm, daysplatnorm + 1),
+  relapse = ifelse(relapsem1 == 1, 1, relapse),
+  daysnorelapse = ifelse(relapse == 0, daysnorelapse + 1, daysnorelapse),
+  daysrelapse = ifelse(relapse == 0, daysrelapse, daysrelapse + 1),
+  platnormm1 = platnorm, relapsem1 = relapse, gvhdm1 = gvhd
 )
 
 # debug(Gformula)
