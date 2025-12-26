@@ -117,6 +117,7 @@ for (seed_num in 130600:130650) {
     quiet = T,
     seed = seed_num
   )
+  
   ymodel <- outcome ~  lag1_treat + treat + cov1 + lag1_cov1 + cov3
   res <- gfoRmula::gformula(
     obs_data = data2,
@@ -167,16 +168,23 @@ summary_b <- data.frame(
   min  = sapply(results_b, min, na.rm = TRUE),
   max  = sapply(results_b, max, na.rm = TRUE)
 )
-knitr::kable(summary_b, caption = "Summary statistics across seeds (full run).")
+knitr::kable(summary_b, 
+             caption = "Summary statistics across seeds (full run).")
 ```
 
 
 ## test for survival outcome
 ```{r}
 data("survivaldata", package = "causalMed")
-mod1 <- spec_model(L ~ V + lag1_L + time, var_type = "normal", mod_type = "covariate")
-mod2 <- spec_model(A ~ V + lag1_A + lag1_L + L + time, var_type = "binomial", mod_type = "exposure")
-mod3 <- spec_model(Y ~ lag1_A + A + L + lag1_L + time, var_type = "binomial", mod_type = "survival")
+mod1 <- spec_model(L ~ V + lag1_L + time, 
+                   var_type = "normal", 
+                   mod_type = "covariate")
+mod2 <- spec_model(A ~ V + lag1_A + lag1_L + L + time, 
+                   var_type = "binomial", 
+                   mod_type = "exposure")
+mod3 <- spec_model(Y ~ lag1_A + A + L + lag1_L + time, 
+                   var_type = "binomial", 
+                   mod_type = "survival")
 models12 <- list(mod1, mod2, mod3)
 
 results_s <- data.table(
@@ -214,7 +222,6 @@ for (seed_num in 500:510) {
     quiet = T,
     seed = seed_num
   )
-
 
   res <- gfoRmula::gformula(
     obs_data = survivaldata,
@@ -272,7 +279,8 @@ summary_s <- data.frame(
   min  = sapply(results_s, min, na.rm = TRUE),
   max  = sapply(results_s, max, na.rm = TRUE)
 )
-knitr::kable(summary_s, caption = "Summary statistics across seeds (full run).")
+knitr::kable(summary_s, 
+             caption = "Summary statistics across seeds (full run).")
 ```
 
 
