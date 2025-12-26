@@ -19,16 +19,14 @@ recodes <- function(...) {
 apply_recodes <- function(data, recode_params) {
   
   # Handle Custom Class (from recodes())
-  if (inherits(recode_params, "causalMed_recodes")) {
-    for (i in seq_along(recode_params)) {
-      var_name <- names(recode_params)[i]
-      expr <- recode_params[[i]]
-      
-      # Determine if it is a new variable or an update
-      # data.table handles both with :=
-      data[, (var_name) := eval(expr)]
-    }
-  } 
+  for (i in seq_along(recode_params)) {
+    var_name <- names(recode_params)[i]
+    expr <- recode_params[[i]]
+    
+    # Evaluate expression within the data.table environment
+    # 'var_name' is wrapped in parentheses to use the string as the column name
+    data[, (var_name) := eval(expr)]
+  }
   
   invisible(data)
 }

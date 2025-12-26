@@ -205,21 +205,16 @@ check_var_in <- function(vars, data) {
 #' @return TRUE if valid, stops execution otherwise.
 check_recode_param <- function(param_name, param_value) {
   
-  # Allow NULL (parameter not used)
-  if (is.null(param_value)) {
-    return(TRUE)
+  if (is.null(param_value)) return(TRUE)
+  
+  # Strict Check: Must be your custom class
+  if (!inherits(param_value, "causalMed_recodes")) {
+    stop(sprintf(
+      "Invalid input for '%s'. You must use the recodes() helper function.\n  Correct: %s = recodes(x = y^2)", 
+      param_name, param_name
+    ), call. = FALSE, domain = "causalMed")
   }
   
-  # Allow your custom 'recodes()' object
-  if (inherits(param_value, "causalMed_recodes")) {
-    return(TRUE)
-  }
-  
-  # Fail otherwise
-  # This catches cases where users might try list(a=1) or other random inputs
-  stop(sprintf(
-    "Invalid input for '%s'. You must use the recodes() function or a character vector.\nExample: %s = recodes(daysq = day^2)", 
-    param_name, param_name
-  ), call. = FALSE)
+  return(TRUE)
 }
 
