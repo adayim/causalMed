@@ -84,7 +84,7 @@ testthat::test_that("Fixed intervention", {
 
   suppressPackageStartupMessages(library(gfoRmula))
 
-  data("nonsurvivaldata", package = "causalMed")
+  #data("nonsurvivaldata", package = "causalMed")
   dat <- data.table::as.data.table(nonsurvivaldata)
   dat[, time := as.integer(time)]
   data.table::setorder(dat, id, time)
@@ -117,7 +117,7 @@ testthat::test_that("Fixed intervention", {
   # ----- causalMed::gformula (natural vs always=1) --------------------------
   mc_nsim <- 5000L  # Monte Carlo size; balance accuracy vs test time
   fit_cm <- testthat::expect_no_error(
-    causalMed::gformula(
+    gformula(
       data          = dat,
       id_var        = "id",
       time_var      = "time",
