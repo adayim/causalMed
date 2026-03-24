@@ -92,8 +92,8 @@
 #'  outcome = "Y",
 #'  time_var = "time",
 #'  models = models10,
-#'  init_recode = c(M_lag1=0,L_lag1=0),
-#'  in_recode = c(M_lag1=M,L_lag1=L),
+#'  init_recode = recodes(M_lag1=0,L_lag1=0),
+#'  in_recode = recodes(M_lag1=M,L_lag1=L),
 #'  mediation_type = "I",
 #'  mc_sample = 100000,
 #'  R = 500,
@@ -186,8 +186,17 @@ mediation <- function(data,
     estimate_extract <- est_ori$gform.data
 
   risk_est <- risk_estimate.mediation(estimate_extract, return_data = return_data)
-
-
+  
+  #Mediation Proportion
+  risk_est <- rbind(
+    risk_est,
+    data.frame(
+      Effect = "Mediation Proportion",
+      Est = risk_est$Est[risk_est$Effect == "Indirect effect"] / 
+        risk_est$Est[risk_est$Effect == "Total effect"] * 100,
+      stringsAsFactors = FALSE  
+    )
+  )
   # Get the mean of bootstrap results
   if (R > 1) {
     # Run bootstrap
@@ -236,8 +245,28 @@ mediation <- function(data,
       norm_lcl = Est - stats::qnorm(0.975) * Sd,
       norm_ucl = Est + stats::qnorm(0.975) * Sd
     )]
-  }
+      }
 
+  #Mediation Proportion
+  risk_est <- rbind(
+    risk_est,
+    data.frame(
+      Effect = "Mediation Proportion",
+      Est = risk_est$Est[risk_est$Effect == "Indirect effect"] / 
+        risk_est$Est[risk_est$Effect == "Total effect"] * 100,
+      Sd = NA,
+      perct_lcl = risk_est$perct_lcl[risk_est$Effect == "Indirect effect"] / 
+        risk_est$perct_lcl[risk_est$Effect == "Total effect"] * 100,
+      perct_ucl = risk_est$perct_ucl[risk_est$Effect == "Indirect effect"] / 
+        risk_est$perct_ucl[risk_est$Effect == "Total effect"] * 100,
+      norm_lcl = risk_est$norm_lcl[risk_est$Effect == "Indirect effect"] / 
+        risk_est$norm_lcl[risk_est$Effect == "Total effect"] * 100,
+      norm_ucl = risk_est$norm_ucl[risk_est$Effect == "Indirect effect"] / 
+        risk_est$norm_ucl[risk_est$Effect == "Total effect"] * 100,
+      stringsAsFactors = FALSE
+    )
+  )
+  
   # Extract fitted model information
   resp_vars_list <- sapply(est_ori$fitted.models, function(x) {
     x$rsp_vars
