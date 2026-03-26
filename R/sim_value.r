@@ -14,36 +14,45 @@
 #'
 sim_value <- function(model, newdt) {
   var_type <- model$var_type
-  fit <- model$fitted
 
-  # If the cunstom simulation function is defined.
+  # Custom simulation function takes priority
   if (!is.null(model$custom_sim)) {
-    out <- model$custom_sim(fit, newdt)
-
-    # Set the simulated values within observed range.
+    out <- model$custom_sim(model$fitted, newdt)
     if (is.numeric(model$val_ran)) {
-      out <- pmax(out, min(model$val_ran))
-      out <- pmin(out, max(model$val_ran))
+      out <- pmax(out, model$val_ran[1L])
+      out <- pmin(out, model$val_ran[2L])
     }
     return(out)
   }
 
-  # Random number generation for Monte Carlo simulation
+  # Categorical: multinom returns a probability matrix — predict() is required
   if (var_type == "categorical") {
-    pred <- predict(fit, newdata = newdt, type = "probs")
+    pred <- predict(model$fitted, newdata = newdt, type = "probs")
     return(Hmisc::rMultinom(pred, 1))
-  } else if (var_type == "binomial") {
-    pred <- predict(fit, newdata = newdt, type = "response")
-    return(rbinom(nrow(newdt), 1, pred))
+  }
+
+  # Fast linear predictor for binary and normal types.
+  # model$Xterms and model$beta are pre-extracted once after fitting in .gformula,
+  # avoiding the model.frame() + na.action overhead that predict() incurs.
+  # model.matrix() + %*% is a direct BLAS call.
+  mm <- model.matrix(model$Xterms, data = newdt)
+  lp <- drop(mm %*% model$beta)
+
+  if (var_type == "binary") {
+    pred <- model$linkinv(lp)
+    pred <- pmin(pmax(pred, 1e-5), 1 - 1e-5)
+    return(rbinom(nrow(newdt), 1L, pred))
   } else {
-    rmse <- sqrt(mean((stats::fitted(fit) - fit$y)^2, na.rm = TRUE))
-    pred <- predict(fit, newdata = newdt, type = "response")
-    out <- rnorm(nrow(newdt), pred, rmse)
-
-    # Set the simulated values within observed range.
-    out <- pmax(out, min(model$val_ran))
-    out <- pmin(out, max(model$val_ran))
-
+    # Continuous/normal: lp + N(0, sigma) avoids a full predict() call.
+    # model$sigma is the residual SD pre-extracted after fitting.
+    if (model$sigma < .Machine$double.eps) {
+      warning("Zero residual variance in model for '",
+              all.vars(formula(model$fitted)[[2]]),
+              "'. Simulated values will equal the predicted mean.")
+    }
+    out <- lp + rnorm(nrow(newdt), 0, model$sigma)
+    out <- pmax(out, model$val_ran[1L])
+    out <- pmin(out, model$val_ran[2L])
     return(out)
   }
 }

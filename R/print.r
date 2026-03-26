@@ -1,98 +1,182 @@
 
-#' @method print gmed_boot
-#'
-#' @export
-#'
-print.gmed_boot <- function(x, digits = max(3, getOption("digits") - 3), ...) {
-  cat("Call:\n")
-  print(x$call)
-
-  cat("------\n")
-  cat("Natural effect model\n")
-  cat("with standard errors based on the non-parametric bootstrap\n---\n")
-  cat("Parameter estimates:\n")
-  out <- cbind(x$estimated, x$confint)
-  colnames(out)[1] <- "Estimated"
-  print(round(out, digits = digits))
-
-  # cat(paste0("------\nProportion Mediated: ", round(x$prop_med, digits), "%"))
+# Internal helper --------------------------------------------------------------
+# Format a data.table for display:
+#   - round numeric columns to `digits`
+#   - rename bootstrap CI columns to human-readable labels
+# Uses dt[] to force a visible data.table return.
+.fmt_for_print <- function(dt, digits) {
+  # dt <- data.table::copy(data.table::as.data.table(dt))
+  # Round numeric columns in-place
+  num_cols <- names(dt)[vapply(dt, is.numeric, logical(1L))]
+  if (length(num_cols))
+    dt[, (num_cols) := lapply(.SD, round, digits), .SDcols = num_cols]
+  # Rename CI columns if present
+  old <- c("perct_lcl",  "perct_ucl",   "norm_lcl",   "norm_ucl")
+  new <- c("2.5%(pct)",  "97.5%(pct)",  "2.5%(norm)", "97.5%(norm)")
+  present <- old %in% names(dt)
+  if (any(present))
+    data.table::setnames(dt, old[present], new[present])
+  return(dt[])   # dt[] forces a visible data.table return
 }
+
 
 #' Print
 #'
-#' Print method for \code{`gformula`}
+#' Print method for objects returned by \code{\link{gformula}} or \code{\link{mediation}}.
 #'
-#' @param x gformula formula output of \code{\link{gformula}} or \code{\link{mediation}}.
-#' @param models logical value indicating if model model details printed.
+#' @param x Object of class \code{"gformula"}.
+#' @param models Logical. If \code{TRUE}, print fitted model details (call and
+#'   coefficients, or full summary when \code{return_fitted = TRUE}).
+#'   Default \code{FALSE}.
+#' @param digits Integer. Number of significant digits for numeric output.
+#'   Default \code{max(3, getOption("digits") - 3)}.
 #' @param ... Not used.
 #'
 #' @export
-print.gformula <- function(x, models = FALSE, ...){
+print.gformula <- function(x,
+                           models = FALSE,
+                           digits = max(3, getOption("digits") - 3),
+                           ...) {
 
+  is_mediation <- !is.null(x$all.args$mediation_type)
+  args         <- x$all.args
+
+  # -- Call ------------------------------------------------------------------
   cat("Call:\n")
   print(x$call)
 
-  # cat(sprintf("\nID variable: %s\n", x$all.args$id_var))
-  # cat(sprintf("Baseline variables: %s\n",
-  #             paste(x$all.args$base_vars, collapse = ", ")))
-  # cat(sprintf("Exposure variable: %s\n", x$all.args$exposure))
-  # cat(sprintf("Time variable: %s\n", x$all.args$time_var))
+  # -- Analysis metadata -----------------------------------------------------
+  cat("\n--- Analysis setup ---\n")
+  cat(sprintf("  Exposure     : %s\n", args$exposure))
+  cat(sprintf("  Time variable: %s\n", args$time_var))
+  cat(sprintf("  ID variable  : %s\n", args$id_var))
+  if (!is.null(args$base_vars) && length(args$base_vars) > 0)
+    cat(sprintf("  Baseline vars: %s\n", paste(args$base_vars, collapse = ", ")))
 
-  text1 <- "Estimated effect size of risk ratio/difference"
-  cat("\n", text1, "\n")
-  row <- paste(rep("=", nchar(text1)), collapse = "")
-  cat(row, "\n")
+  seed_str <- if (is.null(args$seed)) "none" else as.character(args$seed)
+  boot_str <- if (args$R <= 1L) "none" else as.character(args$R)
+  cat(sprintf("  MC sample    : %d\n", args$mc_sample))
+  cat(sprintf("  Bootstrap R  : %s\n", boot_str))
+  cat(sprintf("  Seed         : %s\n", seed_str))
 
-  if(is.null(x$estimate)){
-    cat("\nNote: The risk ratio/difference can not be estimated with only 1 intervention.\n")
-  }else{
-    print(x$estimate)
+  if (is_mediation) {
+    type_label <- if (args$mediation_type == "I")
+      "Interventional effects (IDE/IIE) -- Lin et al. (2017)"
+    else
+      "Natural effects (NDE/NIE) -- Zheng & van der Laan (2017)"
+    cat(sprintf("  Mediation    : %s\n", type_label))
+  } else {
+    # show reference intervention for gformula
+    if (!is.null(args$ref_int))
+      cat(sprintf("  Reference    : %s\n", as.character(args$ref_int)))
   }
 
-  text2 <- "Estimated effect"
-  cat("\n", text2, "\n")
-  row <- paste(rep("=", nchar(text1)), collapse = "")
-  cat(row, "\n")
-  print(x$effect_size)
+  # -- Section 1: arm-level mean outcomes ------------------------------------
+  if (is_mediation) {
+    s1_hdr  <- "\n--- Marginal mean outcome per arm (Q-functionals) ---"
+    s1_note <- paste0(
+      "  Ph11  = E[Y(a=1, M(1))]:  exposure=1, mediator under a=1\n",
+      "  Phi10 = E[Y(a=1, M(0))]:  exposure=1, mediator under a=0  [cross-world]\n",
+      "  Phi00 = E[Y(a=0, M(0))]:  exposure=0, mediator under a=0\n"
+    )
+  } else {
+    s1_hdr  <- "\n--- Mean outcome by intervention ---"
+    s1_note <- NULL
+  }
+  cat(s1_hdr, "\n")
+  if (!is.null(s1_note)) cat(s1_note)
+  if (!is.null(x$effect_size)) {
+    print(.fmt_for_print(x$effect_size, digits))
+  }
 
-  if(models){
-    text3 <- "Models specified"
-    row <- paste(rep("=", nchar(text3)*2), collapse = "")
-    cat(row, "\n")
-    cat(text3, "\n")
-    cat(row, "\n")
-    for(fitmod in x$fitted_models){
+  # -- Section 2: contrasts / decomposition ----------------------------------
+  if (is_mediation) {
+    s2_hdr  <- "\n--- Effect decomposition ---"
+    s2_note <- paste0(
+      "  Total effect    = Ph11 - Phi00  =  E[Y(1,M(1))] - E[Y(0,M(0))]\n",
+      "  Direct effect   = Phi10 - Phi00 =  E[Y(1,M(0))] - E[Y(0,M(0))]\n",
+      "  Indirect effect = Ph11 - Phi10  =  E[Y(1,M(1))] - E[Y(1,M(0))]\n",
+      "  Mediation Prop. = Indirect / Total  (as a percentage)\n"
+    )
+  } else {
+    s2_hdr  <- "\n--- Contrasts vs. reference intervention ---"
+    s2_note <- NULL
+  }
+  cat(s2_hdr, "\n")
+  if (!is.null(s2_note)) cat(s2_note)
+  if (is.null(x$estimate)) {
+    cat("  Note: contrasts require at least 2 interventions.\n")
+  } else {
+    print(.fmt_for_print(x$estimate, digits))
+  }
 
+  # -- Model details (optional) ----------------------------------------------
+  if (models) {
+    cat("\n--- Fitted models ---\n")
+    for (nm in names(x$fitted_models)) {
+      fitmod   <- x$fitted_models[[nm]]
       attr_lst <- attributes(fitmod)
-
-      text4 <- sprintf("Model type: %s\nResponse variable type: %s\n",
-                       attr_lst$mod_type, attr_lst$var_type)
-      row <- paste(rep("-", nchar(text4)), collapse = "")
-      cat(row, "\n")
-      cat(text4, "\n")
-      # cat("Model call:\n")
-      if(!is.null(attr_lst$recodes)){
-        cat("\nData recodes:\n")
+      cat(sprintf("\nVariable : %s  [type: %s | role: %s]\n",
+                  nm, attr_lst$var_type, attr_lst$mod_type))
+      cat(paste(rep("-", 40L), collapse = ""), "\n")
+      if (!is.null(attr_lst$recodes)) {
+        cat("Recodes: ")
         print(attr_lst$recodes)
       }
-      # if(!is.null(attr_lst$subset)){
-      #   cat("\nData subset in the fitting process:\n")
-      #   print(attr_lst$subset)
-      # }
-
-      # cat(row, "\n")
-      if(x$all.args$return_fitted){
-        cat("Model summary :\n")
-        summary(fitmod)
-      }else{
+      if (args$return_fitted) {
+        print(summary(fitmod))
+      } else {
+        cat("Call: ")
         print(fitmod$call)
-        cat("Model coefficients :\n")
+        cat("Coefficients:\n")
         print(fitmod$coeff)
       }
-
     }
   }
 
   invisible(x)
+}
 
+
+#' Summary
+#'
+#' Summary method for objects returned by \code{\link{gformula}} or
+#' \code{\link{mediation}}. Shows the full estimation results followed by
+#' fitted model coefficient tables.
+#'
+#' @param object Object of class \code{"gformula"}.
+#' @param digits Integer. Number of significant digits.
+#'   Default \code{max(3, getOption("digits") - 3)}.
+#' @param ... Not used.
+#'
+#' @export
+summary.gformula <- function(object,
+                             digits = max(3, getOption("digits") - 3),
+                             ...) {
+  # Print estimation results first
+  print(object, models = FALSE, digits = digits)
+
+  # Then append full model coefficient tables
+  cat("\n--- Fitted model coefficients ---\n")
+  for (nm in names(object$fitted_models)) {
+    fitmod   <- object$fitted_models[[nm]]
+    attr_lst <- attributes(fitmod)
+    cat(sprintf("\nVariable : %s  [type: %s | role: %s]\n",
+                nm, attr_lst$var_type, attr_lst$mod_type))
+    cat(paste(rep("-", 40L), collapse = ""), "\n")
+
+    coef_tbl <- if (object$all.args$return_fitted) {
+      tryCatch(summary(fitmod)$coefficients, error = function(e) NULL)
+    } else {
+      fitmod$coeff
+    }
+
+    if (!is.null(coef_tbl)) {
+      print(round(coef_tbl, digits))
+    } else {
+      cat("  (rerun with return_fitted = TRUE for full coefficient table)\n")
+    }
+  }
+
+  invisible(object)
 }

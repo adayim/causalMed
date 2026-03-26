@@ -34,6 +34,8 @@
 #'
 #' @inheritParams gformula
 #'
+#' @param outcome Character scalar. Name of the outcome variable in \code{data}.
+#'   Must match the response variable in the outcome or survival model.
 #' @param mediation_type Character. Type of mediation effect:
 #'   \code{"N"} for natural effect or \code{"I"} for interventional effect.
 #'
@@ -80,7 +82,8 @@
 #'
 #' models <- list(
 #'   cov_model = spec_model(L ~ V+L_lag1+A+time,var_type= "normal",mod_type = "covariate"),
-#'   mediator_model = spec_model(M ~ V + A + L + M_lag1 + time, var_type= "normal",mod_type = "mediator"),
+#'   mediator_model = spec_model(M ~ V + A + L + M_lag1 + time,
+#'                               var_type = "normal", mod_type = "mediator"),
 #'   outcome_model = spec_model(Y ~ V+A+M+A * M+L,  var_type= "binomial",mod_type ="outcome")
 #'   )
 #'
@@ -168,7 +171,6 @@ mediation <- function(data,
   # Run original estimate
   arg_est <- get_args_for(.gformula)
   arg_est$return_fitted <- TRUE
-  arg_est$progress_bar <- substitute(quiet, env = parent.frame())
   est_ori <- do.call(.gformula, arg_est)
 
   # Mean value of the outcome at each time point by intervention
@@ -187,16 +189,12 @@ mediation <- function(data,
 
   risk_est <- risk_estimate.mediation(estimate_extract, return_data = return_data)
   
-  #Mediation Proportion
-  risk_est <- rbind(
-    risk_est,
-    data.frame(
-      Effect = "Mediation Proportion",
-      Est = risk_est$Est[risk_est$Effect == "Indirect effect"] / 
-        risk_est$Est[risk_est$Effect == "Total effect"] * 100,
-      stringsAsFactors = FALSE  
-    )
-  )
+  # Point estimate for Mediation Proportion
+  # guard against division by zero when total effect is near zero.
+  total_est    <- risk_est$Est[risk_est$Effect == "Total effect"]
+  indirect_est <- risk_est$Est[risk_est$Effect == "Indirect effect"]
+  med_prop_est <- if (isTRUE(abs(total_est) < 1e-10)) NA_real_ else indirect_est / total_est * 100
+
   # Get the mean of bootstrap results
   if (R > 1) {
     # Run bootstrap
@@ -230,6 +228,12 @@ mediation <- function(data,
     res_pools <- lapply(pools, function(x) x$gform.data)
     res_pools <- lapply(res_pools, risk_estimate.mediation, return_data = return_data)
     res_pools <- data.table::rbindlist(res_pools)
+
+    # Compute mediation proportion within each bootstrap replicate, then
+    # derive CIs from the bootstrap distribution (not ratio of CI endpoints).
+    boot_med_prop <- res_pools[Effect == "Indirect effect", Est] /
+      res_pools[Effect == "Total effect", Est] * 100
+
     # Calculate Sd and percentile confidence interval
     res_pools <- res_pools[, .(
       Sd = sd(Est, na.rm = TRUE),
@@ -245,27 +249,36 @@ mediation <- function(data,
       norm_lcl = Est - stats::qnorm(0.975) * Sd,
       norm_ucl = Est + stats::qnorm(0.975) * Sd
     )]
-      }
 
-  #Mediation Proportion
-  risk_est <- rbind(
-    risk_est,
-    data.frame(
-      Effect = "Mediation Proportion",
-      Est = risk_est$Est[risk_est$Effect == "Indirect effect"] / 
-        risk_est$Est[risk_est$Effect == "Total effect"] * 100,
-      Sd = NA,
-      perct_lcl = risk_est$perct_lcl[risk_est$Effect == "Indirect effect"] / 
-        risk_est$perct_lcl[risk_est$Effect == "Total effect"] * 100,
-      perct_ucl = risk_est$perct_ucl[risk_est$Effect == "Indirect effect"] / 
-        risk_est$perct_ucl[risk_est$Effect == "Total effect"] * 100,
-      norm_lcl = risk_est$norm_lcl[risk_est$Effect == "Indirect effect"] / 
-        risk_est$norm_lcl[risk_est$Effect == "Total effect"] * 100,
-      norm_ucl = risk_est$norm_ucl[risk_est$Effect == "Indirect effect"] / 
-        risk_est$norm_ucl[risk_est$Effect == "Total effect"] * 100,
-      stringsAsFactors = FALSE
+    # Mediation Proportion with bootstrap-based CIs
+    # filter Inf/NaN (produced when bootstrap total effect is near zero)
+    # before computing SD and quantiles — na.rm = TRUE does not remove Inf.
+    boot_finite <- boot_med_prop[is.finite(boot_med_prop)]
+    med_prop_sd <- if (length(boot_finite) > 1) sd(boot_finite) else NA_real_
+    risk_est <- rbind(
+      risk_est,
+      data.frame(
+        Effect = "Mediation Proportion",
+        Est = med_prop_est,
+        Sd = med_prop_sd,
+        perct_lcl = if (length(boot_finite) > 0) as.numeric(quantile(boot_finite, 0.025)) else NA_real_,
+        perct_ucl = if (length(boot_finite) > 0) as.numeric(quantile(boot_finite, 0.975)) else NA_real_,
+        norm_lcl = med_prop_est - stats::qnorm(0.975) * med_prop_sd,
+        norm_ucl = med_prop_est + stats::qnorm(0.975) * med_prop_sd,
+        stringsAsFactors = FALSE
+      )
     )
-  )
+  } else {
+    # No bootstrap: point estimate only
+    risk_est <- rbind(
+      risk_est,
+      data.frame(
+        Effect = "Mediation Proportion",
+        Est = med_prop_est,
+        stringsAsFactors = FALSE
+      )
+    )
+  }
   
   # Extract fitted model information
   resp_vars_list <- sapply(est_ori$fitted.models, function(x) {

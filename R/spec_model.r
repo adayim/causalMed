@@ -20,10 +20,10 @@
 #'   the model and **before** simulating the response for this model (useful for dynamic recoding).
 #'
 #' @param var_type Character. The response type for simulation/prediction:
-#'   \code{"binomial"}, \code{"normal"}, \code{"categorical"}, or \code{"custom"}.
+#'   \code{"binary"}, \code{"normal"}, \code{"categorical"}, or \code{"custom"}.
 #'   By default, values are simulated via:
 #'   \itemize{
-#'     \item \code{"binomial"}: Bernoulli draws using the fitted mean.
+#'     \item \code{"binary"}: Bernoulli draws using the fitted mean.
 #'     \item \code{"normal"}: Gaussian draws using fitted mean.
 #'     \item \code{"categorical"}: Multinomial draws via \code{\link[nnet]{multinom}}.
 #'     \item \code{"custom"}: user-specified via \code{custom_fit} and/or \code{custom_sim}.
@@ -75,8 +75,8 @@
 #' data(gvhd)
 #' mod_cov1 <- spec_model(platnorm ~ all + cmv + male + age + agecurs1 +
 #'   agecurs2 + gvhdm1 + daysgvhd + daysnorelapse + wait,
-#' var_type = "binomial",
-#' mod_type = "covriate",
+#' var_type = "binary",
+#' mod_type = "covariate",
 #' subset = platnormm1 == 0
 #' )
 #' ## For Poisson regression
@@ -88,7 +88,7 @@
 #' mod_cov1 <- spec_model(platnorm ~ all + cmv + male + age + agecurs1 +
 #'   agecurs2 + gvhdm1 + daysgvhd + daysnorelapse + wait,
 #' var_type = "custom",
-#' mod_type = "covriate",
+#' mod_type = "covariate",
 #' subset = platnormm1 == 0,
 #' custom_sim = predict_poisson,
 #' family = "poisson"(link = "log"),
@@ -99,7 +99,7 @@
 spec_model <- function(formula,
                        subset = NULL,
                        recode = NULL,
-                       var_type = c("normal", "binomial", "categorical", "custom"),
+                       var_type = c("normal", "binary", "categorical", "custom"),
                        mod_type = c(
                          "covariate", "exposure", "mediator",
                          "outcome", "censor", "survival"
@@ -114,19 +114,18 @@ spec_model <- function(formula,
 
   check_recode_param("recode", recode)
 
-  is.formula <- function(x) is.call(x) && x[[1]] == quote(`~`)
-  if(!is.formula(formula)) {
+  if (!inherits(formula, "formula")) {
     stop("`formula` is not a formula object.", domain = "causalMed")
   }
 
   args_list <- tmpcall
 
-  if (mod_type %in% c("censor", "survival") & var_type != "binomial") {
-    stop("Only binomial variable type is allowed for the survival and censor models.", domain = "causalMed")
+  if (mod_type %in% c("censor", "survival") & var_type != "binary") {
+    stop("Only binary variable type is allowed for the survival and censor models.", domain = "causalMed")
   }
 
-  if (mod_type == "outcome" & !var_type %in% c("binomial", "normal")) {
-    stop("Only binomial or normal variable type is allowed for the outcome model.", domain = "causalMed")
+  if (mod_type == "outcome" & !var_type %in% c("binary", "normal")) {
+    stop("Only binary or normal variable type is allowed for the outcome model.", domain = "causalMed")
   }
 
   # Remove unnecessary arguments
@@ -140,7 +139,7 @@ spec_model <- function(formula,
   } else if (var_type == "normal") {
     args_list[[1]] <- substitute(stats::glm)
     args_list$family <- substitute(gaussian)
-  } else if (var_type == "binomial") {
+  } else if (var_type == "binary") {
     args_list[[1]] <- substitute(stats::glm)
     args_list$family <- substitute(binomial())
   } else if (var_type == "custom" & is.null(custom_fit)) {

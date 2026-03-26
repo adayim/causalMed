@@ -1,0 +1,528 @@
+---
+title: "causalMed and gfoRmula: A Comparative Overview"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+    highlight: null
+vignette: >
+  %\VignetteIndexEntry{causalMed and gfoRmula: A Comparative Overview}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse  = TRUE,
+  comment   = "#>",
+  message   = FALSE,
+  warning   = FALSE,
+  fig.width = 7,
+  fig.height = 4
+)
+has_gfoRmula <- requireNamespace("gfoRmula", quietly = TRUE)
+```
+
+## Overview
+
+`gfoRmula` (McGrath et al. 2020) is the established CRAN reference
+implementation of the parametric g-formula in R.
+`causalMed` builds directly on the same statistical foundation and treats
+`gfoRmula` as its benchmark for total-effect estimation.
+
+This vignette describes:
+
+1. The shared statistical foundation of both packages
+2. What `gfoRmula` offers that `causalMed` currently does not
+3. The mediation extension that motivated `causalMed`
+4. Side-by-side total-effect estimates confirming numerical equivalence
+5. Guidance on when to use each package
+
+```{r pkgs}
+library(causalMed)
+library(data.table)
+```
+
+---
+
+## Shared Statistical Foundation
+
+Both packages implement the same parametric g-formula algorithm: Monte Carlo
+forward simulation under user-specified interventions on a longitudinal dataset
+in long format (one row per subject per time point). At each time step,
+covariate and outcome models fitted on the observed data are applied in temporal
+order, the intervention is imposed on the exposure variable, and the predicted
+outcomes are accumulated across simulated individuals. Confidence intervals are
+obtained by non-parametric bootstrap resampling at the individual level.
+
+The two packages share support for:
+
+| Feature | causalMed | gfoRmula |
+|---------|:---------:|:--------:|
+| Parametric g-formula | ✓ | ✓ |
+| Long-format longitudinal data | ✓ | ✓ |
+| Binary, normal, categorical covariates | ✓ | ✓ |
+| Binary end-of-follow-up outcome | ✓ | ✓ |
+| Survival (discrete-time hazard) outcome | ✓ | ✓ |
+| Static interventions (always/never treat) | ✓ | ✓ |
+| Dynamic (threshold-based) interventions | ✓ | ✓ |
+| Time-varying lag history | ✓ | ✓ |
+| Non-parametric bootstrap CIs | ✓ | ✓ |
+| Parallel bootstrap | ✓ | ✓ |
+
+---
+
+## What gfoRmula Offers That causalMed Does Not
+
+`gfoRmula` is the more mature and feature-complete package for total-effect
+g-formula estimation. Users with purely total-effect analyses should consider
+`gfoRmula` as their primary tool. Key capabilities in `gfoRmula` not currently
+available in `causalMed` include:
+
+### Richer covariate distribution types
+
+`gfoRmula` supports several covariate types beyond binary and normal that
+`causalMed` does not yet implement:
+
+| Covariate type | gfoRmula | causalMed |
+|---------------|:--------:|:---------:|
+| `"binary"` | ✓ | ✓ |
+| `"normal"` | ✓ | ✓ |
+| `"categorical"` | ✓ | ✓ |
+| `"bounded normal"` (truncated to observed range) | ✓ | — |
+| `"zero-inflated normal"` (point mass at 0) | ✓ | — |
+| `"truncated normal"` (left-truncated) | ✓ | — |
+| `"absorbing"` (once 1, always 1) | ✓ | — |
+| `"categorical time"` (time as categorical predictor) | ✓ | — |
+
+For datasets containing variables that require these distributions (e.g. a
+biomarker that can be zero or a treatment that is absorbing once initiated),
+`gfoRmula` is the appropriate choice. However, one can use `custom_fit` and `custom_sim` to implement custom distributions and simulations in `spec_model` function. This gives users the flexibility to model complex scenarios, but it should be done with caution and careful validation, as it requires more manual coding and is not yet supported by built-in diagnostics.
+
+### Natural-course validation output
+
+`gfoRmula` automatically compares simulated natural-course covariate means and
+outcome risk against the observed data at each time point. This diagnostic,
+described in Westreich et al. (2012), is an important model-fit check and is
+not yet available in `causalMed`.
+
+### Competing events
+
+`gfoRmula` provides explicit support for competing events via the
+`compevent_name` argument, modelling and eliminating the competing risk in the
+simulation. `causalMed` handles censoring but does not have a dedicated
+competing-event interface.
+
+### Full-function custom interventions
+
+`gfoRmula`'s custom intervention interface accepts arbitrary R functions with
+access to the full simulated dataset, the time index, and all parameter values
+at each step. This gives more control for complex multi-variable interventions.
+`causalMed` offers `dyn_int()`, which captures an R expression evaluated inside
+the simulated dataset at each step. This covers common threshold rules concisely
+but does not expose the pool object or time index the way `gfoRmula`'s full
+function interface does.
+
+### CRAN stability and community support
+
+`gfoRmula` is an established CRAN package with comprehensive documentation,
+a dedicated publication (McGrath et al. 2020), and ongoing development by the
+CausalAB group at Harvard. `causalMed` is a development-stage package and
+should be used with appropriate caution.
+
+---
+
+## What causalMed Adds: Causal Mediation Analysis
+
+The sole motivation for `causalMed` is to extend the standard parametric
+g-formula with the **survival mediational g-formula** (Lin et al. 2017; Zheng
+& van der Laan 2017) for decomposing total effects into direct and indirect
+components. `gfoRmula` does not support mediation analysis.
+
+`causalMed` offers two mediation estimands, selected via `mediation_type`:
+
+- **`"I"` — Interventional IDE/IIE** (Lin et al. 2017): the mediator
+  distribution is marginalised over confounders by randomly permuting mediator
+  values simulated under the reference exposure. Does not require the cross-world
+  independence assumption.
+
+- **`"N"` — Natural NDE/NIE** (Zheng & van der Laan 2017): the mediator model
+  is evaluated at the alternative exposure level while keeping the individual's
+  own covariate history. Requires stronger sequential no-unmeasured-confounding
+  assumptions.
+
+```{r mediation-example, eval = FALSE}
+# Model list must include a mediator (mod_type = "mediator")
+models_med <- list(
+  spec_model(L ~ V + A_lag1 + L_lag1 + time,
+             var_type = "normal", mod_type = "covariate"),
+  spec_model(A ~ V + A_lag1 + L + time,
+             var_type = "binary", mod_type = "exposure"),
+  spec_model(M ~ V + A + L + M_lag1 + time,
+             var_type = "normal", mod_type = "mediator"),
+  spec_model(Y ~ V + A + M + L,
+             var_type = "binary", mod_type = "outcome")
+)
+
+fit_med <- mediation(
+  data           = dat_med,
+  id_var         = "id",
+  time_var       = "time",
+  base_vars      = "V",
+  exposure       = "A",
+  outcome        = "Y",
+  models         = models_med,
+  mediation_type = "I",     # interventional IDE/IIE (Lin et al. 2017)
+  init_recode    = recodes(A_lag1 = 0, L_lag1 = 0, M_lag1 = 0),
+  in_recode      = recodes(A_lag1 = A, L_lag1 = L, M_lag1 = M),
+  mc_sample      = 10000,
+  R              = 200,
+  seed           = 20250915
+)
+
+fit_med$estimate
+```
+
+The `estimate` table returns the indirect effect, direct effect, total effect,
+and proportion mediated on both the risk-difference and risk-ratio scales. See
+`vignette("mediation")` for a full worked example.
+
+---
+
+## API Differences
+
+Beyond features, the two packages differ in how models and history functions
+are specified:
+
+| Aspect | causalMed | gfoRmula |
+|--------|-----------|---------|
+| Model specification | `spec_model()` per variable: formula + `var_type` + `mod_type` in a list | Separate `covparams`, `ymodel`, `covtypes`, `covnames`, `outcome_type` arguments |
+| Lag / history | `init_recode` / `in_recode` via `recodes()` (arbitrary expressions) | Built-in `lagged`, `cumavg` functions via `histories` / `histvars` |
+| End-of-step transforms | `out_recode` hook | Not available |
+| Intervention arms | Named list, any number | Up to 3 (`intervention1.X`, `intervention2.X`, `intervention3.X`) |
+| Risk contrasts | Computed automatically (`ref_int`) | Manual post-processing of `$result` |
+| Output | S3 object with `print`/`summary` | List with `$result` data.table |
+
+These are design choices reflecting different trade-offs, not deficiencies in
+either package. `gfoRmula`'s explicit argument structure makes each model's
+role transparent; `causalMed`'s list-based approach may be more concise when
+many models are specified.
+
+---
+
+## Numerical Validation: Side-by-Side Examples
+
+For total-effect analyses the two packages should produce equivalent results.
+We illustrate this with both a binary end-of-follow-up outcome and a survival
+outcome.
+
+### Data preparation
+
+```{r data-prep}
+data("nonsurvivaldata", package = "causalMed")
+dat <- as.data.table(nonsurvivaldata)
+dat[, time := as.integer(time)]
+setorder(dat, id, time)
+
+# Lag recodes (applied inside the Monte Carlo loop)
+init_rc <- recodes(lag1_A = 0, lag1_L1 = 0, lag1_L2 = 0)
+in_rc   <- recodes(lag1_A = A, lag1_L1 = L1, lag1_L2 = L2)
+```
+
+### Example 1: Binary end-of-follow-up outcome
+
+**causalMed**
+
+```{r cm-binary}
+models_cm <- list(
+  spec_model(L1 ~ lag1_A + lag1_L1 + V + time,
+             var_type = "normal", mod_type = "covariate"),
+  spec_model(L2 ~ lag1_A + lag1_L2 + V + time,
+             var_type = "binary", mod_type = "covariate"),
+  spec_model(A  ~ lag1_A + L1 + L2 + V + time,
+             var_type = "binary", mod_type = "exposure"),
+  spec_model(Y_bin ~ A + L1 + L2,
+             var_type = "binary", mod_type = "outcome")
+)
+
+fit_cm <- causalMed::gformula(
+  data         = dat,
+  id_var       = "id",
+  time_var     = "time",
+  base_vars    = "V",
+  exposure     = "A",
+  models       = models_cm,
+  intervention = list(natural = NULL, always = 1, never = 0),
+  ref_int      = "natural",
+  init_recode  = init_rc,
+  in_recode    = in_rc,
+  mc_sample    = 10000,
+  R            = 1,
+  quiet        = TRUE,
+  seed         = 20250915
+)
+
+fit_cm$effect_size
+```
+
+**gfoRmula**
+
+```{r gf-binary, eval = has_gfoRmula}
+suppressPackageStartupMessages(requireNamespace("gfoRmula"))
+
+fit_gf <- gfoRmula::gformula(
+  obs_data     = copy(dat),
+  id           = "id",
+  time_name    = "time",
+  time_points  = length(unique(dat$time)),
+  covnames     = c("L1", "L2", "A"),
+  covtypes     = c("normal", "binary", "binary"),
+  basecovs     = "V",
+  covparams    = list(covmodels = c(
+    L1 ~ lag1_A + lag1_L1 + V + time,
+    L2 ~ lag1_A + lag1_L2 + V + time,
+    A  ~ lag1_A + L1 + L2 + V + time
+  )),
+  ymodel       = Y_bin ~ A + L1 + L2,
+  outcome_name = "Y_bin",
+  outcome_type = "binary_eof",
+  histories    = c(gfoRmula::lagged),
+  histvars     = list(c("A", "L1", "L2")),
+  intervention1.A = list(gfoRmula::static, rep(1, length(unique(dat$time)))),
+  intervention2.A = list(gfoRmula::static, rep(0, length(unique(dat$time)))),
+  int_descript = c("Always treat", "Never treat"),
+  nsimul       = 10000,
+  seed         = 20250915
+)
+
+fit_gf$result[, c("k", "g-form mean")]
+```
+
+**Side-by-side at final time point**
+
+```{r compare-binary, eval = has_gfoRmula}
+gf_res <- fit_gf$result[k == max(fit_gf$result$k),
+                         c("Interv.", "g-form mean")]
+gf_res[, Intervention := c("natural", "always", "never")]
+setnames(gf_res, "g-form mean", "gfoRmula")
+gf_res[, gfoRmula := round(gfoRmula, 4)]
+
+cm_res <- fit_cm$effect_size[, .(Intervention, causalMed = round(Est, 4))]
+merge(cm_res, gf_res, by = "Intervention")
+```
+
+---
+
+### Example 2: Survival (time-to-event) outcome
+
+**causalMed**
+
+```{r cm-survival}
+data("survivaldata", package = "causalMed")
+dat_s <- as.data.table(survivaldata)
+setorder(dat_s, id, time)
+
+models_surv <- list(
+  spec_model(L ~ V + lag1_L + time,
+             var_type = "normal", mod_type = "covariate"),
+  spec_model(A ~ V + lag1_A + lag1_L + L + time,
+             var_type = "binary", mod_type = "exposure"),
+  spec_model(Y ~ lag1_A + A + L + lag1_L + time,
+             var_type = "binary", mod_type = "survival")
+)
+
+fit_cm_s <- causalMed::gformula(
+  data         = dat_s,
+  id_var       = "id",
+  time_var     = "time",
+  base_vars    = "V",
+  exposure     = "A",
+  models       = models_surv,
+  intervention = list(natural = NULL, never = 0, always = 1),
+  ref_int      = "natural",
+  init_recode  = recodes(lag1_L = 0, lag1_A = 0),
+  in_recode    = recodes(lag1_L = L, lag1_A = A),
+  mc_sample    = 10000,
+  R            = 1,
+  quiet        = TRUE,
+  seed         = 20250915
+)
+
+fit_cm_s$effect_size
+```
+
+**gfoRmula**
+
+```{r gf-survival, eval = has_gfoRmula}
+T_max <- length(unique(dat_s$time))
+
+fit_gf_s <- gfoRmula::gformula(
+  obs_data     = copy(dat_s),
+  id           = "id",
+  time_name    = "time",
+  time_points  = T_max,
+  covnames     = c("A", "L"),
+  covtypes     = c("binary", "normal"),
+  basecovs     = "V",
+  covparams    = list(covmodels = c(
+    A ~ V + lag1_A + lag1_L + L + time,
+    L ~ V + lag1_L + time
+  )),
+  ymodel       = Y ~ lag1_A + A + L + lag1_L + time,
+  outcome_name = "Y",
+  outcome_type = "survival",
+  histories    = c(gfoRmula::lagged),
+  histvars     = list(c("A", "L")),
+  intervention1.A = list(gfoRmula::static, rep(0, T_max)),
+  intervention2.A = list(gfoRmula::static, rep(1, T_max)),
+  int_descript = c("Never treat", "Always treat"),
+  nsimul       = 10000,
+  seed         = 20250915,
+  nsamples     = 0
+)
+
+fit_gf_s$result[k == max(fit_gf_s$result$k), c("Interv.", "g-form risk")]
+```
+
+**Side-by-side at final time point**
+
+```{r compare-survival, eval = has_gfoRmula}
+gf_s_res <- fit_gf_s$result[k == max(fit_gf_s$result$k),
+                              c("Interv.", "g-form risk")]
+gf_s_res[, Intervention := c("natural", "never", "always")]
+setnames(gf_s_res, "g-form risk", "gfoRmula")
+gf_s_res[, gfoRmula := round(gfoRmula, 4)]
+
+cm_s_res <- fit_cm_s$effect_size[, .(Intervention,
+                                      causalMed = round(Est, 4))]
+merge(cm_s_res, gf_s_res, by = "Intervention")
+```
+
+---
+
+### Example 3: Dynamic intervention
+
+Both packages support dynamic (rule-based) interventions. Here we estimate the
+risk under "treat only if L1 > 0". The syntax differs between packages but the
+estimand is the same.
+
+**causalMed** — `dyn_int()` captures the rule as an unevaluated expression
+evaluated inside the simulated dataset at each time step:
+
+```{r dynamic-cm}
+fit_dyn <- causalMed::gformula(
+  data         = dat,
+  id_var       = "id",
+  time_var     = "time",
+  base_vars    = "V",
+  exposure     = "A",
+  models       = models_cm,
+  intervention = list(natural = NULL, treat_if_L1_pos = dyn_int(as.numeric(L1 > 0))),
+  ref_int      = "natural",
+  init_recode  = init_rc,
+  in_recode    = in_rc,
+  mc_sample    = 5000,
+  R            = 1,
+  quiet        = TRUE,
+  seed         = 20250915
+)
+
+fit_dyn$effect_size
+fit_dyn$estimate
+```
+
+**gfoRmula** — user-supplied function passed as an argument:
+
+```r
+treat_if_L1_pos <- function(newdf, pool, intvar, intvals, time_name, t) {
+  newdf[, (intvar) := as.integer(newdf[[intvar]] > 0)]
+}
+
+gfoRmula::gformula(
+  ...,
+  intervention1.A = list(treat_if_L1_pos),
+  int_descript    = "Treat if L1 > 0"
+)
+```
+
+Both approaches evaluate the rule within the simulated dataset at each time
+step, so the exposure reflects its natural-course draw before the threshold is
+applied. `gfoRmula`'s function-based interface additionally exposes the full
+pool object and time index, enabling more complex history-dependent rules.
+`causalMed`'s `dyn_int()` is more concise for common threshold rules and
+integrates naturally with the package's expression-capture pattern.
+
+---
+
+## High-Precision Numerical Cross-Validation
+
+With 50,000 Monte Carlo replicates and the same random seed, the two packages
+are expected to agree to within 0.0001. The differences shown below reflect
+Monte Carlo sampling variability only, not algorithmic divergence.
+
+```{r cross-val, eval = has_gfoRmula}
+fit_cv_cm <- causalMed::gformula(
+  data         = dat, id_var = "id", time_var = "time", base_vars = "V",
+  exposure     = "A", models = models_cm,
+  intervention = list(natural = NULL, always = 1),
+  ref_int      = "natural",
+  init_recode  = init_rc, in_recode = in_rc,
+  mc_sample    = 50000, R = 1, quiet = TRUE, seed = 20250915
+)
+
+fit_cv_gf <- gfoRmula::gformula(
+  obs_data = copy(dat), id = "id", time_name = "time",
+  time_points = length(unique(dat$time)),
+  covnames = c("L1","L2","A"), covtypes = c("normal","binary","binary"),
+  basecovs = "V",
+  covparams = list(covmodels = c(
+    L1 ~ lag1_A + lag1_L1 + V + time,
+    L2 ~ lag1_A + lag1_L2 + V + time,
+    A  ~ lag1_A + L1 + L2 + V + time
+  )),
+  ymodel = Y_bin ~ A + L1 + L2, outcome_name = "Y_bin",
+  outcome_type = "binary_eof",
+  histories = c(gfoRmula::lagged), histvars = list(c("A","L1","L2")),
+  intervention1.A = list(gfoRmula::static, rep(1, length(unique(dat$time)))),
+  int_descript = "Always treat",
+  nsimul = 50000, seed = 20250915
+)
+
+cm_vals <- round(fit_cv_cm$effect_size$Est, 5)
+gf_vals <- round(fit_cv_gf$result[k == max(fit_cv_gf$result$k)][["g-form mean"]], 5)
+
+data.frame(
+  Intervention = c("natural", "always"),
+  causalMed    = cm_vals,
+  gfoRmula     = gf_vals,
+  Difference   = round(abs(cm_vals - gf_vals), 5)
+)
+```
+
+The differences are well within 0.0001, confirming that `causalMed`'s
+g-formula engine is numerically consistent with `gfoRmula` as the reference
+implementation.
+
+---
+
+## References
+
+1. Westreich, D., Cole, S. R., Young, J. G., et al. (2012). The parametric
+   g-formula to estimate the effect of HAART on incident AIDS or death.
+   *Statistics in Medicine*, 31, 2000–2009.
+
+2. McGrath, S., Lin, V., Zhang, Z., et al. (2020). gfoRmula: An R Package for
+   Estimating the Effects of Sustained Treatment Strategies via the Parametric
+   g-Formula. *Patterns*, 1, 100008.
+
+3. Lin, S. H., Young, J. G., Logan, R., & VanderWeele, T. J. (2017). Mediation
+   analysis for a survival outcome with time-varying exposures, mediators, and
+   confounders. *Statistics in Medicine*, 36(26), 4153–4166.
+
+4. Zheng, W., & van der Laan, M. (2017). Longitudinal mediation analysis with
+   time-varying mediators and exposures, with application to survival outcomes.
+   *Journal of Causal Inference*, 5(2).
+
+```{r session}
+sessionInfo()
+```

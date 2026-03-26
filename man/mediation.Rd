@@ -33,6 +33,9 @@ mediation(
 
 \item{exposure}{Character scalar. Exposure variable to intervene on (must be in \code{data}).}
 
+\item{outcome}{Character scalar. Name of the outcome variable in \code{data}.
+Must match the response variable in the outcome or survival model.}
+
 \item{time_var}{Character scalar. Time variable column name (ordered; integer/numeric).}
 
 \item{models}{A list of model specifications evaluated in temporal order. The order
@@ -135,7 +138,8 @@ data(nonsurvivaldata)
 
 models <- list(
   cov_model = spec_model(L ~ V+L_lag1+A+time,var_type= "normal",mod_type = "covariate"),
-  mediator_model = spec_model(M ~ V + A + L + M_lag1 + time, var_type= "normal",mod_type = "mediator"),
+  mediator_model = spec_model(M ~ V + A + L + M_lag1 + time,
+                              var_type = "normal", mod_type = "mediator"),
   outcome_model = spec_model(Y ~ V+A+M+A * M+L,  var_type= "binomial",mod_type ="outcome")
   )
 
@@ -147,8 +151,8 @@ fit <- mediation(
  outcome = "Y",
  time_var = "time",
  models = models10,
- init_recode = c(M_lag1=0,L_lag1=0),
- in_recode = c(M_lag1=M,L_lag1=L),
+ init_recode = recodes(M_lag1=0,L_lag1=0),
+ in_recode = recodes(M_lag1=M,L_lag1=L),
  mediation_type = "I",
  mc_sample = 100000,
  R = 500,

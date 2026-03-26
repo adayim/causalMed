@@ -43,7 +43,7 @@ check_error <- function(data,
   }
 
   # Check if variables in the formula included in the data
-  vars_models <- unlist(sapply(models, function(x) all.vars(formula(x$call))))
+  vars_models <- unlist(lapply(models, function(x) all.vars(formula(x$call))))
   check_var_in(vars_models, data)
 
   # Get the variable name of exposure and check if it the same as the exposure
@@ -112,7 +112,7 @@ check_error <- function(data,
 
 
   # Check the models class
-  cls <- sapply(models, function(x) !inherits(x, "causalMed_gmodel"))
+  cls <- vapply(models, function(x) !inherits(x, "causalMed_gmodel"), logical(1))
   if (any(cls)) {
     stop("Models in the list must be `causalMed_gmodel` object, please use spec_model to create!")
   }
@@ -136,16 +136,20 @@ check_intervention <- function(models, intervention, ref_int, time_len) {
     )
   }
 
-  # The dynamic intervention must be the same
-  is_dynamic <- sapply(intervention, function(x) any(grepl(">|<|=|!|%in%", x)))
-  is_dynamic <- sapply(intervention[is_dynamic], function(x) length(unique(x)) > 1)
-  if (any(is_dynamic)) {
-    stop("Dynamic intervention must have the same value in the element", domain = "causalMed")
-  }
-
   # Checking for interventions is list
   if (!is.list(intervention)) {
     stop("Intervention must be a list object", domain = "causalMed")
+  }
+
+  # Each element must be NULL, numeric/logical (static), or a dyn_int() object (dynamic)
+  bad <- sapply(intervention, function(x) {
+    !is.null(x) && !is.numeric(x) && !is.logical(x) && !inherits(x, "causalMed_dynint")
+  })
+  if (any(bad)) {
+    stop(
+      "Each intervention element must be NULL, a numeric/logical value, or a dyn_int() object.",
+      domain = "causalMed"
+    )
   }
 
   # Check if all null
@@ -159,8 +163,11 @@ check_intervention <- function(models, intervention, ref_int, time_len) {
     stop("Intervention must be a named list object", domain = "causalMed")
   }
 
-  # Check the length, each element in the list must be of length 1 or equals to the time length.
-  intervention_len <- sapply(intervention, length)
+  # Check the length: each element must be NULL (0), scalar (1), or full-length.
+  # dyn_int() objects are exempt — they apply a rule at every time step.
+  intervention_len <- sapply(intervention, function(x) {
+    if (inherits(x, "causalMed_dynint")) 1L else length(x)
+  })
   if (!all(intervention_len %in% c(0, 1, time_len))) {
     stop("Length of the elements in the intervention must be 0 (`NULL`), 1 or the same length of time.", domain = "causalMed")
   }

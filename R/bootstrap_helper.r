@@ -26,26 +26,29 @@ bootstrap_helper <- function(data,
   mediation_type <- match.arg(mediation_type)
 
   # Progress bar
-  if(progress_bar){
-    # progressr::handlers(global = TRUE)
+  if (progress_bar) {
     progressr::handlers(list(
       progressr::handler_progress(
-        format   = ":spin :current/:total (:message) [:bar] :percent in :elapsedfull ETA: :eta",
-        # width    = 60,
+        format   = "Bootstrap [:bar] :current/:total (:percent) | Elapsed: :elapsed | ETA: :eta",
         complete = "+"
       )
     ))
     p <- progressr::progressor(steps = R)
   }
-  
 
   boot_res <- future.apply::future_lapply(1:R, function(i) {
-    indx <- sample(1:nrow(data), nrow(data), replace = TRUE)
+    # Resample at the individual level (not row level) to preserve
+    # within-individual longitudinal structure, matching gfoRmula.
+    unique_ids <- unique(data[[id_var]])
+    boot_ids <- sample(unique_ids, length(unique_ids), replace = TRUE)
+    id_map <- data.table::data.table(orig_id = boot_ids,
+                                     new_id = seq_along(boot_ids))
+    data.table::setnames(id_map, "orig_id", id_var)
+    boot_data <- merge(id_map, data, by = id_var, allow.cartesian = TRUE)
+    boot_data[, (id_var) := new_id]
+    boot_data[, new_id := NULL]
 
-    if(progress_bar)
-      p(message = "Bootstrapping", amount = 0)
-
-    res <- .gformula(data = data[indx, ],
+    res <- .gformula(data = boot_data,
                      id_var = id_var,
                      base_vars = base_vars,
                      time_var = time_var,
@@ -59,10 +62,10 @@ bootstrap_helper <- function(data,
                      mediation_type = mediation_type,
                      return_fitted = FALSE,
                      return_data = FALSE,
-                     progress_bar = FALSE)
+                     seed = NULL)   # let each replicate draw its own MC sample
     
-    if(progress_bar)
-      p(message = "Bootstrapping")
+    if (progress_bar)
+      p()
 
     return(res)
 

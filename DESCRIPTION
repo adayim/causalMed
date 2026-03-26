@@ -15,15 +15,15 @@ Depends: R (>= 3.5.1)
 License: GPL (>= 2)
 Encoding: UTF-8
 LazyData: true
-Imports: 
-    boot,
+Imports:
     data.table,
     nnet,
     future.apply,
     progressr
-Suggests: 
-    knitr,
+Suggests:
+    gfoRmula,
     Hmisc,
+    knitr,
     rmarkdown,
     testthat
 URL: https://github.com/adayim/causalMed

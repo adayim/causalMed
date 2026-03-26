@@ -4,8 +4,8 @@ test_that("gformula throws errors for invalid data input", {
   data(nonsurvivaldata)
   
   # Models need to be spec_model
-  m1 <- spec_model(A ~ V, var_type = "binomial", mod_type = "exposure")
-  m2 <- spec_model(Y_bin ~ A + L1 + V, var_type = "binomial", mod_type = "outcome")
+  m1 <- spec_model(A ~ V, var_type = "binary", mod_type = "exposure")
+  m2 <- spec_model(Y_bin ~ A + L1 + V, var_type = "binary", mod_type = "outcome")
   models <- list(m1, m2)
   
   # data not dataframe
@@ -34,8 +34,8 @@ test_that("gformula throws errors for invalid data input", {
 
 test_that("gformula throws errors for invalid model specifications", {
   data(nonsurvivaldata)
-  m1 <- spec_model(A ~ V, var_type = "binomial", mod_type = "exposure")
-  m_out <- spec_model(Y_bin ~ A + L1 + V, var_type = "binomial", mod_type = "outcome")
+  m1 <- spec_model(A ~ V, var_type = "binary", mod_type = "exposure")
+  m_out <- spec_model(Y_bin ~ A + L1 + V, var_type = "binary", mod_type = "outcome")
   
   # Models not list
   expect_error(
@@ -45,7 +45,7 @@ test_that("gformula throws errors for invalid model specifications", {
   )
   
   # Multiple outcome models
-  m_out2 <- spec_model(Y_bin ~ A, var_type = "binomial", mod_type = "outcome")
+  m_out2 <- spec_model(Y_bin ~ A, var_type = "binary", mod_type = "outcome")
   expect_error(
      gformula(data = nonsurvivaldata, 
              id_var = "id", base_vars = "V", exposure = "A", time_var = "time", models = list(m1, m_out, m_out2)),
@@ -60,7 +60,7 @@ test_that("gformula throws errors for invalid model specifications", {
   )
   
   # Multiple exposure models
-  m2 <- spec_model(A ~ L1, var_type = "binomial", mod_type = "exposure")
+  m2 <- spec_model(A ~ L1, var_type = "binary", mod_type = "exposure")
   expect_error(
     gformula(data = nonsurvivaldata, 
              id_var = "id", base_vars = "V", exposure = "A", time_var = "time", models = list(m1, m2, m_out)),
@@ -68,7 +68,7 @@ test_that("gformula throws errors for invalid model specifications", {
   )
   
   # Exposure variable mismatch
-  m3 <- spec_model(L1 ~ V, var_type = "binomial", mod_type = "exposure") # incorrectly labeled check
+  m3 <- spec_model(L1 ~ V, var_type = "binary", mod_type = "exposure") # incorrectly labeled check
   # Wait, spec_model doesn't enforce variable name matching, but gformula check_error does:
   # "The given exposure variable was different between exposure model in `models`."
   expect_error(
@@ -81,9 +81,9 @@ test_that("gformula throws errors for invalid model specifications", {
 
 test_that("gformula throws errors for invalid intervention inputs", {
   data(nonsurvivaldata)
-  m1 <- spec_model(A ~ V, var_type = "binomial", mod_type = "exposure")
+  m1 <- spec_model(A ~ V, var_type = "binary", mod_type = "exposure")
   m2 <- spec_model(L1 ~ A + V, var_type="normal", mod_type="covariate")
-  m3 <- spec_model(Y_bin ~ A + L1 + V, var_type = "binomial", mod_type = "outcome")
+  m3 <- spec_model(Y_bin ~ A + L1 + V, var_type = "binary", mod_type = "outcome")
   models <- list(m1, m2, m3)
 
   # Check with mediator in models but intervention not NULL
@@ -115,8 +115,8 @@ test_that("gformula throws errors for invalid intervention inputs", {
 
 test_that("gformula throws error for invalid recode parameters", {
   data(nonsurvivaldata)
-  m1 <- spec_model(A ~ V, var_type = "binomial", mod_type = "exposure")
-  m3 <- spec_model(Y_bin ~ A + L1 + V, var_type = "binomial", mod_type = "outcome")
+  m1 <- spec_model(A ~ V, var_type = "binary", mod_type = "exposure")
+  m3 <- spec_model(Y_bin ~ A + L1 + V, var_type = "binary", mod_type = "outcome")
   models <- list(m1, m3)
   
   # Passed as character

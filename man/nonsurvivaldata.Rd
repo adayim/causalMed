@@ -3,30 +3,33 @@
 \docType{data}
 \name{nonsurvivaldata}
 \alias{nonsurvivaldata}
-\title{Example Dataset for a non-Survival Outcome}
+\title{Example Dataset for a Non-Survival Outcome}
 \format{
-A data frame with 3000 rows and 10 variables:
+A data frame with 5000 rows and 13 variables:
 \describe{
-  \item{id}{Unique identifier for each subject.}
-  \item{time}{Time variable, indicating observation points (0 to 2), one per subject.}
+  \item{id}{Unique subject identifier.}
+  \item{time}{Time variable (0 to 4).}
   \item{V}{Time-fixed baseline covariate.}
-  \item{L}{Time-varying covariate.}
-  \item{A}{Exposure variable, time-varying across the three time points.}
-  \item{M}{Mediator variable, time-varying, potentially influenced by exposure and covariates.}
-  \item{Y}{Binary outcome variable, observed at the final time point.}
-  \item{M_lag1}{Lagged mediator value, indicating the mediator from the previous time point.}
-  \item{L_lag1}{Lagged baseline covariate value from the previous time point.}
-  \item{A_lag1}{Lagged exposure value from the previous time point.}
+  \item{L1}{Time-varying confounder 1 (continuous).}
+  \item{L2}{Time-varying confounder 2 (binary).}
+  \item{A}{Time-varying binary exposure.}
+  \item{M}{Time-varying mediator.}
+  \item{Y_bin}{Binary outcome observed at each time point.}
+  \item{Y_cont}{Continuous outcome observed at each time point.}
+  \item{lag1_A}{Lagged exposure (A at previous time point).}
+  \item{lag1_L1}{Lagged confounder L1.}
+  \item{lag1_L2}{Lagged confounder L2.}
+  \item{lag1_M}{Lagged mediator.}
 }
 }
 \source{
-Simulated data generated for this analysis.
+Simulated data generated for package examples.
 }
 \usage{
 nonsurvivaldata
 }
 \description{
-A dataset containing time-varying and baseline variables for 1000 subjects
-with 3 time points per subject, including exposure, mediator, and outcome variables.
+A simulated dataset with time-varying and baseline variables for 1000 subjects
+over 5 time points, including exposure, mediator, confounders, and outcome.
 }
 \keyword{datasets}

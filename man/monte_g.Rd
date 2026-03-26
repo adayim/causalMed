@@ -16,7 +16,7 @@ monte_g(
   out_recode = NULL,
   mediation_type = c(NA, "N", "I"),
   return_data = FALSE,
-  progress_bar = NULL
+  med_pool = NULL
 )
 }
 \arguments{
@@ -33,10 +33,18 @@ way data generation process. See \code{\link{spec_model}} for a recommended cons
 \item{time_seq}{Time sequence vector of the data.}
 
 \item{intervention}{A named list specifying exposure interventions. Each
-element is either \code{NULL} (the natural course) or a numeric/logical
-vector whose length equals the number of unique time points in
-\code{time_var}. For example,
-\code{list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0))}.
+element is one of:
+\itemize{
+  \item \code{NULL} — the natural course (exposure drawn from its fitted model).
+  \item A numeric/logical scalar or vector (length 1 or equal to the number
+        of time points) — a static intervention setting the exposure to that
+        value at every (or each specific) time step.
+  \item A \code{\link{dyn_int}} object — a dynamic (rule-based) intervention
+        whose expression is evaluated inside the simulated dataset at each
+        time step. Column names (including the exposure after its natural-course
+        draw) are in scope, e.g.
+        \code{list(natural = NULL, threshold = dyn_int(as.numeric(A > 0)))}.
+}
 If \code{intervention} is \code{NULL}, only the natural course is
 evaluated. If a \code{natural} arm is not provided, it is added
 automatically and \code{ref_int} is set to \code{"natural"}.}
@@ -53,7 +61,8 @@ automatically and \code{ref_int} is set to \code{"natural"}.}
 \item{return_data}{Logical. If \code{TRUE}, return the stacked simulated data
 (all interventions) including predicted outcomes; may be large. Default \code{FALSE}.}
 
-\item{progress_bar}{Progress bar object.}
+\item{med_pool}{Named list of pre-simulated mediator values (from \code{.collect_med_pool}),
+keyed by time index as character. Used by the Phi10 arm for interventional mediation.}
 }
 \description{
 Internal use only. Monte Carlo simulation.
