@@ -9,7 +9,8 @@ simulate_data(
   exposure,
   models,
   intervention = NULL,
-  mediation_type = c(NA, "N", "I")
+  mediation_type = c(NA, "N", "I"),
+  med_pool = NULL
 )
 }
 \arguments{
@@ -24,11 +25,14 @@ will be evaluated and the exposure variable will be set to 1 if it is \code{TRUE
 \item{mediation_type}{Type of the mediation analysis, if the value is \code{NA}
 no mediation analysis will be performed (default). It will be ignored if the intervention
  is not \code{NULL}}
+
+\item{med_pool}{Optional named list of pre-simulated mediator values keyed by time index
+(as character string). When supplied and \code{mediation_type = "I"}, the mediator for
+the Phi10 (cross-world) arm is drawn by permutation from this pool rather than from the
+model evaluated at a*=0 with the current arm's confounder trajectory. This implements the
+two-trajectory approach required by Lin et al. (2017, Eq. 4).}
 }
 \description{
 Loop through the models and apply any recoding or subset.
-}
-\details{
-If the intervention is \code{NULL}, and the \code{mediation_type}
 }
 \keyword{internal}

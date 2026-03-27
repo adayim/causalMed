@@ -9,11 +9,11 @@ testthat::test_that("mediation runs without error on nonsurvivaldata", {
   data("nonsurvivaldata", package = "causalMed")
 
   models<-list(
-    modA<-spec_model(A  ~ V + lag1_L1 + lag1_L2 + lag1_A + time,var_type  = "binomial",mod_type = "exposure"),
+    modA<-spec_model(A  ~ V + lag1_L1 + lag1_L2 + lag1_A + time,var_type  = "binary",mod_type = "exposure"),
     modL1<-spec_model(L1 ~ V + A + lag1_L1 + time,var_type  = "normal",mod_type = "covariate"),
-    modL2<-spec_model(L2 ~ V + A + lag1_L2 + time,var_type  = "binomial",mod_type = "covariate"),
+    modL2<-spec_model(L2 ~ V + A + lag1_L2 + time,var_type  = "binary",mod_type = "covariate"),
     modM<-spec_model(M  ~ V + A + L1 + L2 + lag1_M + time,var_type  = "normal",mod_type = "mediator"),
-    modY<-spec_model(Y_bin  ~ V + A + M + L1 + L2 + A:M,var_type  = "binomial",mod_type = "outcome")#Y_cont同
+    modY<-spec_model(Y_bin  ~ V + A + M + L1 + L2 + A:M,var_type  = "binary",mod_type = "outcome")#Y_cont同
   )
 
   testthat::expect_no_error(

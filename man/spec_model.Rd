@@ -8,7 +8,7 @@ spec_model(
   formula,
   subset = NULL,
   recode = NULL,
-  var_type = c("normal", "binomial", "categorical", "custom"),
+  var_type = c("normal", "binary", "categorical", "custom"),
   mod_type = c("covariate", "exposure", "mediator", "outcome", "censor", "survival"),
   custom_fit = NULL,
   custom_sim = NULL,
@@ -30,10 +30,10 @@ respected during simulation of the response for this model.}
 the model and **before** simulating the response for this model (useful for dynamic recoding).}
 
 \item{var_type}{Character. The response type for simulation/prediction:
-\code{"binomial"}, \code{"normal"}, \code{"categorical"}, or \code{"custom"}.
+\code{"binary"}, \code{"normal"}, \code{"categorical"}, or \code{"custom"}.
 By default, values are simulated via:
 \itemize{
-  \item \code{"binomial"}: Bernoulli draws using the fitted mean.
+  \item \code{"binary"}: Bernoulli draws using the fitted mean.
   \item \code{"normal"}: Gaussian draws using fitted mean.
   \item \code{"categorical"}: Multinomial draws via \code{\link[nnet]{multinom}}.
   \item \code{"custom"}: user-specified via \code{custom_fit} and/or \code{custom_sim}.
@@ -85,8 +85,8 @@ to fit in temporal order and to simulate counterfactual trajectories.
 data(gvhd)
 mod_cov1 <- spec_model(platnorm ~ all + cmv + male + age + agecurs1 +
   agecurs2 + gvhdm1 + daysgvhd + daysnorelapse + wait,
-var_type = "binomial",
-mod_type = "covriate",
+var_type = "binary",
+mod_type = "covariate",
 subset = platnormm1 == 0
 )
 ## For Poisson regression
@@ -98,7 +98,7 @@ predict_poisson <- function(fit, newdf) {
 mod_cov1 <- spec_model(platnorm ~ all + cmv + male + age + agecurs1 +
   agecurs2 + gvhdm1 + daysgvhd + daysnorelapse + wait,
 var_type = "custom",
-mod_type = "covriate",
+mod_type = "covariate",
 subset = platnormm1 == 0,
 custom_sim = predict_poisson,
 family = "poisson"(link = "log"),

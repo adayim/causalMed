@@ -4,15 +4,20 @@
 \alias{print.gformula}
 \title{Print}
 \usage{
-\method{print}{gformula}(x, models = FALSE, ...)
+\method{print}{gformula}(x, models = FALSE, digits = max(3, getOption("digits") - 3), ...)
 }
 \arguments{
-\item{x}{gformula formula output of \code{\link{gformula}} or \code{\link{mediation}}.}
+\item{x}{Object of class \code{"gformula"}.}
 
-\item{models}{logical value indicating if model model details printed.}
+\item{models}{Logical. If \code{TRUE}, print fitted model details (call and
+coefficients, or full summary when \code{return_fitted = TRUE}).
+Default \code{FALSE}.}
+
+\item{digits}{Integer. Number of significant digits for numeric output.
+Default \code{max(3, getOption("digits") - 3)}.}
 
 \item{...}{Not used.}
 }
 \description{
-Print method for \code{`gformula`}
+Print method for objects returned by \code{\link{gformula}} or \code{\link{mediation}}.
 }

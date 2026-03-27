@@ -57,10 +57,18 @@
 #'   appeared in the list should reflect the temporal ordering of the variables, in another
 #'   way data generation process. See \code{\link{spec_model}} for a recommended constructor.
 #' @param intervention A named list specifying exposure interventions. Each
-#'   element is either \code{NULL} (the natural course) or a numeric/logical
-#'   vector whose length equals the number of unique time points in
-#'   \code{time_var}. For example,
-#'   \code{list(natural = NULL, always = c(1, 1, 1), never = c(0, 0, 0))}.
+#'   element is one of:
+#'   \itemize{
+#'     \item \code{NULL} — the natural course (exposure drawn from its fitted model).
+#'     \item A numeric/logical scalar or vector (length 1 or equal to the number
+#'           of time points) — a static intervention setting the exposure to that
+#'           value at every (or each specific) time step.
+#'     \item A \code{\link{dyn_int}} object — a dynamic (rule-based) intervention
+#'           whose expression is evaluated inside the simulated dataset at each
+#'           time step. Column names (including the exposure after its natural-course
+#'           draw) are in scope, e.g.
+#'           \code{list(natural = NULL, threshold = dyn_int(as.numeric(A > 0)))}.
+#'   }
 #'   If \code{intervention} is \code{NULL}, only the natural course is
 #'   evaluated. If a \code{natural} arm is not provided, it is added
 #'   automatically and \code{ref_int} is set to \code{"natural"}.
@@ -127,7 +135,6 @@
 #' @import data.table
 #' @importFrom stats qnorm
 #' @importFrom utils stack
-#' @export
 #'
 #' @examples
 #' \dontrun{
@@ -234,8 +241,6 @@ gformula <- function(data,
     }
   }
 
-  data <- as.data.table(data)
-
   if (is.null(intervention)) {
     intervention <- list(intervention = NULL)
   }
@@ -248,7 +253,6 @@ gformula <- function(data,
   # Run original estimate
   arg_est <- get_args_for(.gformula)
   arg_est$return_fitted <- TRUE
-  arg_est$progress_bar <- substitute(quiet, env = parent.frame())
   est_ori <- do.call(.gformula, arg_est)
 
   # Mean value of the outcome at each time point by intervention
@@ -267,7 +271,7 @@ gformula <- function(data,
   # Run bootstrap
   if (R > 1) {
     arg_pools <- get_args_for(bootstrap_helper)
-    arg_pools$progress_bar <- substitute(quiet, env = parent.frame())
+    arg_pools$progress_bar <- !quiet
     arg_pools$future_seed <- boot_seed
     pools <- do.call(bootstrap_helper, arg_pools)
 
@@ -298,7 +302,7 @@ gformula <- function(data,
 
   # Calculate the difference and ratio
   if (length(intervention) > 1) {
-    risk_est <- risk_estimate1(est_ori$gform.data,
+    risk_est <- risk_estimate.point(est_ori$gform.data,
                                ref_int = ref_int,
                                intervention = intervention,
                                return_data = return_data)
@@ -310,7 +314,7 @@ gformula <- function(data,
         return(out)
       })
       res_pools <- lapply(pools2,
-                          risk_estimate2,
+                          risk_estimate.boot,
                           ref_int = ref_int,
                           intervention = intervention,
                           return_data = return_data)
