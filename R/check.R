@@ -186,6 +186,64 @@ check_intervention <- function(models, intervention, ref_int, time_len) {
   }
 }
 
+#' Check temporal ordering of models for mediation analysis
+#'
+#' Issues a warning if covariate or exposure models appear in positions that
+#' violate the assumed A(t) -> M(t) -> L(t) -> S(t) ordering.
+#'
+#' @param models List of model specifications from \code{\link{spec_model}}.
+#' @keywords internal
+check_mediation_order <- function(models) {
+  mod_types <- sapply(models, function(m) m$mod_type)
+  med_idx <- which(mod_types == "mediator")
+  out_idx <- which(mod_types %in% c("outcome", "survival"))
+  exp_idx <- which(mod_types == "exposure")
+
+  if (length(med_idx) == 0) return(invisible(NULL))
+
+  # Mediator must come before outcome/survival
+  if (length(out_idx) > 0 && med_idx > min(out_idx)) {
+    warning(sprintf(
+      paste0(
+        "Temporal ordering: mediator model at position [%d] appears after ",
+        "the outcome/survival model at position [%d]. ",
+        "The mediator must be simulated before the outcome."
+      ),
+      med_idx, min(out_idx)
+    ), call. = FALSE)
+  }
+
+  # Exposure model must come before mediator
+  if (length(exp_idx) > 0 && exp_idx > med_idx) {
+    warning(sprintf(
+      paste0(
+        "Temporal ordering: exposure model at position [%d] appears after ",
+        "the mediator model at position [%d]. ",
+        "Exposure must be set before the mediator is simulated."
+      ),
+      exp_idx, med_idx
+    ), call. = FALSE)
+  }
+
+  # Any covariate/mediator/exposure model after the outcome is almost certainly wrong
+  if (length(out_idx) > 0) {
+    after_out <- which(seq_along(mod_types) > max(out_idx) &
+                       mod_types %in% c("covariate", "mediator", "exposure"))
+    if (length(after_out) > 0) {
+      warning(sprintf(
+        paste0(
+          "Temporal ordering: model(s) at position(s) [%s] appear after the ",
+          "outcome/survival model. The outcome model should be last in the list."
+        ),
+        paste(after_out, collapse = ", ")
+      ), call. = FALSE)
+    }
+  }
+
+  invisible(NULL)
+}
+
+
 #' Check variables in data
 #'
 #' Check if the variables in the data, throw an error with variable names if not.

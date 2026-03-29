@@ -80,7 +80,8 @@ risk_estimate.boot <- function(data_list, ref_int, intervention, return_data) {
   data.table::rbindlist(out, use.names = TRUE)
 }
 
-# Calculate mediation effect for point estimates
+# Calculate mediation effect for point estimates.
+# Returns both risk-difference (RD) and risk-ratio (RR) scales.
 risk_estimate.mediation <- function(data_list, return_data) {
   if (return_data) {
     phi_11 <- sum(data_list$Ph11) / length(data_list$Ph11)
@@ -93,7 +94,8 @@ risk_estimate.mediation <- function(data_list, return_data) {
   }
   data.table(
     Effect = c("Indirect effect", "Direct effect", "Total effect"),
-    Est    = c(phi_11 - phi_10, phi_10 - phi_00, phi_11 - phi_00)
+    RD     = c(phi_11 - phi_10, phi_10 - phi_00, phi_11 - phi_00),
+    RR     = c(phi_11 / phi_10, phi_10 / phi_00, phi_11 / phi_00)
   )
 }
 

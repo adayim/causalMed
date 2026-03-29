@@ -180,7 +180,6 @@ testthat::test_that("Fixed intervention", {
 
 testthat::test_that("Predefined intervention", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("gfoRmula")
 
   suppressPackageStartupMessages(library(gfoRmula))
 
@@ -276,10 +275,9 @@ testthat::test_that("Predefined intervention", {
 })
 
 
-## This test is not working at all
+## This test is not working at all, will check this later
 # testthat::test_that("Dynamic intervention: causalMed vs gfoRmula", {
 #   testthat::skip_on_cran()
-#   testthat::skip_if_not_installed("gfoRmula")
 #
 #   suppressPackageStartupMessages(library(data.table))
 #   suppressPackageStartupMessages(library(gfoRmula))
@@ -386,7 +384,6 @@ testthat::test_that("Predefined intervention", {
 
 testthat::test_that("High-precision cross-validation: causalMed vs gfoRmula (tol=0.0001)", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("gfoRmula")
 
   suppressPackageStartupMessages(library(gfoRmula))
 

@@ -11,11 +11,16 @@
 #' @param mediation_type Type of the mediation analysis, if the value is \code{NA}
 #' no mediation analysis will be performed (default). It will be ignored if the intervention
 #'  is not \code{NULL}
-#' @param med_pool Optional named list of pre-simulated mediator values keyed by time index
-#'   (as character string). When supplied and \code{mediation_type = "I"}, the mediator for
-#'   the Phi10 (cross-world) arm is drawn by permutation from this pool rather than from the
-#'   model evaluated at a*=0 with the current arm's confounder trajectory. This implements the
-#'   two-trajectory approach required by Lin et al. (2017, Eq. 4).
+#' @param med_pool Optional named list keyed by time index (as character string). Each element
+#'   is itself a list with two components: \code{vals} (simulated mediator values under a*) and
+#'   \code{weights} (the corresponding survival probability \eqn{Sc} under a*, or \code{NULL}
+#'   for non-survival analyses). When supplied and \code{mediation_type = "I"}, the mediator
+#'   for the Phi10 (cross-world) arm is sampled from \code{vals} with probability proportional
+#'   to \code{weights}, implementing the \eqn{S(1{:}t-1)=1} conditioning in Lin et al. (2017,
+#'   Eq. 4).
+#' @param med_ref_val The reference exposure value (a*) used when evaluating the mediator model
+#'   for the Phi10 arm. Defaults to \code{0L}. Set to match the \code{ref_val} argument of
+#'   \code{\link{mediation}}.
 #'
 #' @keywords internal
 #'
@@ -24,7 +29,8 @@ simulate_data <- function(data,
                           models,
                           intervention = NULL,
                           mediation_type = c(NA, "N", "I"),
-                          med_pool = NULL) {
+                          med_pool = NULL,
+                          med_ref_val = 0L) {
 
   # Replicate match.arg behaviour for a c(NA, "N", "I") default:
   # when the full default vector is passed (user did not specify), use first element (NA).
@@ -45,10 +51,10 @@ simulate_data <- function(data,
     set(data, j = exposure, value = intervention)
   }
 
-  # Phi10 arm: fix exposure to 1 and cache the a*=0 swap expression
+  # Phi10 arm: fix exposure to exposure_val and cache the a*=ref_val swap expression
   if (is_phi10) {
     set(data, j = exposure, value = 1L)
-    interv0 <- parse(text = paste0(exposure, " = 0"))
+    interv0 <- parse(text = paste0(exposure, " = ", med_ref_val))
   }
 
   # Loop through models
@@ -102,15 +108,27 @@ simulate_data <- function(data,
           # a pre-collected mediator pool (correct l' trajectory).
           if (!is.null(med_pool)) {
             n_alive   <- sum(cond)
-            pool_size <- length(med_pool)
+            pool_vals <- med_pool$vals
+            pool_wts  <- med_pool$weights   # NULL for non-survival analyses
+            pool_size <- length(pool_vals)
             if (pool_size >= n_alive) {
-              data[cond, (resp_var) := sample(med_pool, n_alive, replace = FALSE)]
+              if (pool_size < 10L) {
+                warning(sprintf(
+                  "Interventional mediation: mediator pool size (%d) is very small (< 10). Permutation may be unreliable.",
+                  pool_size
+                ))
+              }
+              # prob = pool_wts implements the S(1:t-1)=1 condition from
+              # Lin et al. (2017, Eq. 4): individuals with lower cumulative
+              # survival probability contribute less to the draw.
+              # When pool_wts is NULL (no survival model), uniform sampling.
+              data[cond, (resp_var) := sample(pool_vals, n_alive, replace = FALSE, prob = pool_wts)]
             } else if (pool_size > 0L) {
               warning(sprintf(
                 "Interventional mediation: mediator pool size (%d) < alive count (%d). Sampling with replacement.",
                 pool_size, n_alive
               ))
-              data[cond, (resp_var) := sample(med_pool, n_alive, replace = TRUE)]
+              data[cond, (resp_var) := sample(pool_vals, n_alive, replace = TRUE, prob = pool_wts)]
             }
             # If pool_size == 0, mediator is not updated (stale value retained).
           } else {

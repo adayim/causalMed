@@ -4,18 +4,24 @@
 #   - round numeric columns to `digits`
 #   - rename bootstrap CI columns to human-readable labels
 # Uses dt[] to force a visible data.table return.
-.fmt_for_print <- function(dt, digits) {
-  # dt <- data.table::copy(data.table::as.data.table(dt))
+.fmt_for_print <- function(x, digits) {
+  dt <- data.table::copy(data.table::as.data.table(x))
   # Round numeric columns in-place
   num_cols <- names(dt)[vapply(dt, is.numeric, logical(1L))]
   if (length(num_cols))
     dt[, (num_cols) := lapply(.SD, round, digits), .SDcols = num_cols]
-  # Rename CI columns if present
-  old <- c("perct_lcl",  "perct_ucl",   "norm_lcl",   "norm_ucl")
-  new <- c("2.5%(pct)",  "97.5%(pct)",  "2.5%(norm)", "97.5%(norm)")
-  present <- old %in% names(dt)
-  if (any(present))
-    data.table::setnames(dt, old[present], new[present])
+  # Rename RD-scale CI columns
+  old_rd <- c("perct_lcl",      "perct_ucl",       "norm_lcl",       "norm_ucl")
+  new_rd <- c("RD 2.5%(pct)",   "RD 97.5%(pct)",   "RD 2.5%(norm)",  "RD 97.5%(norm)")
+  present_rd <- old_rd %in% names(dt)
+  if (any(present_rd))
+    data.table::setnames(dt, old_rd[present_rd], new_rd[present_rd])
+  # Rename RR-scale CI columns (mediation output only)
+  old_rr <- c("perct_lcl_RR",   "perct_ucl_RR",    "norm_lcl_RR",    "norm_ucl_RR")
+  new_rr <- c("RR 2.5%(pct)",   "RR 97.5%(pct)",   "RR 2.5%(norm)",  "RR 97.5%(norm)")
+  present_rr <- old_rr %in% names(dt)
+  if (any(present_rr))
+    data.table::setnames(dt, old_rr[present_rr], new_rr[present_rr])
   return(dt[])   # dt[] forces a visible data.table return
 }
 
@@ -96,7 +102,8 @@ print.gformula <- function(x,
       "  Total effect    = Ph11 - Phi00  =  E[Y(1,M(1))] - E[Y(0,M(0))]\n",
       "  Direct effect   = Phi10 - Phi00 =  E[Y(1,M(0))] - E[Y(0,M(0))]\n",
       "  Indirect effect = Ph11 - Phi10  =  E[Y(1,M(1))] - E[Y(1,M(0))]\n",
-      "  Mediation Prop. = Indirect / Total  (as a percentage)\n"
+      "  Mediation Prop. = Indirect / Total  (as a percentage; RR not applicable)\n",
+      "  RD = risk difference;  RR = risk ratio\n"
     )
   } else {
     s2_hdr  <- "\n--- Contrasts vs. reference intervention ---"

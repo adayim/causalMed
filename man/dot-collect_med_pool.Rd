@@ -24,5 +24,12 @@ the Phi10 arm for interventional mediation (Lin et al. 2017) to
 implement the two-trajectory identification formula (Eq. 4): the mediator
 distribution must be conditioned on l' (confounders evolving under a*), not
 on the l trajectory used in the outcome model.
+
+For survival analyses, each time-step pool element is a list with
+\code{vals} (mediator values) and \code{weights} (the cumulative survival
+\eqn{Sc} under a* for each individual). The Phi10 arm then samples from
+\code{vals} with probability proportional to \code{weights}, implementing
+the \eqn{S(1{:}t-1)=1} condition from Eq. 4.
+For non-survival analyses, \code{weights} is \code{NULL} (uniform sampling).
 }
 \keyword{internal}

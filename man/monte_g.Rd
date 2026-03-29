@@ -16,7 +16,9 @@ monte_g(
   out_recode = NULL,
   mediation_type = c(NA, "N", "I"),
   return_data = FALSE,
-  med_pool = NULL
+  med_pool = NULL,
+  med_ref_val = 0L,
+  collect_pool = FALSE
 )
 }
 \arguments{
@@ -63,6 +65,15 @@ automatically and \code{ref_int} is set to \code{"natural"}.}
 
 \item{med_pool}{Named list of pre-simulated mediator values (from \code{.collect_med_pool}),
 keyed by time index as character. Used by the Phi10 arm for interventional mediation.}
+
+\item{med_ref_val}{The reference exposure value (a*) passed through to
+\code{simulate_data} for the natural-effects mediator swap. Defaults to \code{0L}.}
+
+\item{collect_pool}{Logical. If \code{TRUE}, collect the mediator pool during the
+forward simulation and return it alongside the risk estimate. The returned value is
+then a \code{list(estimate = ..., pool = ...)} rather than a plain scalar/data.table.
+Used by \code{.gformula} to avoid a separate pool-collection pass for interventional
+mediation: the reference arm (Phi00) doubles as the pool source.}
 }
 \description{
 Internal use only. Monte Carlo simulation.

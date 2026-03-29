@@ -99,17 +99,34 @@ init_warn <- function(){
   causalmed_env$warning <- c()
 }
 
-# Collect warnings
+# Collect warnings, muffling them so they do not also print immediately.
+# All collected warnings are summarised (with repeat counts) at function exit
+# via emit_warnings().
 run_withwarning_collect <- function(expr, msg) {
   withCallingHandlers(
     expr,
     warning = function(w) {
-      warn_messg <- sprintf("%s;\nWarning message:\n%s",
-                            msg, 
+      warn_messg <- sprintf("%s;\nWarning: %s",
+                            msg,
                             paste(w$message, collapse = "\n"))
       causalmed_env$warning <- c(causalmed_env$warning, warn_messg)
-    }                  
+      invokeRestart("muffleWarning")
+    }
   )
+}
+
+# Emit a deduplicated summary of all collected warnings.
+# Identical messages are counted and shown once with a repeat count,
+# preventing hundreds of identical lines when the same warning fires
+# in every bootstrap replicate.
+emit_warnings <- function() {
+  if (length(causalmed_env$warning) == 0) return(invisible(NULL))
+  warn_tbl  <- table(causalmed_env$warning)
+  warn_msgs <- mapply(function(msg, n) {
+    if (n > 1L) paste0(msg, "\n  [repeated ", n, " time(s)]") else msg
+  }, names(warn_tbl), as.integer(warn_tbl), SIMPLIFY = TRUE)
+  message(paste(warn_msgs, collapse = "\n=============\n"), domain = "causalMed")
+  invisible(NULL)
 }
 
 

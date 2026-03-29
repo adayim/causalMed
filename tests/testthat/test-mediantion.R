@@ -36,3 +36,57 @@ testthat::test_that("mediation runs without error on nonsurvivaldata", {
     )
   )
 })
+
+
+
+testthat::test_that("Mediation decomposition: Direct + Indirect = Total (algebraic identity)", {
+  data(nonsurvivaldata)
+
+  # Minimal models: A (exposure), L2 (confounder), L1 (mediator), Y_bin (outcome)
+  # Ordering: A -> L2 -> M(L1) -> Y
+  m_L2  <- spec_model(L2    ~ A + V + time,         var_type = "binary", mod_type = "covariate")
+  m_med <- spec_model(L1    ~ A + V + L2 + time,    var_type = "normal", mod_type = "mediator")
+  m_Y   <- spec_model(Y_bin ~ A + L1 + L2 + V,      var_type = "binary", mod_type = "outcome")
+  models <- list(m_L2, m_med, m_Y)
+
+  for (mtype in c("N", "I")) {
+    fit <- suppressWarnings(
+      mediation(
+        data           = nonsurvivaldata,
+        id_var         = "id",
+        base_vars      = "V",
+        exposure       = "A",
+        outcome        = "Y_bin",
+        time_var       = "time",
+        models         = models,
+        mediation_type = mtype,
+        mc_sample      = 500L,
+        R              = 0L,
+        quiet          = TRUE,
+        seed           = 42L
+      )
+    )
+
+    est      <- fit$estimate
+    total    <- est$RD[est$Effect == "Total effect"]
+    direct   <- est$RD[est$Effect == "Direct effect"]
+    indirect <- est$RD[est$Effect == "Indirect effect"]
+
+    # Exact algebraic identity: must hold to floating-point precision
+    testthat::expect_equal(
+      direct + indirect, total,
+      tolerance = 1e-10,
+      label = paste0("Direct + Indirect = Total [type = ", mtype, "]")
+    )
+
+    # Mediation proportion = Indirect / Total * 100
+    med_prop      <- est$RD[est$Effect == "Mediation Proportion"]
+    expected_prop <- if (isTRUE(abs(total) < 1e-10)) NA_real_ else indirect / total * 100
+    testthat::expect_equal(
+      med_prop, expected_prop,
+      tolerance = 1e-10,
+      label = paste0("Mediation Proportion [type = ", mtype, "]")
+    )
+  }
+})
+
