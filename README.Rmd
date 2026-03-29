@@ -60,59 +60,80 @@ devtools::install_github("adayim/causalMed")
 
 ### Total effect: standard parametric g-formula
 
-```{r gformula-example, eval = FALSE}
+```{r gformula-example}
 library(causalMed)
 
 data("nonsurvivaldata", package = "causalMed")
 
-# Specify models in temporal order: A -> L -> M -> Y
-models_total <- list(
-  spec_model(A ~ V + A_lag1 + L_lag1 + time,
-             var_type = "binary",  mod_type = "exposure"),
-  spec_model(L ~ V + A + L_lag1 + time,
-             var_type = "normal",  mod_type = "covariate"),
-  spec_model(M ~ V + A + L + M_lag1 + time,
-             var_type = "normal",  mod_type = "mediator"),
-  spec_model(Y ~ V + A + M + L + A:M,
-             var_type = "binary",  mod_type = "outcome")
+# Manage lagged variables
+init_rc <- recodes(lag1_A  = 0,   # At t=0, all lags initialised to 0
+                   lag1_L1 = 0,
+                   lag1_L2 = 0)
+
+in_rc   <- recodes(lag1_A  = A,   # At each subsequent step, copy current values
+                   lag1_L1 = L1,
+                   lag1_L2 = L2)
+
+# Specify models in temporal order: L1 → L2 → A → Y
+m_L1 <- spec_model(L1    ~ lag1_A + lag1_L1 + V + time,
+                   var_type = "normal",  mod_type = "covariate")
+m_L2 <- spec_model(L2    ~ lag1_A + lag1_L2 + V + time,
+                   var_type = "binary",  mod_type = "covariate")
+m_A  <- spec_model(A     ~ lag1_A + L1 + L2 + V + time,
+                   var_type = "binary",  mod_type = "exposure")
+m_Y  <- spec_model(Y_bin ~ A + L1 + L2,
+                   var_type = "binary",  mod_type = "outcome")
+
+models_bin <- list(m_L1, m_L2, m_A, m_Y)
+
+# Define intervention strategies
+# NULL  = natural course (draw exposure from its fitted model)
+# 1 / 0 = always treat / never treat
+ints <- list(natural = NULL, always_treat = 1, never_treat = 0)
+
+# ── 3. Run g-formula ────────────────────────────────────────────────────────
+fit_bin <- gformula(
+  data        = nonsurvivaldata,
+  id_var      = "id",
+  time_var    = "time",
+  base_vars   = "V",
+  exposure    = "A",
+  models      = models_bin,
+  intervention = ints,
+  ref_int     = "natural",
+  init_recode = init_rc,
+  in_recode   = in_rc,
+  mc_sample   = 10000,
+  R           = 100,  # set R > 1 for bootstrap CIs; kept low here for speed
+  quiet       = TRUE,
+  seed        = 2025
 )
 
-fit_total <- gformula(
-  data         = nonsurvivaldata,
-  id_var       = "id",
-  time_var     = "time",
-  base_vars    = "V",
-  exposure     = "A",
-  models       = models_total,
-  intervention = list(never = 0, always = 1),
-  ref_int      = "never",
-  init_recode  = recodes(A_lag1 = 0, L_lag1 = 0, M_lag1 = 0),
-  in_recode    = recodes(A_lag1 = A, L_lag1 = L, M_lag1 = M),
-  mc_sample    = 10000,
-  R            = 200,
-  seed         = 12345
-)
-
-print(fit_total)
+print(fit_bin)
 ```
 
 ### Mediation analysis: interventional IDE/IIE (Lin et al. 2017)
 
-```{r mediation-example, eval = FALSE}
+```{r mediation-example}
 library(causalMed)
 
 data("nonsurvivaldata", package = "causalMed")
 
 # Model list must include a mediator model (mod_type = "mediator")
 # List order must reflect the temporal DAG: A -> L -> M -> Y
+init_med <- recodes(lag1_A = 0, lag1_L1 = 0, lag1_L2 = 0, lag1_M = 0)
+in_med   <- recodes(lag1_A = A, lag1_L1 = L1, lag1_L2 = L2, lag1_M = M)
+
 models_med <- list(
-  spec_model(A ~ V + A_lag1 + L_lag1 + time,
+  spec_model(A   ~ V + lag1_L1 + lag1_L2 + lag1_A + time,
              var_type = "binary",  mod_type = "exposure"),
-  spec_model(L ~ V + A + L_lag1 + time,
+  spec_model(L1  ~ V + A + lag1_L1 + time,
              var_type = "normal",  mod_type = "covariate"),
-  spec_model(M ~ V + A + L + M_lag1 + time,
-             var_type = "normal",  mod_type = "mediator"),
-  spec_model(Y ~ V + A + M + L + A:M,
+  spec_model(L2  ~ V + A + lag1_L2 + time,
+             var_type = "binary",  mod_type = "covariate"),
+  spec_model(M   ~ V + A + L1 + L2 + lag1_M + time,
+             var_type = "normal",  mod_type = "mediator"),   # <-- mediator
+  spec_model(Y_bin ~ V + A + M + L1 + L2,
              var_type = "binary",  mod_type = "outcome")
 )
 
@@ -122,14 +143,15 @@ fit_med <- mediation(
   time_var       = "time",
   base_vars      = "V",
   exposure       = "A",
-  outcome        = "Y",
+  outcome        = "Y_bin",
   models         = models_med,
-  init_recode    = recodes(A_lag1 = 0, L_lag1 = 0, M_lag1 = 0),
-  in_recode      = recodes(A_lag1 = A, L_lag1 = L, M_lag1 = M),
-  mediation_type = "I",   # interventional IDE/IIE (Lin et al. 2017)
+  init_recode    = init_med,
+  in_recode      = in_med,
+  mediation_type = "I",     # Interventional IDE/IIE
   mc_sample      = 10000,
-  R              = 200,   # bootstrap replicates; set R = 1 for point estimate only
-  seed           = 12345
+  R              = 100,
+  quiet          = TRUE,
+  seed           = 2025
 )
 
 print(fit_med)

@@ -65,35 +65,93 @@ library(causalMed)
 
 data("nonsurvivaldata", package = "causalMed")
 
-# Specify models in temporal order: A -> L -> M -> Y
-models_total <- list(
-  spec_model(A ~ V + A_lag1 + L_lag1 + time,
-             var_type = "binary",  mod_type = "exposure"),
-  spec_model(L ~ V + A + L_lag1 + time,
-             var_type = "normal",  mod_type = "covariate"),
-  spec_model(M ~ V + A + L + M_lag1 + time,
-             var_type = "normal",  mod_type = "mediator"),
-  spec_model(Y ~ V + A + M + L + A:M,
-             var_type = "binary",  mod_type = "outcome")
-)
+# Manage lagged variables
+init_rc <- recodes(lag1_A  = 0,   # At t=0, all lags initialised to 0
+                   lag1_L1 = 0,
+                   lag1_L2 = 0)
 
-fit_total <- gformula(
-  data         = nonsurvivaldata,
-  id_var       = "id",
-  time_var     = "time",
-  base_vars    = "V",
-  exposure     = "A",
-  models       = models_total,
-  intervention = list(never = 0, always = 1),
-  ref_int      = "never",
-  init_recode  = recodes(A_lag1 = 0, L_lag1 = 0, M_lag1 = 0),
-  in_recode    = recodes(A_lag1 = A, L_lag1 = L, M_lag1 = M),
-  mc_sample    = 10000,
-  R            = 200,
-  seed         = 12345
-)
+in_rc   <- recodes(lag1_A  = A,   # At each subsequent step, copy current values
+                   lag1_L1 = L1,
+                   lag1_L2 = L2)
 
-print(fit_total)
+# Specify models in temporal order: L1 → L2 → A → Y
+m_L1 <- spec_model(L1    ~ lag1_A + lag1_L1 + V + time,
+                   var_type = "normal",  mod_type = "covariate")
+m_L2 <- spec_model(L2    ~ lag1_A + lag1_L2 + V + time,
+                   var_type = "binary",  mod_type = "covariate")
+m_A  <- spec_model(A     ~ lag1_A + L1 + L2 + V + time,
+                   var_type = "binary",  mod_type = "exposure")
+m_Y  <- spec_model(Y_bin ~ A + L1 + L2,
+                   var_type = "binary",  mod_type = "outcome")
+
+models_bin <- list(m_L1, m_L2, m_A, m_Y)
+
+# Define intervention strategies
+# NULL  = natural course (draw exposure from its fitted model)
+# 1 / 0 = always treat / never treat
+ints <- list(natural = NULL, always_treat = 1, never_treat = 0)
+
+# ── 3. Run g-formula ────────────────────────────────────────────────────────
+fit_bin <- gformula(
+  data        = nonsurvivaldata,
+  id_var      = "id",
+  time_var    = "time",
+  base_vars   = "V",
+  exposure    = "A",
+  models      = models_bin,
+  intervention = ints,
+  ref_int     = "natural",
+  init_recode = init_rc,
+  in_recode   = in_rc,
+  mc_sample   = 10000,
+  R           = 100,  # set R > 1 for bootstrap CIs; kept low here for speed
+  quiet       = TRUE,
+  seed        = 2025
+)
+#> Warning: package 'future' was built under R version 4.5.3
+
+print(fit_bin)
+#> Call:
+#> gformula(data = nonsurvivaldata, id_var = "id", base_vars = "V", 
+#>     exposure = "A", time_var = "time", models = models_bin, intervention = ints, 
+#>     ref_int = "natural", init_recode = init_rc, in_recode = in_rc, 
+#>     mc_sample = 10000, R = 100, quiet = TRUE, seed = 2025)
+#> 
+#> --- Analysis setup ---
+#>   Exposure     : A
+#>   Time variable: time
+#>   ID variable  : id
+#>   Baseline vars: V
+#>   MC sample    : 10000
+#>   Bootstrap R  : 100
+#>   Seed         : 2025
+#>   Reference    : natural
+#> 
+#> --- Mean outcome by intervention --- 
+#>    Intervention    Est     Sd RD 2.5%(pct) RD 97.5%(pct) RD 2.5%(norm)
+#>          <fctr>  <num>  <num>        <num>         <num>         <num>
+#> 1:      natural 0.1405 0.0067       0.1296        0.1547        0.1275
+#> 2: always_treat 0.1508 0.0074       0.1380        0.1652        0.1362
+#> 3:  never_treat 0.0867 0.0139       0.0617        0.1137        0.0596
+#>    RD 97.5%(norm)
+#>             <num>
+#> 1:         0.1536
+#> 2:         0.1654
+#> 3:         0.1139
+#> 
+#> --- Contrasts vs. reference intervention --- 
+#>              Intervention  Risk_type Estimate     Sd RD 2.5%(pct) RD 97.5%(pct)
+#>                    <char>     <char>    <num>  <num>        <num>         <num>
+#> 1: always_treat - natural Difference   0.0103 0.0024       0.0054        0.0146
+#> 2: always_treat / natural      Ratio   1.0731 0.0170       1.0395        1.1024
+#> 3:  never_treat - natural Difference  -0.0538 0.0132      -0.0780       -0.0258
+#> 4:  never_treat / natural      Ratio   0.6171 0.0929       0.4514        0.8109
+#>    RD 2.5%(norm) RD 97.5%(norm)
+#>            <num>          <num>
+#> 1:        0.0055         0.0150
+#> 2:        1.0398         1.1065
+#> 3:       -0.0797        -0.0279
+#> 4:        0.4350         0.7992
 ```
 
 ### Mediation analysis: interventional IDE/IIE (Lin et al. 2017)
@@ -105,14 +163,19 @@ data("nonsurvivaldata", package = "causalMed")
 
 # Model list must include a mediator model (mod_type = "mediator")
 # List order must reflect the temporal DAG: A -> L -> M -> Y
+init_med <- recodes(lag1_A = 0, lag1_L1 = 0, lag1_L2 = 0, lag1_M = 0)
+in_med   <- recodes(lag1_A = A, lag1_L1 = L1, lag1_L2 = L2, lag1_M = M)
+
 models_med <- list(
-  spec_model(A ~ V + A_lag1 + L_lag1 + time,
+  spec_model(A   ~ V + lag1_L1 + lag1_L2 + lag1_A + time,
              var_type = "binary",  mod_type = "exposure"),
-  spec_model(L ~ V + A + L_lag1 + time,
+  spec_model(L1  ~ V + A + lag1_L1 + time,
              var_type = "normal",  mod_type = "covariate"),
-  spec_model(M ~ V + A + L + M_lag1 + time,
-             var_type = "normal",  mod_type = "mediator"),
-  spec_model(Y ~ V + A + M + L + A:M,
+  spec_model(L2  ~ V + A + lag1_L2 + time,
+             var_type = "binary",  mod_type = "covariate"),
+  spec_model(M   ~ V + A + L1 + L2 + lag1_M + time,
+             var_type = "normal",  mod_type = "mediator"),   # <-- mediator
+  spec_model(Y_bin ~ V + A + M + L1 + L2,
              var_type = "binary",  mod_type = "outcome")
 )
 
@@ -122,17 +185,73 @@ fit_med <- mediation(
   time_var       = "time",
   base_vars      = "V",
   exposure       = "A",
-  outcome        = "Y",
+  outcome        = "Y_bin",
   models         = models_med,
-  init_recode    = recodes(A_lag1 = 0, L_lag1 = 0, M_lag1 = 0),
-  in_recode      = recodes(A_lag1 = A, L_lag1 = L, M_lag1 = M),
-  mediation_type = "I",   # interventional IDE/IIE (Lin et al. 2017)
+  init_recode    = init_med,
+  in_recode      = in_med,
+  mediation_type = "I",     # Interventional IDE/IIE
   mc_sample      = 10000,
-  R              = 200,   # bootstrap replicates; set R = 1 for point estimate only
-  seed           = 12345
+  R              = 100,
+  quiet          = TRUE,
+  seed           = 2025
 )
 
 print(fit_med)
+#> Call:
+#> mediation(data = nonsurvivaldata, id_var = "id", base_vars = "V", 
+#>     exposure = "A", outcome = "Y_bin", time_var = "time", models = models_med, 
+#>     init_recode = init_med, in_recode = in_med, mc_sample = 10000, 
+#>     mediation_type = "I", R = 100, quiet = TRUE, seed = 2025)
+#> 
+#> --- Analysis setup ---
+#>   Exposure     : A
+#>   Time variable: time
+#>   ID variable  : id
+#>   Baseline vars: V
+#>   MC sample    : 10000
+#>   Bootstrap R  : 100
+#>   Seed         : 2025
+#>   Mediation    : Interventional effects (IDE/IIE) -- Lin et al. (2017)
+#> 
+#> --- Marginal mean outcome per arm (Q-functionals) --- 
+#>   Ph11  = E[Y(a=1, M(1))]:  exposure=1, mediator under a=1
+#>   Phi10 = E[Y(a=1, M(0))]:  exposure=1, mediator under a=0  [cross-world]
+#>   Phi00 = E[Y(a=0, M(0))]:  exposure=0, mediator under a=0
+#>    Intervention    Est     Sd RD 2.5%(pct) RD 97.5%(pct) RD 2.5%(norm)
+#>          <fctr>  <num>  <num>        <num>         <num>         <num>
+#> 1:         Ph11 0.1519 0.0075       0.1383        0.1661        0.1371
+#> 2:        Phi00 0.0847 0.0135       0.0607        0.1128        0.0582
+#> 3:        Phi10 0.1460 0.0073       0.1329        0.1589        0.1317
+#>    RD 97.5%(norm)
+#>             <num>
+#> 1:         0.1667
+#> 2:         0.1112
+#> 3:         0.1604
+#> 
+#> --- Effect decomposition --- 
+#>   Total effect    = Ph11 - Phi00  =  E[Y(1,M(1))] - E[Y(0,M(0))]
+#>   Direct effect   = Phi10 - Phi00 =  E[Y(1,M(0))] - E[Y(0,M(0))]
+#>   Indirect effect = Ph11 - Phi10  =  E[Y(1,M(1))] - E[Y(1,M(0))]
+#>   Mediation Prop. = Indirect / Total  (as a percentage; RR not applicable)
+#>   RD = risk difference;  RR = risk ratio
+#>                  Effect     RD     RR     Sd RD 2.5%(pct) RD 97.5%(pct)  Sd_RR
+#>                  <char>  <num>  <num>  <num>        <num>         <num>  <num>
+#> 1:      Indirect effect 0.0059 1.0401 0.0021       0.0024        0.0105 0.0148
+#> 2:        Direct effect 0.0613 1.7239 0.0151       0.0287        0.0854 0.2938
+#> 3:         Total effect 0.0672 1.7931 0.0153       0.0323        0.0916 0.3076
+#> 4: Mediation Proportion 8.7231     NA 3.6941       4.3050       17.5163     NA
+#>    RR 2.5%(pct) RR 97.5%(pct) RD 2.5%(norm) RD 97.5%(norm) RR 2.5%(norm)
+#>           <num>         <num>         <num>          <num>         <num>
+#> 1:       1.0164        1.0729        0.0018         0.0099        1.0112
+#> 2:       1.2612        2.3621        0.0318         0.0909        1.1480
+#> 3:       1.2961        2.4283        0.0371         0.0973        1.1903
+#> 4:           NA            NA        1.4829        15.9634            NA
+#>    RR 97.5%(norm)
+#>             <num>
+#> 1:         1.0690
+#> 2:         2.2997
+#> 3:         2.3959
+#> 4:             NA
 ```
 
 The `estimate` component of `fit_med` contains:

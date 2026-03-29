@@ -145,7 +145,7 @@ Each element of \code{models} is typically created by \code{\link{spec_model}}
  and must include: (i) the model formula/call, (ii) a \code{mod_type} indicating its role
 (\code{"exposure"}, \code{"covariate"}, \code{"outcome"}, \code{"survival"},
 or \code{"censoring"}), and (iii) a \code{var_type} specifying the
-variable type used for simulation/prediction (\code{"binomial"}, \code{"normal"},
+variable type used for simulation/prediction (\code{"binary"}, \code{"normal"},
 \code{"categorical"}, and \code{"custom"}). The list order must reflect the
 data-generating process (temporal ordering). The outcome model is detected internally
 and used for computing predicted outcomes (\code{Pred\_Y}) under each intervention.
@@ -170,9 +170,9 @@ positivity, and no unmeasured confounding assumptions customary for g-formula.
 data(nonsurvivaldata)
 
 ## Specify models in temporal order, e.g.:
-mod1<-spec_model(A ~ A_lag1  +V,var_type= "binomial",mod_type = "exposure")
+mod1<-spec_model(A ~ A_lag1  +V,var_type= "binary",mod_type = "exposure")
 mod2<-spec_model(L ~ A + L_lag1  +V,var_type  = "normal",mod_type = "covariate")
-mod3<-spec_model(Y ~  A + L  + V,var_type = "binomial",mod_type = "outcome")
+mod3<-spec_model(Y ~  A + L  + V,var_type = "binary",mod_type = "outcome")
 models1<-list(mod1,mod2,mod3)
 
 ## Define interventions over T time points:

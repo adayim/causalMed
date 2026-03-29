@@ -78,21 +78,26 @@ An object of class \code{"gformula"} with components:
 \itemize{
   \item \code{call}: the matched function call.
   \item \code{all.args}: a named list of evaluated arguments for reproducibility.
-  \item \code{effect_size}: a \code{data.table} with columns \code{Effect} and \code{Est}.
+  \item \code{effect_size}: a \code{data.table} with columns \code{Intervention} and \code{Est}.
         If \code{R > 1}, also includes \code{Sd}, percentile CIs (\code{perct_lcl}, \code{perct_ucl}),
         and normal CIs (\code{norm_lcl}, \code{norm_ucl}).Typical labels are:
         \code{Ph11 = E[Y_{1,M(1)}]}, \code{Phi10 = E[Y_{1,M(0)}]},
         \code{Phi00 = E[Y_{0,M(0)}]}, which serve as building blocks for
         natural (or interventional analogue) direct and indirect effects.
   \item \code{estimate}: a \code{data.table} summarizing the decomposition
-        of effects, typically with rows:
+        of effects, with rows:
         \itemize{
           \item \code{"Indirect effect"} = \eqn{E[Y_{1,M(1)}] - E[Y_{1,M(0)}]}
           \item \code{"Direct effect"}   = \eqn{E[Y_{1,M(0)}] - E[Y_{0,M(0)}]}
           \item \code{"Total effect"}    = \eqn{E[Y_{1,M(1)}] - E[Y_{0,M(0)}]}
+          \item \code{"Mediation Proportion"} = Indirect / Total (as a percentage)
         }
-        Columns include \code{Est}, \code{Sd}, and confidence intervals
-        (\code{perct_lcl}, \code{perct_ucl}, \code{norm_lcl}, \code{norm_ucl}).
+        Columns: \code{RD} (risk difference), \code{RR} (risk ratio). When
+        \code{R > 1}: also \code{Sd}, \code{perct_lcl}/\code{perct_ucl}
+        (percentile CI), \code{norm_lcl}/\code{norm_ucl} (normal CI) for RD;
+        and \code{Sd_RR}, \code{perct_lcl_RR}/\code{perct_ucl_RR},
+        \code{norm_lcl_RR}/\code{norm_ucl_RR} for RR.
+        \code{RR} is \code{NA} for the Mediation Proportion row.
   \item \code{sim_data}: if \code{return_data = TRUE}, the Monte Carlo simulated
         longitudinal dataset used internally (can be large).
   \item \code{fitted_models}: a named list of fitted models keyed by outcome, exposure,
@@ -108,22 +113,43 @@ effect for both natural mediation (\code{"N"}) and interventional mediation (\co
 A \code{data.frame} summarizing the estimates will be returned.
 }
 \details{
-#' **Data requirements**
-The function internally manipulates the data to fit the required g-formula framework.
-The input dataset must be prepared in a longitudinal ("long") format, with one record
-per subject per time period.
-In survival settings, note that all records after the outcome event of interest must
-be removed, because the final outcome must remain consistent across rows for the same subject.
+**Data requirements**
+The input dataset must be in longitudinal ("long") format: one record per subject per
+time period. In survival settings, all records after the event must be removed.
+
+The exposure variable must be **binary, coded as 0 (reference/untreated) and 1
+(active/treated)**. Methods implemented here (Lin et al. 2017; Zheng & van der Laan 2017)
+are defined for binary exposures only.
 
 **Model specification**
-Each element of \code{models} is typically created by \code{\link{spec_model}}
- and must include: (i) the model formula/call, (ii) a \code{mod_type} indicating its role
-(\code{"exposure"}, \code{"covariate"}, \code{"mediator"}, \code{"outcome"},
-\code{"survival"}, or \code{"censoring"}), and (iii) a \code{var_type} specifying the
-variable type used for simulation/prediction (\code{"binomial"}, \code{"normal"},
-\code{"categorical"}, and \code{"custom"}). The list order must reflect the
-data-generating process (temporal ordering). The outcome model is detected internally
-and used for computing predicted outcomes (\code{Pred\_Y}) under each intervention.
+Each element of \code{models} is created by \code{\link{spec_model}} and must specify:
+(i) a formula, (ii) \code{mod_type} (\code{"exposure"}, \code{"covariate"},
+\code{"mediator"}, \code{"outcome"}, \code{"survival"}, or \code{"censoring"}), and
+(iii) \code{var_type} (\code{"binary"}, \code{"normal"}, \code{"categorical"}, or
+\code{"custom"}). Exactly one \code{"mediator"} model is required.
+
+The list order determines the simulation sequence at each time step and must match
+your assumed data-generating process. A common ordering is
+\strong{A(t) -> L(t) -> M(t) -> S(t)} (confounders not affected by mediator) or
+\strong{A(t) -> M(t) -> L(t) -> S(t)} (confounders affected by both exposure and
+mediator). The function checks that the mediator precedes the outcome and that exposure
+precedes the mediator, and warns if these are violated.
+
+For non-standard covariate distributions (bounded, zero-inflated, truncated), use
+\code{var_type = "custom"} with \code{custom_fit} and \code{custom_sim} arguments to
+\code{\link{spec_model}}. See the vignette section on custom covariate types.
+
+**Mediator pool (interventional effects)**
+For \code{mediation_type = "I"}, a separate cohort is simulated under \eqn{a^* = 0}
+to build the marginal mediator distribution. In survival analyses the pool is
+sampled with probability proportional to each individual's cumulative survival
+\eqn{Sc} under \eqn{a^*}, implementing the \eqn{S(1{:}t-1)=1} condition from
+Lin et al. (2017, Eq. 4).
+
+**Warnings**
+Warnings from model fitting (e.g., convergence, near-separation) are collected
+during the run and printed as a deduplicated summary at function exit, including
+a repeat count when the same message fires across bootstrap replicates.
 
 **Re-coding hooks**
 \itemize{
@@ -140,7 +166,7 @@ models <- list(
   cov_model = spec_model(L ~ V+L_lag1+A+time,var_type= "normal",mod_type = "covariate"),
   mediator_model = spec_model(M ~ V + A + L + M_lag1 + time,
                               var_type = "normal", mod_type = "mediator"),
-  outcome_model = spec_model(Y ~ V+A+M+A * M+L,  var_type= "binomial",mod_type ="outcome")
+  outcome_model = spec_model(Y ~ V+A+M+A * M+L,  var_type= "binary",mod_type ="outcome")
   )
 
 fit <- mediation(

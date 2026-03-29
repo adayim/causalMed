@@ -36,7 +36,7 @@
 #'  and must include: (i) the model formula/call, (ii) a \code{mod_type} indicating its role
 #' (\code{"exposure"}, \code{"covariate"}, \code{"outcome"}, \code{"survival"},
 #' or \code{"censoring"}), and (iii) a \code{var_type} specifying the
-#' variable type used for simulation/prediction (\code{"binomial"}, \code{"normal"},
+#' variable type used for simulation/prediction (\code{"binary"}, \code{"normal"},
 #' \code{"categorical"}, and \code{"custom"}). The list order must reflect the
 #' data-generating process (temporal ordering). The outcome model is detected internally
 #' and used for computing predicted outcomes (\code{Pred\_Y}) under each intervention.
@@ -142,9 +142,9 @@
 #' data(nonsurvivaldata)
 #'
 #' ## Specify models in temporal order, e.g.:
-#' mod1<-spec_model(A ~ A_lag1  +V,var_type= "binomial",mod_type = "exposure")
+#' mod1<-spec_model(A ~ A_lag1  +V,var_type= "binary",mod_type = "exposure")
 #' mod2<-spec_model(L ~ A + L_lag1  +V,var_type  = "normal",mod_type = "covariate")
-#' mod3<-spec_model(Y ~  A + L  + V,var_type = "binomial",mod_type = "outcome")
+#' mod3<-spec_model(Y ~  A + L  + V,var_type = "binary",mod_type = "outcome")
 #' models1<-list(mod1,mod2,mod3)
 #'
 #' ## Define interventions over T time points:
@@ -275,13 +275,15 @@ gformula <- function(data,
     arg_pools$future_seed <- boot_seed
     pools <- do.call(bootstrap_helper, arg_pools)
 
-    # Get the mean of bootstrap results
-    pools_res <- lapply(pools, function(bt) {
+    # Get the mean of bootstrap results.
+    # pools_list is kept (before rbindlist) so it can be reused for contrasts
+    # below, avoiding a redundant second lapply over all R replicates.
+    pools_list <- lapply(pools, function(bt) {
       out <- utils::stack(bt$gform.data)
       colnames(out) <- c("Est", "Intervention")
       return(out)
     })
-    pools_res <- data.table::rbindlist(pools_res, use.names = TRUE)
+    pools_res <- data.table::rbindlist(pools_list, use.names = TRUE)
 
     # Calculate Sd and percentile confidence interval
     pools_res <- pools_res[, .(
@@ -308,12 +310,7 @@ gformula <- function(data,
                                return_data = return_data)
 
     if (R > 1) {
-      pools2 <- lapply(pools, function(bt) {
-        out <- utils::stack(bt$gform.data)
-        colnames(out) <- c("Est", "Intervention")
-        return(out)
-      })
-      res_pools <- lapply(pools2,
+      res_pools <- lapply(pools_list,
                           risk_estimate.boot,
                           ref_int = ref_int,
                           intervention = intervention,
@@ -373,10 +370,7 @@ gformula <- function(data,
     dat_out <- NULL
   }
 
-  if(length(causalmed_env$warning)>0){
-    message(paste(causalmed_env$warning, collapse = "\n=============\n"),
-            domain = "causalMed")
-  }
+  emit_warnings()
 
   y <- list(call = tpcall,
             all.args = all.args,

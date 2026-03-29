@@ -10,7 +10,8 @@ simulate_data(
   models,
   intervention = NULL,
   mediation_type = c(NA, "N", "I"),
-  med_pool = NULL
+  med_pool = NULL,
+  med_ref_val = 0L
 )
 }
 \arguments{
@@ -26,11 +27,17 @@ will be evaluated and the exposure variable will be set to 1 if it is \code{TRUE
 no mediation analysis will be performed (default). It will be ignored if the intervention
  is not \code{NULL}}
 
-\item{med_pool}{Optional named list of pre-simulated mediator values keyed by time index
-(as character string). When supplied and \code{mediation_type = "I"}, the mediator for
-the Phi10 (cross-world) arm is drawn by permutation from this pool rather than from the
-model evaluated at a*=0 with the current arm's confounder trajectory. This implements the
-two-trajectory approach required by Lin et al. (2017, Eq. 4).}
+\item{med_pool}{Optional named list keyed by time index (as character string). Each element
+is itself a list with two components: \code{vals} (simulated mediator values under a*) and
+\code{weights} (the corresponding survival probability \eqn{Sc} under a*, or \code{NULL}
+for non-survival analyses). When supplied and \code{mediation_type = "I"}, the mediator
+for the Phi10 (cross-world) arm is sampled from \code{vals} with probability proportional
+to \code{weights}, implementing the \eqn{S(1{:}t-1)=1} conditioning in Lin et al. (2017,
+Eq. 4).}
+
+\item{med_ref_val}{The reference exposure value (a*) used when evaluating the mediator model
+for the Phi10 arm. Defaults to \code{0L}. Set to match the \code{ref_val} argument of
+\code{\link{mediation}}.}
 }
 \description{
 Loop through the models and apply any recoding or subset.

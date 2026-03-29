@@ -48,12 +48,12 @@ data("nonsurvivaldata")
 head(nonsurvivaldata, 10)
 ```
 
-The `nonsurvivaldata` dataset contains 1 000 subjects observed at three time points (0, 1, 2):
+The `nonsurvivaldata` dataset contains 1 000 subjects observed at five time points (0, 1, 2, 3, 4):
 
 | Variable | Role |
 |----------|------|
 | `id` | Subject identifier |
-| `time` | Time index (0, 1, 2) |
+| `time` | Time index (0, 1, 2, 3, 4) |
 | `V` | Time-fixed baseline covariate |
 | `A` | Time-varying binary exposure |
 | `L1` | Time-varying continuous confounder |
@@ -101,7 +101,7 @@ spec_model(
 
 ### Temporal ordering is critical
 
-The list order determines the simulation sequence at each time step. Confounders at time *t* that are affected by exposure at time *t* must come **after** the exposure model but **before** the outcome model.
+The list order determines the simulation sequence at each time step. This should follow the data-generating mechanism. Confounders at time *t* that are affected by exposure at time *t* must come **after** the exposure model but **before** the outcome model.
 
 ---
 
@@ -221,7 +221,7 @@ fit_surv$estimate      # Risk contrasts
 
 ### Example 3 — Dynamic (threshold) intervention
 
-A **dynamic intervention** assigns exposure based on a rule that depends on the individual's current covariate values. Wrap the rule in `dyn_int()`:
+A **dynamic intervention** assigns exposure based on a rule that depends on the individual's current covariate values. For example, we might treat individuals when a covariate exceeds a specified threshold. Wrap the rule in `dyn_int()`:
 
 ```{r gformula-dynamic}
 fit_dyn <- gformula(
@@ -264,9 +264,26 @@ where $Y_{a, M(a^*)}$ denotes the potential outcome under exposure $a$ with the 
 
 You must include a model with `mod_type = "mediator"` in the model list, and pass the outcome variable name via `outcome`.
 
+### Requirements and defaults
+
+**Binary exposure.** The exposure variable must be coded as `0` (reference/untreated) and `1` (active/treated). Both Lin et al. (2017) and Zheng & van der Laan (2017) are defined for binary exposures; `mediation()` will stop with an informative error if other values are found.
+
+**Single mediator.** Exactly one model with `mod_type = "mediator"` is required.
+
+**Temporal ordering.** The list order determines the simulation sequence. Two orderings are common:
+
+- `A → L → M → S` — confounders at time *t* are not affected by the mediator at time *t* (mediator conditions on L; outcome conditions on A, M, L).
+- `A → M → L → S` — confounders at time *t* are affected by both exposure and mediator (Lin et al. 2017 DAG). This is the setting where standard regression fails.
+
+The function checks that exposure precedes the mediator and that the mediator precedes the outcome, and warns if either is violated.
+
+**Survivor-restricted mediator pool (interventional effects, survival outcomes).** For `mediation_type = "I"`, mediator values under `a* = 0` are drawn using weighted sampling based on the cumulative survival probability (`Sc`) at each time point, thereby implementing the survivor conditioning required by Lin et al. (2017, Eq. 4).
+
+**Warning summary.** Warnings from model fitting (e.g., convergence, near-separation) are held and printed as a deduplicated summary at function exit. Repeated warnings (e.g., across 500 bootstrap replicates) are shown once with a count.
+
 ### Setting up models for mediation
 
-The temporal ordering for mediation is: **A → L → M → Y**. The mediator model must condition on exposure and all confounders at the same time point; the outcome model must include both exposure and mediator.
+The mediator model must condition on exposure and all confounders at the same time point; the outcome model must include both exposure and mediator. The example below uses the `A → L → M → Y` ordering (confounders not affected by the mediator).
 
 ```{r mediation-models}
 init_med <- recodes(lag1_A = 0, lag1_L1 = 0, lag1_L2 = 0, lag1_M = 0)
@@ -452,6 +469,46 @@ Valid inference requires the following assumptions to hold for the observed data
 For **natural effects** (`mediation_type = "N"`), an additional assumption is required:
 
 4. **No unmeasured exposure-induced mediator–outcome confounding**: there are no confounders of the mediator–outcome relationship that are themselves caused by prior exposure. Interventional effects (`mediation_type = "I"`) do not require this assumption.
+
+---
+
+## Non-standard Covariate Distributions
+
+The four built-in `var_type` values cover the most common cases:
+
+| `var_type` | Distribution |
+|---|---|
+| `"binary"` | Bernoulli (logistic regression) |
+| `"normal"` | Gaussian (linear regression) |
+| `"categorical"` | Multinomial (`nnet::multinom`) |
+| `"custom"` | User-supplied fit and simulation functions |
+
+For distributions not in this list — **bounded normal**, **truncated normal**, **zero-inflated normal**, **absorbing states** — use `var_type = "custom"` with the `custom_fit` and `custom_sim` arguments to `spec_model()`:
+
+```{r custom-type, eval=FALSE}
+# Example: bounded normal covariate in [0, 1]
+my_fit <- function(formula, data, ...) {
+  # fit any model you like; return the fitted object
+  lm(formula, data = data)
+}
+
+my_sim <- function(model, newdt, ...) {
+  pred <- predict(model, newdata = newdt)
+  # draw from N(pred, sigma^2) and clamp to [0, 1]
+  draws <- rnorm(length(pred), pred, sigma(model))
+  pmin(pmax(draws, 0), 1)
+}
+
+m_bounded <- spec_model(
+  X ~ A + L + time,
+  var_type   = "custom",
+  mod_type   = "covariate",
+  custom_fit = my_fit,
+  custom_sim = my_sim
+)
+```
+
+`custom_fit(formula, data, ...)` is called during model fitting and must return an object that `custom_sim` knows how to predict from. `custom_sim(model, newdt, ...)` is called at each simulation step and must return a vector of simulated values of length `nrow(newdt)`.
 
 ---
 
