@@ -101,7 +101,7 @@ spec_model(
 
 ### Temporal ordering is critical
 
-The list order determines the simulation sequence at each time step. This should follows data generating mechanism. Confounders at time *t* that are affected by exposure at time *t* must come **after** the exposure model but **before** the outcome model.
+The list order determines the simulation sequence at each time step. This should follow the data-generating mechanism. Confounders at time *t* that are affected by exposure at time *t* must come **after** the exposure model but **before** the outcome model.
 
 ---
 
@@ -221,7 +221,7 @@ fit_surv$estimate      # Risk contrasts
 
 ### Example 3 — Dynamic (threshold) intervention
 
-A **dynamic intervention** assigns exposure based on a rule that depends on the individual's current covariate values. For example intervene indiviudals of certain threshold values were met. Wrap the rule in `dyn_int()`:
+A **dynamic intervention** assigns exposure based on a rule that depends on the individual's current covariate values. For example, we might treat individuals when a covariate exceeds a specified threshold. Wrap the rule in `dyn_int()`:
 
 ```{r gformula-dynamic}
 fit_dyn <- gformula(
@@ -277,7 +277,7 @@ You must include a model with `mod_type = "mediator"` in the model list, and pas
 
 The function checks that exposure precedes the mediator and that the mediator precedes the outcome, and warns if either is violated.
 
-**Survivor-restricted mediator pool (interventional effects, survival outcomes).** For `mediation_type = "I"`, the mediator pool under `a* = 0` is automatically restricted to individuals who are still alive at each time point, implementing the survivor conditioning required by Lin et al. (2017, Eq. 4).
+**Survivor-restricted mediator pool (interventional effects, survival outcomes).** For `mediation_type = "I"`, mediator values under `a* = 0` are drawn using weighted sampling based on the cumulative survival probability (`Sc`) at each time point, thereby implementing the survivor conditioning required by Lin et al. (2017, Eq. 4).
 
 **Warning summary.** Warnings from model fitting (e.g., convergence, near-separation) are held and printed as a deduplicated summary at function exit. Repeated warnings (e.g., across 500 bootstrap replicates) are shown once with a count.
 

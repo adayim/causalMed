@@ -40,7 +40,7 @@ testthat::test_that("mediation runs without error on nonsurvivaldata", {
 
 
 testthat::test_that("Mediation decomposition: Direct + Indirect = Total (algebraic identity)", {
-  data(nonsurvivaldata)
+  data("nonsurvivaldata", package = "causalMed") 
 
   # Minimal models: A (exposure), L2 (confounder), L1 (mediator), Y_bin (outcome)
   # Ordering: A -> L2 -> M(L1) -> Y
@@ -61,7 +61,7 @@ testthat::test_that("Mediation decomposition: Direct + Indirect = Total (algebra
         models         = models,
         mediation_type = mtype,
         mc_sample      = 500L,
-        R              = 0L,
+        R              = 1L,
         quiet          = TRUE,
         seed           = 42L
       )

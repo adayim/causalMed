@@ -51,7 +51,7 @@ simulate_data <- function(data,
     set(data, j = exposure, value = intervention)
   }
 
-  # Phi10 arm: fix exposure to exposure_val and cache the a*=ref_val swap expression
+  # Phi10 arm: fix exposure to 1 and cache the a*=ref_val swap expression
   if (is_phi10) {
     set(data, j = exposure, value = 1L)
     interv0 <- parse(text = paste0(exposure, " = ", med_ref_val))
@@ -129,8 +129,19 @@ simulate_data <- function(data,
                 pool_size, n_alive
               ))
               data[cond, (resp_var) := sample(pool_vals, n_alive, replace = TRUE, prob = pool_wts)]
+            } else {
+              # pool_size == 0: no a* survivors to draw from. Fall back to
+              # model-based draw at a*=0 then permute, matching the NULL med_pool
+              # branch below (line 135-138). Stale values would silently corrupt
+              # Phi10 trajectories.
+              warning(
+                "Interventional mediation: mediator pool is empty (no a* survivors at this time point). ",
+                "Falling back to model-based draw at a*=0."
+              )
+              med_value <- sim_value(model = model,
+                                     newdt = within(data[cond], eval(interv0)))
+              data[cond, (resp_var) := sample(med_value, length(med_value), replace = FALSE)]
             }
-            # If pool_size == 0, mediator is not updated (stale value retained).
           } else {
             # Fallback: draw from model at a*=0 then permute.
             med_value <- sim_value(model = model,

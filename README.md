@@ -65,7 +65,7 @@ library(causalMed)
 
 data("nonsurvivaldata", package = "causalMed")
 
-# Mange lagged variables
+# Manage lagged variables
 init_rc <- recodes(lag1_A  = 0,   # At t=0, all lags initialised to 0
                    lag1_L1 = 0,
                    lag1_L2 = 0)
