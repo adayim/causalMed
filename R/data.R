@@ -78,6 +78,20 @@
 #'   \item{lag1_L2}{Lagged confounder L2.}
 #'   \item{lag1_M}{Lagged mediator.}
 #' }
+#' 
+#' @details
+#' The simulated longitudinal data-generating structure can be summarized as:
+#' \deqn{
+#' A_t \leftarrow V, L1_{t-1}, L2_{t-1}, A_{t-1}, t;\quad
+#' L1_t \leftarrow V, A_t, L1_{t-1}, t;\quad
+#' L2_t \leftarrow V, A_t, L2_{t-1}, t;\quad
+#' M_t \leftarrow V, A_t, L1_t, L2_t, M_{t-1}, t;\quad
+#' Y_t \leftarrow V, A_t, M_t, L1_t, L2_t, A_t*M_t.
+#' }
+#' The same outcome model structure is used for both \code{Y_bin} and
+#' \code{Y_cont}, with the appropriate outcome distribution specified for each
+#' outcome type.
+#'
 #' @source Simulated data generated for package examples.
 "nonsurvivaldata"
 
@@ -88,7 +102,7 @@
 #' with a survival outcome, suitable for use with the g-formula and mediation
 #' functions under survival settings.
 #'
-#' @format A data frame with 17226 rows and 10 variables:
+#' @format A data frame with 7113 rows and 10 variables:
 #' \describe{
 #'   \item{id}{Unique subject identifier.}
 #'   \item{time}{Time variable (integer, starting at 0).}
@@ -101,5 +115,19 @@
 #'   \item{lag1_M}{Lagged mediator.}
 #'   \item{lag1_L}{Lagged confounder.}
 #' }
+#' 
+#' @details
+#' The data-generating structure can be summarized as:
+#' \deqn{
+#' A_t \leftarrow V, L_{t-1}, A_{t-1}, t;\quad
+#' L_t \leftarrow V, A_t, L_{t-1}, t;\quad
+#' M_t \leftarrow V, A_t, L_t, M_{t-1}, t;\quad
+#' Y_t \leftarrow V, A_t, M_t, L_t, A_t*M_t, t.
+#' }
+#'
+#' Events and follow-up observations are generated only while subjects remain at
+#' risk. Therefore, once \code{Y} becomes 1 at time \eqn{t}, no observations are
+#' retained for that subject at subsequent time points \eqn{t+1, t+2, \ldots}.
+#' 
 #' @source Simulated data generated for package examples.
 "survivaldata"
