@@ -88,7 +88,7 @@
 #' with a survival outcome, suitable for use with the g-formula and mediation
 #' functions under survival settings.
 #'
-#' @format A data frame with 17226 rows and 10 variables:
+#' @format A data frame with 7113 rows and 10 variables:
 #' \describe{
 #'   \item{id}{Unique subject identifier.}
 #'   \item{time}{Time variable (integer, starting at 0).}
