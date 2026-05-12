@@ -63,8 +63,9 @@ automatically and \code{ref_int} is set to \code{"natural"}.}
 \item{return_data}{Logical. If \code{TRUE}, return the stacked simulated data
 (all interventions) including predicted outcomes; may be large. Default \code{FALSE}.}
 
-\item{med_pool}{Named list of pre-simulated mediator values (from \code{.collect_med_pool}),
-keyed by time index as character. Used by the Phi10 arm for interventional mediation.}
+\item{med_pool}{Named list of pre-simulated mediator values (collected during
+the reference-arm pass with \code{collect_pool = TRUE}), keyed by time index
+as character. Used by the Phi10 arm for interventional mediation.}
 
 \item{med_ref_val}{The reference exposure value (a*) passed through to
 \code{simulate_data} for the natural-effects mediator swap. Defaults to \code{0L}.}

@@ -68,7 +68,7 @@
   #'   \item \code{effect_size}: a \code{data.table} with columns \code{Intervention} and \code{Est}.
   #'         If \code{R > 1}, also includes \code{Sd}, percentile CIs (\code{perct_lcl}, \code{perct_ucl}),
   #'         and normal CIs (\code{norm_lcl}, \code{norm_ucl}).Typical labels are:
-  #'         \code{Ph11 = E[Y_{1,M(1)}]}, \code{Phi10 = E[Y_{1,M(0)}]},
+  #'         \code{Phi11 = E[Y_{1,M(1)}]}, \code{Phi10 = E[Y_{1,M(0)}]},
   #'         \code{Phi00 = E[Y_{0,M(0)}]}, which serve as building blocks for
   #'         natural (or interventional analogue) direct and indirect effects.
   #'   \item \code{estimate}: a \code{data.table} summarizing the decomposition
@@ -126,8 +126,8 @@
 #'  mediation_type = "I",
 #'  mc_sample = 100000,
 #'  R = 500,
-#'  return_data = T,
-#'  return_fitted = T
+#'  return_data = FALSE,
+#'  return_fitted = FALSE
 #'  )
 #'
 #' print(fit)
@@ -195,7 +195,7 @@ mediation <- function(data,
     ), domain = "causalMed")
   }
 
-  intervention <- list(Ph11 = 1, Phi00 = 0, Phi10 = NULL)
+  intervention <- list(Phi11 = 1, Phi00 = 0, Phi10 = NULL)
 
   # Test if mediator model exists and that there is exactly one
   med_flag <- sapply(models, function(mods) mods$mod_type == "mediator")
@@ -336,17 +336,29 @@ mediation <- function(data,
     )
   }
   
-  # Extract fitted model information
+  # Extract fitted model information. Wrap with the same attribute set as
+  # gformula() so that print.gformula(models = TRUE) and summary.gformula()
+  # can display var_type / mod_type / recodes / subset labels.
   resp_vars_list <- sapply(est_ori$fitted.models, function(x) {
     x$rsp_vars
   })
   if (return_fitted) {
     fitted_mods <- lapply(est_ori$fitted.models, function(x) {
-      x$fitted
+      structure(x$fitted,
+                recodes = x$recodes,
+                subset = x$subset,
+                var_type = x$var_type,
+                mod_type = x$mod_type)
     })
   } else {
     fitted_mods <- lapply(est_ori$fitted.models, function(x) {
-      list(call = x$fitted$call, coeff = summary(x$fitted)$coefficients)
+      r <- list(call = x$fitted$call,
+                coeff = summary(x$fitted)$coefficients)
+      structure(r,
+                recodes = x$recodes,
+                subset = x$subset,
+                var_type = x$var_type,
+                mod_type = x$mod_type)
     })
   }
   names(fitted_mods) <- resp_vars_list

@@ -81,7 +81,7 @@ print.gformula <- function(x,
   if (is_mediation) {
     s1_hdr  <- "\n--- Marginal mean outcome per arm (Q-functionals) ---"
     s1_note <- paste0(
-      "  Ph11  = E[Y(a=1, M(1))]:  exposure=1, mediator under a=1\n",
+      "  Phi11 = E[Y(a=1, M(1))]:  exposure=1, mediator under a=1\n",
       "  Phi10 = E[Y(a=1, M(0))]:  exposure=1, mediator under a=0  [cross-world]\n",
       "  Phi00 = E[Y(a=0, M(0))]:  exposure=0, mediator under a=0\n"
     )
@@ -99,9 +99,9 @@ print.gformula <- function(x,
   if (is_mediation) {
     s2_hdr  <- "\n--- Effect decomposition ---"
     s2_note <- paste0(
-      "  Total effect    = Ph11 - Phi00  =  E[Y(1,M(1))] - E[Y(0,M(0))]\n",
+      "  Total effect    = Phi11 - Phi00 =  E[Y(1,M(1))] - E[Y(0,M(0))]\n",
       "  Direct effect   = Phi10 - Phi00 =  E[Y(1,M(0))] - E[Y(0,M(0))]\n",
-      "  Indirect effect = Ph11 - Phi10  =  E[Y(1,M(1))] - E[Y(1,M(0))]\n",
+      "  Indirect effect = Phi11 - Phi10 =  E[Y(1,M(1))] - E[Y(1,M(0))]\n",
       "  Mediation Prop. = Indirect / Total  (as a percentage; RR not applicable)\n",
       "  RD = risk difference;  RR = risk ratio\n"
     )

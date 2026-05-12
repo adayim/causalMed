@@ -81,7 +81,7 @@ An object of class \code{"gformula"} with components:
   \item \code{effect_size}: a \code{data.table} with columns \code{Intervention} and \code{Est}.
         If \code{R > 1}, also includes \code{Sd}, percentile CIs (\code{perct_lcl}, \code{perct_ucl}),
         and normal CIs (\code{norm_lcl}, \code{norm_ucl}).Typical labels are:
-        \code{Ph11 = E[Y_{1,M(1)}]}, \code{Phi10 = E[Y_{1,M(0)}]},
+        \code{Phi11 = E[Y_{1,M(1)}]}, \code{Phi10 = E[Y_{1,M(0)}]},
         \code{Phi00 = E[Y_{0,M(0)}]}, which serve as building blocks for
         natural (or interventional analogue) direct and indirect effects.
   \item \code{estimate}: a \code{data.table} summarizing the decomposition
@@ -182,8 +182,8 @@ fit <- mediation(
  mediation_type = "I",
  mc_sample = 100000,
  R = 500,
- return_data = T,
- return_fitted = T
+ return_data = FALSE,
+ return_fitted = FALSE
  )
 
 print(fit)

@@ -84,11 +84,11 @@ risk_estimate.boot <- function(data_list, ref_int, intervention, return_data) {
 # Returns both risk-difference (RD) and risk-ratio (RR) scales.
 risk_estimate.mediation <- function(data_list, return_data) {
   if (return_data) {
-    phi_11 <- sum(data_list$Ph11) / length(data_list$Ph11)
+    phi_11 <- sum(data_list$Phi11) / length(data_list$Phi11)
     phi_00 <- sum(data_list$Phi00) / length(data_list$Phi00)
     phi_10 <- sum(data_list$Phi10) / length(data_list$Phi10)
   } else {
-    phi_11 <- data_list$Ph11
+    phi_11 <- data_list$Phi11
     phi_00 <- data_list$Phi00
     phi_10 <- data_list$Phi10
   }

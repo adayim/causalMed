@@ -5,7 +5,7 @@
 \alias{survivaldata}
 \title{Example Dataset for a Survival Outcome}
 \format{
-A data frame with 17226 rows and 10 variables:
+A data frame with 7113 rows and 10 variables:
 \describe{
   \item{id}{Unique subject identifier.}
   \item{time}{Time variable (integer, starting at 0).}
@@ -29,5 +29,18 @@ survivaldata
 A simulated dataset with time-varying and baseline variables for subjects
 with a survival outcome, suitable for use with the g-formula and mediation
 functions under survival settings.
+}
+\details{
+The data-generating structure can be summarized as:
+\deqn{
+A_t \leftarrow V, L_{t-1}, A_{t-1}, t;\quad
+L_t \leftarrow V, A_t, L_{t-1}, t;\quad
+M_t \leftarrow V, A_t, L_t, M_{t-1}, t;\quad
+Y_t \leftarrow V, A_t, M_t, L_t, A_t*M_t, t.
+}
+
+Events and follow-up observations are generated only while subjects remain at
+risk. Therefore, once \code{Y} becomes 1 at time \eqn{t}, no observations are
+retained for that subject at subsequent time points \eqn{t+1, t+2, \ldots}.
 }
 \keyword{datasets}

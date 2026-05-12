@@ -214,12 +214,12 @@ print(fit_med)
 #>   Mediation    : Interventional effects (IDE/IIE) -- Lin et al. (2017)
 #> 
 #> --- Marginal mean outcome per arm (Q-functionals) --- 
-#>   Ph11  = E[Y(a=1, M(1))]:  exposure=1, mediator under a=1
+#>   Phi11 = E[Y(a=1, M(1))]:  exposure=1, mediator under a=1
 #>   Phi10 = E[Y(a=1, M(0))]:  exposure=1, mediator under a=0  [cross-world]
 #>   Phi00 = E[Y(a=0, M(0))]:  exposure=0, mediator under a=0
 #>    Intervention    Est     Sd RD 2.5%(pct) RD 97.5%(pct) RD 2.5%(norm)
 #>          <fctr>  <num>  <num>        <num>         <num>         <num>
-#> 1:         Ph11 0.1519 0.0075       0.1383        0.1661        0.1371
+#> 1:        Phi11 0.1519 0.0075       0.1383        0.1661        0.1371
 #> 2:        Phi00 0.0847 0.0135       0.0607        0.1128        0.0582
 #> 3:        Phi10 0.1460 0.0073       0.1329        0.1589        0.1317
 #>    RD 97.5%(norm)
@@ -229,9 +229,9 @@ print(fit_med)
 #> 3:         0.1604
 #> 
 #> --- Effect decomposition --- 
-#>   Total effect    = Ph11 - Phi00  =  E[Y(1,M(1))] - E[Y(0,M(0))]
+#>   Total effect    = Phi11 - Phi00 =  E[Y(1,M(1))] - E[Y(0,M(0))]
 #>   Direct effect   = Phi10 - Phi00 =  E[Y(1,M(0))] - E[Y(0,M(0))]
-#>   Indirect effect = Ph11 - Phi10  =  E[Y(1,M(1))] - E[Y(1,M(0))]
+#>   Indirect effect = Phi11 - Phi10 =  E[Y(1,M(1))] - E[Y(1,M(0))]
 #>   Mediation Prop. = Indirect / Total  (as a percentage; RR not applicable)
 #>   RD = risk difference;  RR = risk ratio
 #>                  Effect     RD     RR     Sd RD 2.5%(pct) RD 97.5%(pct)  Sd_RR
