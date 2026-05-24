@@ -16,12 +16,12 @@ mediation(
   in_recode = NULL,
   out_recode = NULL,
   mc_sample = nrow(data) * 100,
-  mediation_type = c("N", "I"),
+  mediation_type = c("I", "N"),
   return_fitted = FALSE,
   return_data = FALSE,
   R = 500,
   quiet = FALSE,
-  seed = mc_sample * 100
+  seed = 12345L
 )
 }
 \arguments{
@@ -55,7 +55,21 @@ way data generation process. See \code{\link{spec_model}} for a recommended cons
 Default \code{nrow(data) * 100}.}
 
 \item{mediation_type}{Character. Type of mediation effect:
-\code{"N"} for natural effect or \code{"I"} for interventional effect.}
+\code{"I"} for interventional effect (default) or \code{"N"} for natural
+effect. The default was chosen because the interventional estimand
+remains identifiable in the general time-varying-confounder setting the
+package is designed for (see below).
+\strong{Identifiability.} Natural direct and indirect effects
+(\code{"N"}) are \emph{not identifiable} from observational data when
+there exists a time-varying confounder of the mediator-outcome
+relationship that is itself affected by prior exposure (Avin, Shpitser
+& Pearl 2005; VanderWeele 2014; VanderWeele & Tchetgen Tchetgen 2017).
+In that setting use \code{mediation_type = "I"}, which targets
+randomized interventional analogues of the direct/indirect effects and
+remains identifiable. A warning is emitted at runtime if \code{"N"} is
+chosen and any covariate model includes the exposure on its right-hand
+side, which is a sufficient (though not necessary) signal of intermediate
+confounding.}
 
 \item{return_fitted}{Logical. If \code{TRUE}, return full fitted model objects; otherwise,
 a light-weight summary (call and coefficients). Default \code{FALSE}.}
@@ -71,7 +85,13 @@ Unix-alikes to enable parallel bootstrap. Default \code{500}.}
 
 \item{quiet}{Logical. If \code{TRUE}, suppress progress messages/bars. Default \code{FALSE}.}
 
-\item{seed}{Integer random seed for reproducibility. Default \code{12345}.}
+\item{seed}{Integer random seed for reproducibility. Default \code{12345L}.
+Setting \code{seed} fixes the RNG stream used for the original-data Monte
+Carlo simulation \emph{and} the bootstrap replicates (the latter via the
+\code{future_seed} interface of \pkg{future.apply}). Pass \code{NULL} to
+leave the global RNG state untouched. Users running multiple analyses in
+the same session should set distinct seeds to ensure independent bootstrap
+draws across analyses.}
 }
 \value{
 An object of class \code{"gformula"} with components:

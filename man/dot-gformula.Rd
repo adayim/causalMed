@@ -19,7 +19,7 @@
   mc_sample = 10000,
   return_fitted = FALSE,
   return_data = FALSE,
-  seed = mc_sample * 100
+  seed = 12345L
 )
 }
 \arguments{

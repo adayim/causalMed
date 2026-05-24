@@ -24,7 +24,7 @@
                       mc_sample = 10000,
                       return_fitted = FALSE,
                       return_data = FALSE,
-                      seed = mc_sample * 100) {
+                      seed = 12345L) {
   if (length(mediation_type) > 1) {
     mediation_type <- mediation_type[1]
   } else if (!is.na(mediation_type) && !(mediation_type %in% c("N", "I"))) {

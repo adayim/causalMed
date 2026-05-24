@@ -57,8 +57,29 @@
 #'
 #' @param outcome Character scalar. Name of the outcome variable in \code{data}.
 #'   Must match the response variable in the outcome or survival model.
+#' @param seed Integer random seed for reproducibility. Default \code{12345L}.
+#'   Setting \code{seed} fixes the RNG stream used for the original-data Monte
+#'   Carlo simulation \emph{and} the bootstrap replicates (the latter via the
+#'   \code{future_seed} interface of \pkg{future.apply}). Pass \code{NULL} to
+#'   leave the global RNG state untouched. Users running multiple analyses in
+#'   the same session should set distinct seeds to ensure independent bootstrap
+#'   draws across analyses.
 #' @param mediation_type Character. Type of mediation effect:
-#'   \code{"N"} for natural effect or \code{"I"} for interventional effect.
+#'   \code{"I"} for interventional effect (default) or \code{"N"} for natural
+#'   effect. The default was chosen because the interventional estimand
+#'   remains identifiable in the general time-varying-confounder setting the
+#'   package is designed for (see below).
+#'   \strong{Identifiability.} Natural direct and indirect effects
+#'   (\code{"N"}) are \emph{not identifiable} from observational data when
+#'   there exists a time-varying confounder of the mediator-outcome
+#'   relationship that is itself affected by prior exposure (Avin, Shpitser
+#'   & Pearl 2005; VanderWeele 2014; VanderWeele & Tchetgen Tchetgen 2017).
+#'   In that setting use \code{mediation_type = "I"}, which targets
+#'   randomized interventional analogues of the direct/indirect effects and
+#'   remains identifiable. A warning is emitted at runtime if \code{"N"} is
+#'   chosen and any covariate model includes the exposure on its right-hand
+#'   side, which is a sufficient (though not necessary) signal of intermediate
+#'   confounding.
 #'
 #' @return
 #' An object of class \code{"gformula"} with components:
@@ -147,12 +168,12 @@ mediation <- function(data,
                       in_recode = NULL,
                       out_recode = NULL,
                       mc_sample = nrow(data)*100,
-                      mediation_type = c("N", "I"),
+                      mediation_type = c("I", "N"),
                       return_fitted = FALSE,
                       return_data = FALSE,
                       R = 500,
                       quiet = FALSE,
-                      seed = mc_sample*100) {
+                      seed = 12345L) {
 
   tpcall <- match.call()
   all.args <- mget(names(formals()),sys.frame(sys.nframe()))
@@ -211,6 +232,13 @@ mediation <- function(data,
 
   # Warn if the model list order violates the assumed A(t) -> M(t) -> L(t) -> S(t) ordering.
   check_mediation_order(models)
+
+  # For mediation_type = "N", natural direct/indirect effects are not identifiable
+  # when an intermediate (exposure-affected) confounder is present. Detect this by
+  # scanning covariate model RHS for the exposure variable.
+  if (identical(mediation_type, "N")) {
+    check_natural_identifiability(models, exposure)
+  }
 
   # Run original estimate
   arg_est <- get_args_for(.gformula)
