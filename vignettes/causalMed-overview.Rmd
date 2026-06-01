@@ -254,21 +254,35 @@ The expression inside `dyn_int()` is evaluated within the simulated dataset at e
 
 ## Causal Mediation Analysis with `mediation()`
 
-The `mediation()` function estimates the causal effect decomposition:
+The `mediation()` function decomposes the total effect into direct and indirect
+components. For **natural** effects (`mediation_type = "N"`) the decomposition is
+exact:
 
 $$\underbrace{E[Y_{1,M(1)}] - E[Y_{0,M(0)}]}_{\text{Total effect}} =
   \underbrace{E[Y_{1,M(0)}] - E[Y_{0,M(0)}]}_{\text{Direct effect}} +
   \underbrace{E[Y_{1,M(1)}] - E[Y_{1,M(0)}]}_{\text{Indirect effect}}$$
 
-where $Y_{a, M(a^*)}$ denotes the potential outcome under exposure $a$ with the mediator set to what it would have been under $a^*$.
+where $Y_{a, M(a^*)}$ is the potential outcome under exposure $a$ with the
+mediator at its natural value under $a^*$.
 
-You must include a model with `mod_type = "mediator"` in the model list, and pass the outcome variable name via `outcome`.
+For **interventional** effects (`mediation_type = "I"`) the mediator is instead
+set to a *stochastic* draw $G_{a^*}$ from its marginal distribution under $a^*$
+(drawn independently across mediators). The direct and indirect effects are
+defined relative to these draws and sum to the **interventional overall effect**
+$E[Y_{1,G_1}] - E[Y_{0,G_0}]$, which generally differs from the natural total
+effect $E[Y_1] - E[Y_0]$. `mediation()` therefore reports the total effect from a
+separate natural-course pass and adds a row `TE - (Direct + Indirect)` — the
+mediated-interaction residual ($TE$ minus the overall effect). For natural
+effects that residual is exactly zero and the row is omitted.
+
+You must include at least one model with `mod_type = "mediator"` in the model
+list, and pass the outcome variable name via `outcome`.
 
 ### Requirements and defaults
 
 **Binary exposure.** The exposure variable must be coded as `0` (reference/untreated) and `1` (active/treated). Both Lin et al. (2017) and Zheng & van der Laan (2017) are defined for binary exposures; `mediation()` will stop with an informative error if other values are found.
 
-**Single mediator.** Exactly one model with `mod_type = "mediator"` is required.
+**One or more mediators.** At least one `mod_type = "mediator"` model is required. Multiple mediators are supported for `mediation_type = "I"` (Yamamuro et al. 2021) — list them in temporal order; `mediation_type = "N"` is single-mediator only.
 
 **Temporal ordering.** The list order determines the simulation sequence. Two orderings are common:
 
@@ -277,7 +291,7 @@ You must include a model with `mod_type = "mediator"` in the model list, and pas
 
 The function checks that exposure precedes the mediator and that the mediator precedes the outcome, and warns if either is violated.
 
-**Joint mediator trajectory (interventional effects).** For `mediation_type = "I"`, a separate Monte Carlo cohort is simulated under $a^* = 0$ and each individual's full mediator trajectory $M(1{:}T)$ is stored as a row of a pool matrix. Before the Phi10 arm runs, the pool matrix is row-permuted once; each Phi10 subject then inherits the *entire* trajectory of one randomly assigned reference-cohort individual. This is the joint-trajectory algorithm described by Yamamuro et al. (2021, Figure 3 step 3) and implemented by the SAS `mGFORMULA` macro (Lin et al. 2017 eAppendix), and it samples from the joint mediator distribution targeted by Lin et al. (2017, Eq. 4) and VanderWeele & Tchetgen Tchetgen (2017). The pool is not survival-weighted; the full reference cohort is used at every time step (matching both reference SAS implementations).
+**Joint mediator trajectory (interventional effects).** For `mediation_type = "I"`, a natural-course Monte Carlo cohort is simulated under each treatment level $a^*$ and every individual's full mediator trajectory $M(1{:}T)$ is stored as a row of a pool matrix. Each arm that fixes a mediator to its $a^*$ value — **including the reference arms** $\Phi_{00} = E[Y_{0,G_0}]$ and $\Phi_{11} = E[Y_{1,G_1}]$, not only the cross-world $\Phi_{10}$ — row-permutes the relevant pool once and assigns subject $i$ the *entire* trajectory of one randomly chosen pool individual (each mediator permuted independently). This is the joint-trajectory algorithm described by Yamamuro et al. (2021, Figure 3 step 3) and implemented by the SAS `mGFORMULA` macro (Lin et al. 2017 eAppendix); it samples the marginal mediator distribution targeted by Lin et al. (2017, Eq. 4) and VanderWeele & Tchetgen Tchetgen (2017). The pool is not survival-weighted; the full reference cohort is used at every time step (matching both reference SAS implementations).
 
 **Warning summary.** Warnings from model fitting (e.g., convergence, near-separation) are held and printed as a deduplicated summary at function exit. Repeated warnings (e.g., across 500 bootstrap replicates) are shown once with a count.
 
@@ -305,7 +319,7 @@ models_med <- list(
 
 ### Interventional effects (IDE/IIE) — Lin et al. (2017); VanderWeele & Tchetgen Tchetgen (2017); Yamamuro et al. (2021)
 
-Interventional effects do not require cross-world independence and are generally preferred for time-varying settings. The Phi10 (cross-world) arm draws a **joint $M(1{:}T)$ trajectory** from a reference cohort simulated under $a^* = 0$: the pool matrix of simulated trajectories is row-permuted once at the start of the Phi10 arm, and each subject inherits the full assigned trajectory across all time steps. This breaks any individual-level dependence between mediator and the *Phi10* covariate history while preserving the joint mediator distribution under $a^*$ — matching the SAS `mGFORMULA` macro and the algorithm in Yamamuro et al. (2021, Figure 3).
+Interventional effects do not require cross-world independence and are generally preferred for time-varying settings. **Every** decomposition arm — the references $\Phi_{00}$ and $\Phi_{11}$ as well as the cross-world $\Phi_{10}$ — draws a **joint $M(1{:}T)$ trajectory** from the relevant reference pool (row-permuted once, each mediator independently), breaking the individual-level mediator–confounder dependence while preserving the marginal mediator distribution under $a^*$. The reported total effect is the natural plug-in g-formula contrast (arms `nat0`/`nat1`), so the direct + indirect effects sum to the interventional *overall* effect rather than the total effect; the gap is the `TE - (Direct + Indirect)` residual.
 
 ```{r mediation-interventional}
 fit_ide <- mediation(
@@ -327,10 +341,10 @@ fit_ide <- mediation(
 ```
 
 ```{r mediation-interventional-results}
-# Intermediate counterfactual risks: Q(1,1), Q(1,0), Q(0,0)
+# Per-arm risks: interventional Phi00/Phi10/Phi11 plus natural-course nat0/nat1
 fit_ide$effect_size
 
-# Effect decomposition
+# Effect decomposition (includes the TE - (Direct + Indirect) residual row)
 fit_ide$estimate
 ```
 

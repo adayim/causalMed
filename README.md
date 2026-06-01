@@ -275,25 +275,32 @@ print(fit_med)
 
 The `estimate` component of `fit_med` contains:
 
-| Effect               | Definition                                           |
-|----------------------|------------------------------------------------------|
-| Indirect effect      | Q(1,1) − Q(1,0): effect through the mediator pathway |
-| Direct effect        | Q(1,0) − Q(0,0): effect not through the mediator     |
-| Total effect         | Q(1,1) − Q(0,0): sum of direct and indirect          |
-| Mediation proportion | Indirect / Total × 100%                              |
+| Effect | Definition |
+|----|----|
+| Indirect effect | Q(1,1) − Q(1,0): effect through the mediator pathway |
+| Direct effect | Q(1,0) − Q(0,0): effect not through the mediator |
+| Total effect | natural plug-in g-formula contrast E\[Y₁\] − E\[Y₀\] |
+| TE − (Direct + Indirect) | mediated-interaction residual (interventional only; exactly 0, and omitted, for natural effects) |
+| Mediation proportion | (Total − Direct) / Total × 100% |
 
-where Q(a₁, a₂) is the mean outcome when exposure is set to a₁ and the
-mediator distribution is drawn from the distribution it would have had
-under exposure a₂.
+For `mediation_type = "I"`, Q(a₁, a₂) is the mean outcome when exposure
+is set to a₁ and each mediator is a **stochastic draw** from its
+marginal distribution under exposure a₂. The direct and indirect effects
+then sum to the *interventional overall effect* Q(1,1) − Q(0,0), which
+generally differs from the total effect; their gap is the residual row.
+For `mediation_type = "N"` the references use each subject’s own
+mediator and the decomposition sums exactly to the total effect (no
+residual row).
 
-For `mediation_type = "I"`, the cross-world mediator is drawn as a
-**joint trajectory**: a separate Monte Carlo cohort is simulated under
-a\* (= 0), and the Phi10 arm assigns each subject the full M(1:T) of a
-randomly permuted reference-cohort individual. This matches the SAS
-`mGFORMULA` macro (Lin et al. 2017, eAppendix) and the algorithm in
-Yamamuro et al. 2021 (Figure 3, step 3). Mediator values are not
-survival-weighted; the full reference cohort is used. See `?mediation`
-for details.
+Under `mediation_type = "I"`, the mediators in **every** arm — the
+references Q(0,0) and Q(1,1) as well as the cross-world Q(1,0) — are
+drawn as **joint trajectories**: a natural-course cohort is simulated
+under each a\*, and the arm assigns each subject the full M(1:T) of a
+randomly permuted reference-cohort individual (each mediator permuted
+independently). This matches the SAS `mGFORMULA` macro (Lin et al. 2017,
+eAppendix) and Yamamuro et al. 2021 (Figure 3, step 3). Mediator values
+are not survival-weighted; the full reference cohort is used. See
+`?mediation` for details.
 
 ### Natural NDE/NIE (Zheng & van der Laan 2017)
 
