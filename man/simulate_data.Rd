@@ -10,8 +10,7 @@ simulate_data(
   models,
   intervention = NULL,
   mediation_type = c(NA, "N", "I"),
-  med_pool = NULL,
-  med_ref_val = 0L
+  med_pool = NULL
 )
 }
 \arguments{
@@ -19,25 +18,31 @@ simulate_data(
 
 \item{models}{Model list passed from \code{\link{gformula}} or \code{\link{mediation}}.}
 
-\item{intervention}{A vector, intervention treatment, natural course will be evaluated
-if the value is \code{NULL}. If the value contains any logical operators, the intervention
-will be evaluated and the exposure variable will be set to 1 if it is \code{TRUE}.}
+\item{intervention}{One of:
+\itemize{
+  \item \code{NULL} — natural-course draw of the exposure (gformula) or
+        Phi10 cross-world arm (mediation, when \code{mediation_type} is
+        non-\code{NA}). The legacy NULL = Phi10 path is kept for
+        backwards compatibility but \code{mediation()} now constructs
+        \code{causalMed_arm} objects internally.
+  \item Numeric scalar/vector or \code{causalMed_dynint} — static or
+        dynamic exposure rule for \code{gformula()}.
+  \item \code{causalMed_arm} — structured mediation arm carrying a
+        fixed treatment value plus an optional named list of
+        per-mediator overrides. See \code{arm_spec()}.
+}}
 
 \item{mediation_type}{Type of the mediation analysis, if the value is \code{NA}
-no mediation analysis will be performed (default). It will be ignored if the intervention
- is not \code{NULL}}
+no mediation analysis will be performed (default).}
 
-\item{med_pool}{Optional named list keyed by time index (as character string). Each element
-is itself a list with two components: \code{vals} (simulated mediator values under a*) and
-\code{weights} (the corresponding survival probability \eqn{Sc} under a*, or \code{NULL}
-for non-survival analyses). When supplied and \code{mediation_type = "I"}, the mediator
-for the Phi10 (cross-world) arm is sampled from \code{vals} with probability proportional
-to \code{weights}, implementing the \eqn{S(1{:}t-1)=1} conditioning in Lin et al. (2017,
-Eq. 4).}
-
-\item{med_ref_val}{The reference exposure value (a*) used when evaluating the mediator model
-for the Phi10 arm. Defaults to \code{0L}. Set to match the \code{ref_val} argument of
-\code{\link{mediation}}.}
+\item{med_pool}{Optional named list keyed by mediator response variable.
+Each element is the time-\eqn{t} slice of a pre-permuted joint
+mediator-trajectory matrix built by \code{.gformula} from the
+corresponding reference arm (Phi00 or Phi11). When the arm
+\code{intervention} requires a mediator override under
+\code{mediation_type = "I"}, the mediator is assigned directly from this
+vector (joint draw matching Lin et al. 2017 Eq. 4, the SAS mGFORMULA
+macro, and Yamamuro et al. 2021 Figure 3 step 3).}
 }
 \description{
 Loop through the models and apply any recoding or subset.

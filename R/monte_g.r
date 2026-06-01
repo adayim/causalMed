@@ -7,6 +7,11 @@
 #' @param mediation_type Type of the mediation analysis, if the value is \code{NA}
 #' no mediation analysis will be performed (default). It will be ignored if the intervention
 #'  is not \code{NULL}
+#' @param n_vw Integer. Number of independent permutation draws averaged for
+#'   interventional cross-world arms (Vansteelandt-Williamson repetition).
+#'   Reference arms (no mediator overrides) and natural-effect arms are
+#'   unaffected. Default \code{1L}; \code{mediation()} sets this to 2 to
+#'   match the SAS mGFORMULA macro.
 #' @param return_fitted Return the fitted model (default is FALSE).
 #' @keywords internal
 
@@ -22,9 +27,10 @@
                       init_recode = NULL,
                       mediation_type = c(NA, "N", "I"),
                       mc_sample = 10000,
+                      n_vw = 1L,
                       return_fitted = FALSE,
                       return_data = FALSE,
-                      seed = mc_sample * 100) {
+                      seed = 12345L) {
   if (length(mediation_type) > 1) {
     mediation_type <- mediation_type[1]
   } else if (!is.na(mediation_type) && !(mediation_type %in% c("N", "I"))) {
@@ -90,77 +96,178 @@
   # Cache the time sequence once (used in each arm and in pool collection)
   time_seq <- sort(unique(data[[time_var]]))
 
-  # Derive the reference exposure value (a*) from the non-NULL arms.
-  # Used both for the interventional mediator pool pass and for the natural-effects
-  # exposure swap inside simulate_data (passed as med_ref_val).
-  # isTRUE() guards against mediation_type == NA returning NA instead of FALSE.
-  if (!is.na(mediation_type) && any(sapply(intervention, is.null))) {
-    non_null_vals    <- unlist(Filter(Negate(is.null), intervention))
-    intervention_ref <- min(non_null_vals)
-  } else {
-    intervention_ref <- 0L
+  # ── Pool collection for interventional cross-world arms ──────────────────
+  # For each treatment level appearing in any arm's mediator_overrides, run a
+  # reference arm at that level once with collect_pool = TRUE. The resulting
+  # `pools` object is a list keyed by treatment level (as character); each
+  # element is itself a named list keyed by mediator response variable, with
+  # value an `mc_sample × T` matrix of simulated mediator trajectories.
+  #
+  # `cached_arms` stores the scalar Phi estimate from each pool-collection
+  # pass so that pure reference arms (no mediator overrides) in the main loop
+  # below can be served from the cache without a redundant simulation.
+  pools       <- list()
+  cached_arms <- list()
+  cached_data <- list()  # only populated when return_data = TRUE
+
+  has_arm_intervention <- any(sapply(intervention, inherits, "causalMed_arm"))
+
+  if (isTRUE(mediation_type == "I") && has_arm_intervention) {
+    pool_levels <- unique(unlist(lapply(intervention, function(arm) {
+      if (inherits(arm, "causalMed_arm")) unlist(arm$mediator_overrides, use.names = FALSE)
+      else NULL
+    })))
+    pool_levels <- pool_levels[!is.na(pool_levels)]
+
+    for (lvl in pool_levels) {
+      ref_arm  <- arm_spec(treatment = lvl, mediator_overrides = list())
+      ref_data <- data.table::copy(df_mc)
+      ref_run  <- monte_g(
+        data           = ref_data,
+        models         = fit_mods,
+        exposure       = exposure,
+        time_var       = time_var,
+        time_seq       = time_seq,
+        intervention   = ref_arm,
+        init_recode    = init_recode,
+        in_recode      = in_recode,
+        out_recode     = out_recode,
+        mediation_type = mediation_type,
+        return_data    = return_data,
+        med_pool       = NULL,
+        collect_pool   = TRUE
+      )
+      pools[[as.character(lvl)]]       <- ref_run$pool
+      cached_arms[[as.character(lvl)]] <- ref_run$estimate
+      if (return_data) cached_data[[as.character(lvl)]] <- ref_run$estimate
+    }
   }
 
-  # For interventional mediation, run the reference arm (Phi00, a*=0) first
-  # with collect_pool = TRUE. This simultaneously produces the Phi00 risk
-  # estimate AND the mediator pool used by Phi10 (Lin et al. 2017, Eq. 4).
-  if (isTRUE(mediation_type == "I") && any(sapply(intervention, is.null))) {
-    ref_arm_data <- data.table::copy(df_mc)
-    ref_run <- monte_g(
-      data           = ref_arm_data,
-      models         = fit_mods,
-      exposure       = exposure,
-      time_var       = time_var,
-      time_seq       = time_seq,
-      intervention   = rep(intervention_ref, length(time_seq)),
-      init_recode    = init_recode,
-      in_recode      = in_recode,
-      out_recode     = out_recode,
-      mediation_type = mediation_type,
-      return_data    = return_data,
-      med_pool       = NULL,
-      med_ref_val    = intervention_ref,
-      collect_pool   = TRUE
-    )
-    m_pool      <- ref_run$pool
-    cached_ref  <- ref_run$estimate
-  } else {
-    m_pool      <- NULL
-    cached_ref  <- NULL
-  }
+  # ── Per-arm dispatch ─────────────────────────────────────────────────────
+  res <- sapply(intervention, function(arm) {
 
-  res <- sapply(intervention, function(i) {
-    # The reference arm (Phi00) was already run above for pool collection;
-    # return its cached estimate directly to avoid a redundant simulation.
-    if (!is.null(cached_ref) && !is.null(i) && isTRUE(all(i == intervention_ref))) {
-      return(cached_ref)
+    # ----- arm_spec path (mediation) -----
+    if (inherits(arm, "causalMed_arm")) {
+      lvl_key <- as.character(arm$treatment)
+
+      # Reference arm (no mediator overrides) — use cached pool-collection
+      # result if available; otherwise run once.
+      if (length(arm$mediator_overrides) == 0L) {
+        if (!is.null(cached_arms[[lvl_key]])) return(cached_arms[[lvl_key]])
+        arm_data <- data.table::copy(df_mc)
+        return(monte_g(
+          data           = arm_data,
+          models         = fit_mods,
+          exposure       = exposure,
+          time_var       = time_var,
+          time_seq       = time_seq,
+          intervention   = arm,
+          init_recode    = init_recode,
+          in_recode      = in_recode,
+          out_recode     = out_recode,
+          mediation_type = mediation_type,
+          return_data    = return_data,
+          med_pool       = NULL
+        ))
+      }
+
+      # Cross-world arm with overrides.
+      # "I": n_vw permutations averaged. "N": single pass (no permutation).
+      n_reps <- if (isTRUE(mediation_type == "I")) max(1L, n_vw) else 1L
+
+      # When n_reps > 1 we cannot meaningfully return n_reps data tables;
+      # we keep the last replicate's data for inspection and average the
+      # scalar Phi across replicates.
+      vw_scalars <- numeric(n_reps)
+      last_data  <- NULL
+
+      for (rep_i in seq_len(n_reps)) {
+        arm_data <- data.table::copy(df_mc)
+
+        # Build per-mediator pre-permuted pool matrix for this replicate.
+        # Each mediator's pool is permuted independently (Yamamuro 2021
+        # Eq. 2: cross-world draws are independent across mediators).
+        arm_med_pool <- NULL
+        if (isTRUE(mediation_type == "I") && length(pools) > 0L) {
+          arm_med_pool <- list()
+          for (med_var in names(arm$mediator_overrides)) {
+            src_key      <- as.character(arm$mediator_overrides[[med_var]])
+            pool_for_med <- pools[[src_key]][[med_var]]
+            if (!is.null(pool_for_med)) {
+              perm <- sample.int(nrow(pool_for_med))
+              arm_med_pool[[med_var]] <- pool_for_med[perm, , drop = FALSE]
+            }
+          }
+        }
+
+        r <- monte_g(
+          data           = arm_data,
+          models         = fit_mods,
+          exposure       = exposure,
+          time_var       = time_var,
+          time_seq       = time_seq,
+          intervention   = arm,
+          init_recode    = init_recode,
+          in_recode      = in_recode,
+          out_recode     = out_recode,
+          mediation_type = mediation_type,
+          # Inside the n_vw loop we always need the scalar Phi for averaging.
+          # When the caller asked for return_data, we still let the LAST
+          # replicate return its data table for downstream inspection.
+          return_data    = FALSE,
+          med_pool       = arm_med_pool
+        )
+        vw_scalars[rep_i] <- r
+
+        if (return_data && rep_i == n_reps) {
+          # Re-run the last permutation with return_data = TRUE to capture
+          # the simulated dataset. (We could refactor to avoid the second
+          # call, but return_data is an inspection feature so the cost is
+          # acceptable.)
+          arm_data2 <- data.table::copy(df_mc)
+          last_data <- monte_g(
+            data           = arm_data2,
+            models         = fit_mods,
+            exposure       = exposure,
+            time_var       = time_var,
+            time_seq       = time_seq,
+            intervention   = arm,
+            init_recode    = init_recode,
+            in_recode      = in_recode,
+            out_recode     = out_recode,
+            mediation_type = mediation_type,
+            return_data    = TRUE,
+            med_pool       = arm_med_pool
+          )
+        }
+      }
+
+      avg_phi <- mean(vw_scalars)
+      if (return_data) {
+        # Attach the averaged Phi as an attribute so downstream code can use
+        # it; the table itself reflects only the last permutation.
+        data.table::setattr(last_data, "phi_estimate", avg_phi)
+        return(last_data)
+      }
+      return(avg_phi)
     }
 
-    # copy df_mc so each arm starts with a clean Sc/Pred_Y state.
-    # Without this, survival accumulation from the previous arm bleeds through.
+    # ----- legacy scalar / NULL / dyn_int path (gformula) -----
     arm_data <- data.table::copy(df_mc)
-
-    # pass the pre-collected mediator pool to the Phi10 arm only.
-    # Other arms (Phi11, Phi00) simulate the mediator from their own trajectory.
-    arm_med_pool <- if (is.null(i) && isTRUE(mediation_type == "I")) m_pool else NULL
-
-    r <- monte_g(
+    monte_g(
       data           = arm_data,
       models         = fit_mods,
       exposure       = exposure,
       time_var       = time_var,
       time_seq       = time_seq,
-      intervention   = i,
+      intervention   = arm,
       init_recode    = init_recode,
       in_recode      = in_recode,
       out_recode     = out_recode,
       mediation_type = mediation_type,
       return_data    = return_data,
-      med_pool       = arm_med_pool,
-      med_ref_val    = intervention_ref
+      med_pool       = NULL
     )
-
-    return(r)
   }, simplify = FALSE)
 
   if (return_fitted) {
@@ -177,16 +284,13 @@
 #'
 #' @inheritParams gformula
 #' @param time_seq Time sequence vector of the data.
-#' @param med_pool Named list of pre-simulated mediator values (collected during
-#'   the reference-arm pass with \code{collect_pool = TRUE}), keyed by time index
-#'   as character. Used by the Phi10 arm for interventional mediation.
-#' @param med_ref_val The reference exposure value (a*) passed through to
-#'   \code{simulate_data} for the natural-effects mediator swap. Defaults to \code{0L}.
-#' @param collect_pool Logical. If \code{TRUE}, collect the mediator pool during the
-#'   forward simulation and return it alongside the risk estimate. The returned value is
-#'   then a \code{list(estimate = ..., pool = ...)} rather than a plain scalar/data.table.
-#'   Used by \code{.gformula} to avoid a separate pool-collection pass for interventional
-#'   mediation: the reference arm (Phi00) doubles as the pool source.
+#' @param med_pool Optional named list keyed by mediator response variable.
+#'   Each element is a pre-permuted `nrow(data) × T` matrix (column names =
+#'   time index as character) supplying the cross-world joint trajectory for
+#'   that mediator. The per-time slice is delivered to \code{simulate_data}.
+#' @param collect_pool Logical. If \code{TRUE}, capture the simulated
+#'   trajectory of every mediator into a named list of `nrow(data) × T`
+#'   matrices and return it alongside the risk estimate.
 #'
 #' @keywords internal
 #'
@@ -202,7 +306,6 @@ monte_g <- function(data,
                     mediation_type = c(NA, "N", "I"),
                     return_data  = FALSE,
                     med_pool     = NULL,
-                    med_ref_val  = 0L,
                     collect_pool = FALSE) {
 
   if (length(mediation_type) > 1) {
@@ -212,24 +315,30 @@ monte_g <- function(data,
   }
 
   # Replicate static interventions to the same length as the time sequence.
-  # dyn_int() objects are not replicated — the same rule applies at every time step.
+  # dyn_int() and causalMed_arm objects are not replicated — the same rule
+  # applies at every time step.
   time_len <- length(time_seq)
-  if (length(intervention) == 1 && !inherits(intervention, "causalMed_dynint")) {
+  if (is.numeric(intervention) && length(intervention) == 1L) {
     intervention <- rep(intervention, time_len)
   }
 
-  # Pre-detect mediator model for optional pool collection.
-  # Done once here so the time loop avoids repeated sapply() over models.
+  # Pre-detect mediator models for pool collection.
   if (collect_pool) {
     med_flag_pc <- sapply(models, function(m) m$mod_type == "mediator")
     if (!any(med_flag_pc)) {
       collect_pool <- FALSE   # no mediator model — nothing to collect
     } else {
-      med_idx_pc   <- which(med_flag_pc)
-      med_var_pc   <- models[[med_idx_pc]]$rsp_vars
-      med_mod_pc   <- models[[med_idx_pc]]
-      surv_flag_pc <- any(sapply(models, function(m) m$mod_type == "survival"))
-      m_pool_out   <- list()
+      med_var_pc <- vapply(models[which(med_flag_pc)],
+                           function(m) m$rsp_vars, character(1))
+      # Pre-allocate one matrix per mediator: rows = pool individuals, cols = times.
+      m_pool_out <- setNames(
+        lapply(med_var_pc, function(v) {
+          mat <- matrix(NA_real_, nrow = nrow(data), ncol = length(time_seq))
+          colnames(mat) <- as.character(time_seq)
+          mat
+        }),
+        med_var_pc
+      )
     }
   }
 
@@ -262,6 +371,8 @@ monte_g <- function(data,
   max_time <- max(time_seq, na.rm = TRUE)
   min_time <- min(time_seq, na.rm = TRUE)
 
+  is_arm <- inherits(intervention, "causalMed_arm")
+
   # Run g-formula
   for (indx in seq_along(time_seq)) {
     t_index <- time_seq[indx]
@@ -280,55 +391,47 @@ monte_g <- function(data,
       apply_recodes(data, in_recode)
     }
 
-    # pass the time-specific mediator pool slice to simulate_data.
-    t_med_pool <- if (!is.null(med_pool)) med_pool[[as.character(t_index)]] else NULL
+    # Per-time slice of each mediator pool (named list of length-nrow(data)
+    # vectors, already in subject-i order because the matrix was pre-permuted
+    # in .gformula).
+    t_med_pool <- if (!is.null(med_pool)) {
+      setNames(lapply(med_pool, function(mat) mat[, indx]), names(med_pool))
+    } else NULL
 
-    # Use the model to calculate the simulated value.
-    # dyn_int() objects are passed as-is (same rule at every time step);
-    # static interventions are indexed to get the value for this time step.
-    current_int <- if (inherits(intervention, "causalMed_dynint")) intervention else intervention[indx]
+    # dyn_int() / causalMed_arm objects pass through as-is; static
+    # interventions are indexed to the time step.
+    current_int <- if (is_arm || inherits(intervention, "causalMed_dynint")) {
+      intervention
+    } else {
+      intervention[indx]
+    }
+
     data <- simulate_data(
       data           = data,
       exposure       = exposure,
       models         = models,
       intervention   = current_int,
       mediation_type = mediation_type,
-      med_pool       = t_med_pool,
-      med_ref_val    = med_ref_val
+      med_pool       = t_med_pool
     )
 
-    # Collect mediator pool if requested (used by the Phi00 reference arm).
+    # Collect each mediator's value into the pool matrix (used by the
+    # reference arm pass). Rows where the mediator model's subset would not
+    # have applied at time t carry whatever value was there at the start of
+    # this iteration — preserving the per-individual trajectory.
     if (collect_pool) {
-      cond_pc <- if (!is.null(med_mod_pc$subset)) {
-        cond_tmp <- eval(med_mod_pc$subset, envir = data, enclos = parent.frame())
-        cond_tmp & !is.na(cond_tmp)
-      } else {
-        rep(TRUE, nrow(data))
-      }
-      if (surv_flag_pc && "Sc" %in% names(data)) {
-        m_pool_out[[as.character(t_index)]] <- list(
-          vals    = data[[med_var_pc]][cond_pc],
-          weights = data$Sc[cond_pc]
-        )
-      } else {
-        m_pool_out[[as.character(t_index)]] <- list(
-          vals    = data[[med_var_pc]][cond_pc],
-          weights = NULL
-        )
+      for (mv in med_var_pc) {
+        m_pool_out[[mv]][, indx] <- data[[mv]]
       }
     }
 
-    # For survival outcome: under intervention, disable censoring.
-    # All individuals remain in the pool; risk is computed analytically
-    # from Pred_Y = 1 - prod(1 - h_t) accumulated in simulate_data(),
-    # matching the gfoRmula reference package's poprisk approach.
+    # For survival outcome: under intervention, disable censoring. All
+    # individuals remain in the pool; risk is computed analytically from
+    # Pred_Y = 1 - prod(1 - h_t) accumulated in simulate_data().
     if (is_survival) {
-      # If the intervention is defined, no censoring applied.
       if (!is.null(intervention) & cen_flag != 0) {
         set(data, j = censor, value = 0)
       }
-
-      # If censored outcome equals to 1, then the survival outcome is not observed.
       if (cen_flag != 0) {
         data[[outcome]] <- ifelse(data[[censor]] == 1, 0, data[[outcome]])
       }
@@ -345,8 +448,6 @@ monte_g <- function(data,
     data
   } else {
     # Mean of analytic Pred_Y over all N individuals (no row removal).
-    # For survival: Pred_Y = 1 - prod(1-h_t), the cumulative risk.
-    # For non-survival: Pred_Y = predicted outcome at final time.
     sum(data[["Pred_Y"]]) / length(data[["Pred_Y"]])
   }
 

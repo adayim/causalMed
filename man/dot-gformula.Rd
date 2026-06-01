@@ -17,9 +17,10 @@
   init_recode = NULL,
   mediation_type = c(NA, "N", "I"),
   mc_sample = 10000,
+  n_vw = 1L,
   return_fitted = FALSE,
   return_data = FALSE,
-  seed = mc_sample * 100
+  seed = 12345L
 )
 }
 \arguments{
@@ -69,6 +70,12 @@ no mediation analysis will be performed (default). It will be ignored if the int
 
 \item{mc_sample}{Integer. Monte Carlo sample size used for simulation.
 Default \code{nrow(data) * 100}.}
+
+\item{n_vw}{Integer. Number of independent permutation draws averaged for
+interventional cross-world arms (Vansteelandt-Williamson repetition).
+Reference arms (no mediator overrides) and natural-effect arms are
+unaffected. Default \code{1L}; \code{mediation()} sets this to 2 to
+match the SAS mGFORMULA macro.}
 
 \item{return_fitted}{Return the fitted model (default is FALSE).}
 

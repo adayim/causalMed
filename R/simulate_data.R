@@ -5,22 +5,29 @@
 #'
 #' @param data Data to be used for the data generation
 #' @param models Model list passed from \code{\link{gformula}} or \code{\link{mediation}}.
-#' @param intervention A vector, intervention treatment, natural course will be evaluated
-#' if the value is \code{NULL}. If the value contains any logical operators, the intervention
-#' will be evaluated and the exposure variable will be set to 1 if it is \code{TRUE}.
+#' @param intervention One of:
+#'   \itemize{
+#'     \item \code{NULL} — natural-course draw of the exposure (gformula) or
+#'           Phi10 cross-world arm (mediation, when \code{mediation_type} is
+#'           non-\code{NA}). The legacy NULL = Phi10 path is kept for
+#'           backwards compatibility but \code{mediation()} now constructs
+#'           \code{causalMed_arm} objects internally.
+#'     \item Numeric scalar/vector or \code{causalMed_dynint} — static or
+#'           dynamic exposure rule for \code{gformula()}.
+#'     \item \code{causalMed_arm} — structured mediation arm carrying a
+#'           fixed treatment value plus an optional named list of
+#'           per-mediator overrides. See \code{arm_spec()}.
+#'   }
 #' @param mediation_type Type of the mediation analysis, if the value is \code{NA}
-#' no mediation analysis will be performed (default). It will be ignored if the intervention
-#'  is not \code{NULL}
-#' @param med_pool Optional named list keyed by time index (as character string). Each element
-#'   is itself a list with two components: \code{vals} (simulated mediator values under a*) and
-#'   \code{weights} (the corresponding survival probability \eqn{Sc} under a*, or \code{NULL}
-#'   for non-survival analyses). When supplied and \code{mediation_type = "I"}, the mediator
-#'   for the Phi10 (cross-world) arm is sampled from \code{vals} with probability proportional
-#'   to \code{weights}, implementing the \eqn{S(1{:}t-1)=1} conditioning in Lin et al. (2017,
-#'   Eq. 4).
-#' @param med_ref_val The reference exposure value (a*) used when evaluating the mediator model
-#'   for the Phi10 arm. Defaults to \code{0L}. Set to match the \code{ref_val} argument of
-#'   \code{\link{mediation}}.
+#' no mediation analysis will be performed (default).
+#' @param med_pool Optional named list keyed by mediator response variable.
+#'   Each element is the time-\eqn{t} slice of a pre-permuted joint
+#'   mediator-trajectory matrix built by \code{.gformula} from the
+#'   corresponding reference arm (Phi00 or Phi11). When the arm
+#'   \code{intervention} requires a mediator override under
+#'   \code{mediation_type = "I"}, the mediator is assigned directly from this
+#'   vector (joint draw matching Lin et al. 2017 Eq. 4, the SAS mGFORMULA
+#'   macro, and Yamamuro et al. 2021 Figure 3 step 3).
 #'
 #' @keywords internal
 #'
@@ -29,8 +36,7 @@ simulate_data <- function(data,
                           models,
                           intervention = NULL,
                           mediation_type = c(NA, "N", "I"),
-                          med_pool = NULL,
-                          med_ref_val = 0L) {
+                          med_pool = NULL) {
 
   # Replicate match.arg behaviour for a c(NA, "N", "I") default:
   # when the full default vector is passed (user did not specify), use first element (NA).
@@ -40,22 +46,28 @@ simulate_data <- function(data,
     stop("'mediation_type' must be NA, \"N\", or \"I\"")
   }
 
+  is_arm     <- inherits(intervention, "causalMed_arm")
   is_phi10   <- !is.na(mediation_type) && is.null(intervention)
   is_dynamic <- inherits(intervention, "causalMed_dynint")
 
   # Ensure a valid data.table self-reference before any set() / := calls.
   data.table::setDT(data)
 
-  # Set exposure to the intervention value for static interventions
-  if (!is.null(intervention) && !is_dynamic) {
+  # Set exposure for every flavour that fixes treatment.
+  if (is_arm) {
+    set(data, j = exposure, value = intervention$treatment)
+  } else if (!is.null(intervention) && !is_dynamic) {
     set(data, j = exposure, value = intervention)
+  } else if (is_phi10) {
+    # Legacy Phi10 path (no arm_spec passed): fix exposure to 1.
+    set(data, j = exposure, value = 1L)
   }
 
-  # Phi10 arm: fix exposure to 1 and cache the a*=ref_val swap expression
-  if (is_phi10) {
-    set(data, j = exposure, value = 1L)
-    interv0 <- parse(text = paste0(exposure, " = ", med_ref_val))
-  }
+  # Per-mediator metadata for an arm-driven simulation. For "N" arms, the
+  # override value is the swap-target exposure used when re-evaluating the
+  # mediator model; for "I" arms the corresponding pool slice is read from
+  # med_pool by mediator name.
+  med_overrides <- if (is_arm) intervention$mediator_overrides else NULL
 
   # Loop through models
   for (indx in seq_along(models)) {
@@ -76,9 +88,10 @@ simulate_data <- function(data,
       cond <- rep(TRUE, nrow(data))
     }
 
-    # Skip the exposure model when:
-    #   (a) a static or dynamic intervention is given (value already set above), or
-    #   (b) this is the Phi10 arm (exposure already fixed to 1 above).
+    # Skip the exposure model when treatment is already fixed:
+    #   (a) static / dynamic intervention (gformula path),
+    #   (b) arm_spec path (mediation),
+    #   (c) legacy Phi10 path.
     if (resp_var == exposure && (!is.null(intervention) || is_phi10)) {
       if (is_dynamic) {
         # copy() so we don't modify the caller's data.table in-place;
@@ -94,58 +107,47 @@ simulate_data <- function(data,
 
     if (sum(cond) != 0L) {
 
-      if (mod_type == "mediator" && is_phi10) {
-        # ── Phi10 cross-world mediator ──────────────────────────────────────────
+      # ── Mediator handling under a cross-world override ──────────────────────
+      # Three triggers for cross-world handling:
+      #   (1) arm_spec with this mediator in mediator_overrides,
+      #   (2) legacy single-mediator Phi10 path (is_phi10),
+      # Otherwise the mediator is simulated normally from its fitted model.
+      mediator_override_value <- if (is_arm && mod_type == "mediator" &&
+                                     resp_var %in% names(med_overrides)) {
+        med_overrides[[resp_var]]
+      } else {
+        NULL
+      }
+      has_arm_override <- !is.null(mediator_override_value)
+
+      if (mod_type == "mediator" && (has_arm_override || is_phi10)) {
         if (mediation_type == "N") {
-          # Natural effects (Zheng et al., 2012, Eq. 5): evaluate mediator model
-          # at a*=0 while keeping the individual's own covariate history under a=1.
+          # Natural effects (Zheng et al., 2012, Eq. 5): evaluate the
+          # mediator model on the arm's own covariate history but with the
+          # exposure swapped to the cross-world value.
+          swap_val <- if (has_arm_override) mediator_override_value else 0L
+          interv_swap <- parse(text = paste0(exposure, " = ", swap_val))
           med_value <- sim_value(model = model,
-                                 newdt = within(data[cond], eval(interv0)))
+                                 newdt = within(data[cond], eval(interv_swap)))
           data[cond, (resp_var) := med_value]
 
         } else {
-          # Interventional effects (Lin et al., 2017, Eq. 4): draw from
-          # a pre-collected mediator pool (correct l' trajectory).
-          if (!is.null(med_pool)) {
-            n_alive   <- sum(cond)
-            pool_vals <- med_pool$vals
-            pool_wts  <- med_pool$weights   # NULL for non-survival analyses
-            pool_size <- length(pool_vals)
-            if (pool_size >= n_alive) {
-              if (pool_size < 10L) {
-                warning(sprintf(
-                  "Interventional mediation: mediator pool size (%d) is very small (< 10). Permutation may be unreliable.",
-                  pool_size
-                ))
-              }
-              # prob = pool_wts implements the S(1:t-1)=1 condition from
-              # Lin et al. (2017, Eq. 4): individuals with lower cumulative
-              # survival probability contribute less to the draw.
-              # When pool_wts is NULL (no survival model), uniform sampling.
-              data[cond, (resp_var) := sample(pool_vals, n_alive, replace = FALSE, prob = pool_wts)]
-            } else if (pool_size > 0L) {
-              warning(sprintf(
-                "Interventional mediation: mediator pool size (%d) < alive count (%d). Sampling with replacement.",
-                pool_size, n_alive
-              ))
-              data[cond, (resp_var) := sample(pool_vals, n_alive, replace = TRUE, prob = pool_wts)]
-            } else {
-              # pool_size == 0: no a* survivors to draw from. Fall back to
-              # model-based draw at a*=0 then permute, matching the NULL med_pool
-              # branch below (line 135-138). Stale values would silently corrupt
-              # Phi10 trajectories.
-              warning(
-                "Interventional mediation: mediator pool is empty (no a* survivors at this time point). ",
-                "Falling back to model-based draw at a*=0."
-              )
-              med_value <- sim_value(model = model,
-                                     newdt = within(data[cond], eval(interv0)))
-              data[cond, (resp_var) := sample(med_value, length(med_value), replace = FALSE)]
-            }
+          # Interventional effects (Lin et al. 2017 Eq. 4; Yamamuro et al.
+          # 2021 Fig. 3 step 3): direct assignment from the pre-permuted
+          # joint-trajectory pool slice for this mediator. arm_spec carries
+          # the pool source (0 or 1) but the actual pool slice was looked up
+          # by mediator name in .gformula and is delivered via med_pool.
+          this_pool <- if (!is.null(med_pool)) med_pool[[resp_var]] else NULL
+          if (!is.null(this_pool)) {
+            data[cond, (resp_var) := this_pool[cond]]
           } else {
-            # Fallback: draw from model at a*=0 then permute.
+            # Fallback (no pool collected, e.g., reference arm had no
+            # mediator model): draw from the mediator model at the
+            # cross-world exposure and permute within this time step.
+            swap_val <- if (has_arm_override) mediator_override_value else 0L
+            interv_swap <- parse(text = paste0(exposure, " = ", swap_val))
             med_value <- sim_value(model = model,
-                                   newdt = within(data[cond], eval(interv0)))
+                                   newdt = within(data[cond], eval(interv_swap)))
             data[cond, (resp_var) := sample(med_value, length(med_value), replace = FALSE)]
           }
         }

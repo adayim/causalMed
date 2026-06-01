@@ -43,10 +43,17 @@ devtools::install_github("adayim/causalMed")
 - **Mediational g-formula**: decomposes total effects into direct and indirect pathways
   with time-varying mediators and exposure-induced mediator–outcome confounders
 - **Two mediation estimands**:
-  - `mediation_type = "I"`: interventional IDE/IIE (Lin et al. 2017) — marginal mediator
-    distribution via random permutation; does not require cross-world independence
+  - `mediation_type = "I"`: interventional IDE/IIE (VanderWeele & Tchetgen
+    Tchetgen 2017; Lin et al. 2017; Yamamuro et al. 2021) — cross-world
+    mediator drawn as a **joint M(1:T) trajectory** by row-permuting the
+    reference (a*) cohort, matching the SAS `mGFORMULA` macro and the
+    algorithm of Yamamuro et al. 2021. Does not require cross-world
+    independence. **Multiple mediator models** are supported under this
+    estimand (Yamamuro 2021 §4); per-mediator IIE(M_k) is reported
+    alongside the overall IDE/TE.
   - `mediation_type = "N"`: natural NDE/NIE (Zheng & van der Laan 2017) — conditional
     mediator distribution with exposure swapping; requires stronger assumptions
+    (single mediator only)
 - **Flexible model specification**: logistic regression (binary), linear regression
   (normal), multinomial logistic (categorical), and custom simulation functions
 - **Recode hooks** (`init_recode`, `in_recode`, `out_recode`) for lag creation,
@@ -169,6 +176,14 @@ The `estimate` component of `fit_med` contains:
 where Q(a₁, a₂) is the mean outcome when exposure is set to a₁ and the mediator
 distribution is drawn from the distribution it would have had under exposure a₂.
 
+For `mediation_type = "I"`, the cross-world mediator is drawn as a **joint
+trajectory**: a separate Monte Carlo cohort is simulated under a* (= 0), and
+the Phi10 arm assigns each subject the full M(1:T) of a randomly permuted
+reference-cohort individual. This matches the SAS `mGFORMULA` macro
+(Lin et al. 2017, eAppendix) and the algorithm in Yamamuro et al. 2021
+(Figure 3, step 3). Mediator values are not survival-weighted; the full
+reference cohort is used. See `?mediation` for details.
+
 ### Natural NDE/NIE (Zheng & van der Laan 2017)
 
 Change one argument:
@@ -236,3 +251,16 @@ head(nonsurvivaldata)
    application to survival outcomes.
    *Journal of Causal Inference*, 5(2).
    [doi:10.1515/jci-2016-0006](https://doi.org/10.1515/jci-2016-0006)
+
+5. VanderWeele, T. J., & Tchetgen Tchetgen, E. J. (2017).
+   Mediation analysis with time varying exposures and mediators.
+   *Journal of the Royal Statistical Society: Series B*, 79(3), 917–938.
+   [doi:10.1111/rssb.12194](https://doi.org/10.1111/rssb.12194)
+
+6. Yamamuro, S., Shinozaki, T., Iimuro, S., & Matsuyama, Y. (2021).
+   Mediational g-formula for time-varying treatment and repeated-measured
+   multiple mediators: Application to atorvastatin's effect on cardiovascular
+   disease via cholesterol lowering and anti-inflammatory actions in elderly
+   type 2 diabetics. *Statistical Methods in Medical Research*, 30(8),
+   1782–1799.
+   [doi:10.1177/09622802211025988](https://doi.org/10.1177/09622802211025988)

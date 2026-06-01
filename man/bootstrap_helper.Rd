@@ -17,6 +17,7 @@ bootstrap_helper(
   out_recode = NULL,
   mc_sample = 10000,
   mediation_type = c(NA, "N", "I"),
+  n_vw = 1L,
   R = 500,
   progress_bar = TRUE,
   future_seed = TRUE

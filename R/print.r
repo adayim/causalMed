@@ -77,14 +77,26 @@ print.gformula <- function(x,
       cat(sprintf("  Reference    : %s\n", as.character(args$ref_int)))
   }
 
+  is_interv <- is_mediation && isTRUE(args$mediation_type == "I")
+
   # -- Section 1: arm-level mean outcomes ------------------------------------
   if (is_mediation) {
     s1_hdr  <- "\n--- Marginal mean outcome per arm (Q-functionals) ---"
-    s1_note <- paste0(
-      "  Phi11 = E[Y(a=1, M(1))]:  exposure=1, mediator under a=1\n",
-      "  Phi10 = E[Y(a=1, M(0))]:  exposure=1, mediator under a=0  [cross-world]\n",
-      "  Phi00 = E[Y(a=0, M(0))]:  exposure=0, mediator under a=0\n"
-    )
+    if (is_interv) {
+      s1_note <- paste0(
+        "  Interventional arms draw mediators from independently-permuted pools (G):\n",
+        "  Phi11 = E[Y(a=1, G1)]:  exposure=1, mediators ~ a=1 pool  [reference]\n",
+        "  Phi10 = E[Y(a=1, G0)]:  exposure=1, mediators ~ a=0 pool  [cross-world]\n",
+        "  Phi00 = E[Y(a=0, G0)]:  exposure=0, mediators ~ a=0 pool  [reference]\n",
+        "  nat1/nat0 = E[Y(a=1)]/E[Y(a=0)]:  natural course (used for the total effect)\n"
+      )
+    } else {
+      s1_note <- paste0(
+        "  Phi11 = E[Y(a=1, M(1))]:  exposure=1, mediator under a=1\n",
+        "  Phi10 = E[Y(a=1, M(0))]:  exposure=1, mediator under a=0  [cross-world]\n",
+        "  Phi00 = E[Y(a=0, M(0))]:  exposure=0, mediator under a=0\n"
+      )
+    }
   } else {
     s1_hdr  <- "\n--- Mean outcome by intervention ---"
     s1_note <- NULL
@@ -98,13 +110,25 @@ print.gformula <- function(x,
   # -- Section 2: contrasts / decomposition ----------------------------------
   if (is_mediation) {
     s2_hdr  <- "\n--- Effect decomposition ---"
-    s2_note <- paste0(
-      "  Total effect    = Phi11 - Phi00 =  E[Y(1,M(1))] - E[Y(0,M(0))]\n",
-      "  Direct effect   = Phi10 - Phi00 =  E[Y(1,M(0))] - E[Y(0,M(0))]\n",
-      "  Indirect effect = Phi11 - Phi10 =  E[Y(1,M(1))] - E[Y(1,M(0))]\n",
-      "  Mediation Prop. = Indirect / Total  (as a percentage; RR not applicable)\n",
-      "  RD = risk difference;  RR = risk ratio\n"
-    )
+    if (is_interv) {
+      s2_note <- paste0(
+        "  Direct effect (IDE)   = Phi10 - Phi00\n",
+        "  Indirect effect (IIE) = Phi11 - Phi10   (sequential per mediator when N>=2)\n",
+        "  IDE + IIE             = Phi11 - Phi00    (interventional overall effect)\n",
+        "  Total effect (TE)     = nat1 - nat0      (natural plug-in g-formula)\n",
+        "  TE - (Direct+Indirect)= mediated-interaction residual (TE - overall)\n",
+        "  Mediation Prop.       = (Total - Direct) / Total  (percentage; RR not applicable)\n",
+        "  RD = risk difference;  RR = risk ratio\n"
+      )
+    } else {
+      s2_note <- paste0(
+        "  Total effect    = Phi11 - Phi00 =  E[Y(1,M(1))] - E[Y(0,M(0))]\n",
+        "  Direct effect   = Phi10 - Phi00 =  E[Y(1,M(0))] - E[Y(0,M(0))]\n",
+        "  Indirect effect = Phi11 - Phi10 =  E[Y(1,M(1))] - E[Y(1,M(0))]\n",
+        "  Mediation Prop. = Indirect / Total  (as a percentage; RR not applicable)\n",
+        "  RD = risk difference;  RR = risk ratio\n"
+      )
+    }
   } else {
     s2_hdr  <- "\n--- Contrasts vs. reference intervention ---"
     s2_note <- NULL

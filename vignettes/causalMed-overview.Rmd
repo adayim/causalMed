@@ -277,7 +277,7 @@ You must include a model with `mod_type = "mediator"` in the model list, and pas
 
 The function checks that exposure precedes the mediator and that the mediator precedes the outcome, and warns if either is violated.
 
-**Survivor-restricted mediator pool (interventional effects, survival outcomes).** For `mediation_type = "I"`, mediator values under `a* = 0` are drawn using weighted sampling based on the cumulative survival probability (`Sc`) at each time point, thereby implementing the survivor conditioning required by Lin et al. (2017, Eq. 4).
+**Joint mediator trajectory (interventional effects).** For `mediation_type = "I"`, a separate Monte Carlo cohort is simulated under $a^* = 0$ and each individual's full mediator trajectory $M(1{:}T)$ is stored as a row of a pool matrix. Before the Phi10 arm runs, the pool matrix is row-permuted once; each Phi10 subject then inherits the *entire* trajectory of one randomly assigned reference-cohort individual. This is the joint-trajectory algorithm described by Yamamuro et al. (2021, Figure 3 step 3) and implemented by the SAS `mGFORMULA` macro (Lin et al. 2017 eAppendix), and it samples from the joint mediator distribution targeted by Lin et al. (2017, Eq. 4) and VanderWeele & Tchetgen Tchetgen (2017). The pool is not survival-weighted; the full reference cohort is used at every time step (matching both reference SAS implementations).
 
 **Warning summary.** Warnings from model fitting (e.g., convergence, near-separation) are held and printed as a deduplicated summary at function exit. Repeated warnings (e.g., across 500 bootstrap replicates) are shown once with a count.
 
@@ -303,9 +303,9 @@ models_med <- list(
 )
 ```
 
-### Interventional effects (IDE/IIE) — Lin et al. (2017)
+### Interventional effects (IDE/IIE) — Lin et al. (2017); VanderWeele & Tchetgen Tchetgen (2017); Yamamuro et al. (2021)
 
-Interventional effects use the **marginal** mediator distribution: the mediator is drawn by random permutation from values simulated under the reference exposure $a^* = 0$, breaking any individual-level dependence between mediator and confounders. This approach does not require cross-world independence and is generally preferred for time-varying settings.
+Interventional effects do not require cross-world independence and are generally preferred for time-varying settings. The Phi10 (cross-world) arm draws a **joint $M(1{:}T)$ trajectory** from a reference cohort simulated under $a^* = 0$: the pool matrix of simulated trajectories is row-permuted once at the start of the Phi10 arm, and each subject inherits the full assigned trajectory across all time steps. This breaks any individual-level dependence between mediator and the *Phi10* covariate history while preserving the joint mediator distribution under $a^*$ — matching the SAS `mGFORMULA` macro and the algorithm in Yamamuro et al. (2021, Figure 3).
 
 ```{r mediation-interventional}
 fit_ide <- mediation(
@@ -518,3 +518,5 @@ m_bounded <- spec_model(
 - McGrath, S., Lin, V., Zhang, Z., et al. (2020). gfoRmula: An R package for estimating the effects of sustained treatment strategies via the parametric g-formula. *Patterns*, 1, 100008.
 - Zheng, W., & van der Laan, M. (2017). Longitudinal mediation analysis with time-varying mediators and exposures, with application to survival outcomes. *Journal of Causal Inference*, 5(2), 20160006.
 - Lin, S.-H., Young, J. G., Logan, R., & VanderWeele, T. J. (2017). Mediation analysis for a survival outcome with time-varying exposures, mediators, and confounders. *Statistics in Medicine*, 36, 4153–4166.
+- VanderWeele, T. J., & Tchetgen Tchetgen, E. J. (2017). Mediation analysis with time varying exposures and mediators. *Journal of the Royal Statistical Society: Series B*, 79(3), 917–938.
+- Yamamuro, S., Shinozaki, T., Iimuro, S., & Matsuyama, Y. (2021). Mediational g-formula for time-varying treatment and repeated-measured multiple mediators: Application to atorvastatin's effect on cardiovascular disease via cholesterol lowering and anti-inflammatory actions in elderly type 2 diabetics. *Statistical Methods in Medical Research*, 30(8), 1782–1799.
