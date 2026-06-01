@@ -17,6 +17,7 @@ mediation(
   out_recode = NULL,
   mc_sample = nrow(data) * 100,
   mediation_type = c("I", "N"),
+  n_vw = 2L,
   return_fitted = FALSE,
   return_data = FALSE,
   R = 500,
@@ -71,6 +72,14 @@ chosen and any covariate model includes the exposure on its right-hand
 side, which is a sufficient (though not necessary) signal of intermediate
 confounding.}
 
+\item{n_vw}{Integer. Number of independent permutation draws averaged for
+each interventional cross-world arm. The same averaging is applied
+within every bootstrap replicate. Default \code{2L} to match the SAS
+\code{mGFORMULA} macro's \code{n_vw = 2}. Set to \code{1L} to disable
+averaging (faster, slightly noisier Monte Carlo). Has no effect when
+\code{mediation_type = "N"} (the natural-effect mediator swap is not
+permutation-based).}
+
 \item{return_fitted}{Logical. If \code{TRUE}, return full fitted model objects; otherwise,
 a light-weight summary (call and coefficients). Default \code{FALSE}.}
 
@@ -98,26 +107,53 @@ An object of class \code{"gformula"} with components:
 \itemize{
   \item \code{call}: the matched function call.
   \item \code{all.args}: a named list of evaluated arguments for reproducibility.
-  \item \code{effect_size}: a \code{data.table} with columns \code{Intervention} and \code{Est}.
-        If \code{R > 1}, also includes \code{Sd}, percentile CIs (\code{perct_lcl}, \code{perct_ucl}),
-        and normal CIs (\code{norm_lcl}, \code{norm_ucl}).Typical labels are:
-        \code{Phi11 = E[Y_{1,M(1)}]}, \code{Phi10 = E[Y_{1,M(0)}]},
-        \code{Phi00 = E[Y_{0,M(0)}]}, which serve as building blocks for
-        natural (or interventional analogue) direct and indirect effects.
+  \item \code{effect_size}: a \code{data.table} with one row per
+        simulated arm (columns \code{Intervention} and \code{Est}).
+        For \code{mediation_type = "I"} the mediator(s) in every
+        decomposition arm are drawn from independently-permuted marginal
+        pools (stochastic draws \eqn{G}): \code{Phi00} (= \eqn{E[Y_{0,G_0}]})
+        and \code{Phi11} (= \eqn{E[Y_{1,G_1}]}) are the interventional
+        reference arms, \code{Phi10} (= \eqn{E[Y_{1,G_0}]}) is the
+        cross-world arm, and for \eqn{N \ge 2} mediators \code{Phi1_k}
+        (k = 1, …, N-1) capture the sequential per-mediator transition.
+        Two additional natural-course arms \code{nat0} (= \eqn{E[Y_0]}) and
+        \code{nat1} (= \eqn{E[Y_1]}) give the plug-in total effect. For
+        \code{mediation_type = "N"} the arms \code{Phi00}/\code{Phi11} are
+        the natural never-/always-treat arms (no permutation). With
+        \code{R > 1} the table also carries \code{Sd},
+        \code{perct_lcl}/\code{perct_ucl}, and \code{norm_lcl}/\code{norm_ucl}.
   \item \code{estimate}: a \code{data.table} summarizing the decomposition
-        of effects, with rows:
+        of effects. For a single mediator under \code{mediation_type = "I"}
+        the rows are:
         \itemize{
-          \item \code{"Indirect effect"} = \eqn{E[Y_{1,M(1)}] - E[Y_{1,M(0)}]}
-          \item \code{"Direct effect"}   = \eqn{E[Y_{1,M(0)}] - E[Y_{0,M(0)}]}
-          \item \code{"Total effect"}    = \eqn{E[Y_{1,M(1)}] - E[Y_{0,M(0)}]}
-          \item \code{"Mediation Proportion"} = Indirect / Total (as a percentage)
+          \item \code{"Indirect effect"} = \eqn{E[Y_{1,G_1}] - E[Y_{1,G_0}]}
+          \item \code{"Direct effect"}   = \eqn{E[Y_{1,G_0}] - E[Y_{0,G_0}]}
+          \item \code{"Total effect"}    = \eqn{E[Y_1] - E[Y_0]} (natural
+                plug-in g-formula; \emph{not} the sum of the components)
+          \item \code{"TE - (Direct + Indirect)"} = the mediated-interaction
+                residual \eqn{TE - (IDE + IIE)} = \eqn{TE} minus the
+                interventional overall effect \eqn{E[Y_{1,G_1}] - E[Y_{0,G_0}]}
+                (generally non-zero for interventional effects; this row is
+                \emph{absent} for \code{mediation_type = "N"}, where the
+                decomposition sums exactly to \eqn{TE}).
+          \item \code{"Mediation Proportion"}
+                 = \eqn{(TE - IDE) / TE \times 100\%}
+                 (= \eqn{(IIE + residual)/TE}; Yamamuro et al. 2021)
+          \item \code{"Mediation Proportion (multiplicative)"}
+                 = \eqn{RR_{IDE}\,(RR_{IIE}-1)/(RR_{OE}-1) \times 100\%}
+                 on the interventional overall scale (Lin et al. 2017, Table 2)
         }
-        Columns: \code{RD} (risk difference), \code{RR} (risk ratio). When
-        \code{R > 1}: also \code{Sd}, \code{perct_lcl}/\code{perct_ucl}
-        (percentile CI), \code{norm_lcl}/\code{norm_ucl} (normal CI) for RD;
-        and \code{Sd_RR}, \code{perct_lcl_RR}/\code{perct_ucl_RR},
-        \code{norm_lcl_RR}/\code{norm_ucl_RR} for RR.
-        \code{RR} is \code{NA} for the Mediation Proportion row.
+        For multiple mediators each indirect effect is labelled
+        \code{"Indirect effect (<mediator>)"}; the additive proportion is
+        \eqn{(TE - IDE)/TE} and the multiplicative is
+        \eqn{RR_{IDE}\,(\prod_k RR_{IIE_k} - 1)/(RR_{OE}-1)}
+        (Yamamuro et al. 2021). Columns: \code{RD}, \code{RR}; with
+        \code{R > 1} also \code{Sd}, percentile CIs
+        (\code{perct_lcl}/\code{perct_ucl}), and normal CIs
+        (\code{norm_lcl}/\code{norm_ucl}) for RD; and \code{Sd_RR},
+        \code{perct_lcl_RR}/\code{perct_ucl_RR},
+        \code{norm_lcl_RR}/\code{norm_ucl_RR} for RR. \code{RR} is
+        \code{NA} for the Mediation Proportion rows.
   \item \code{sim_data}: if \code{return_data = TRUE}, the Monte Carlo simulated
         longitudinal dataset used internally (can be large).
   \item \code{fitted_models}: a named list of fitted models keyed by outcome, exposure,
@@ -146,7 +182,10 @@ Each element of \code{models} is created by \code{\link{spec_model}} and must sp
 (i) a formula, (ii) \code{mod_type} (\code{"exposure"}, \code{"covariate"},
 \code{"mediator"}, \code{"outcome"}, \code{"survival"}, or \code{"censoring"}), and
 (iii) \code{var_type} (\code{"binary"}, \code{"normal"}, \code{"categorical"}, or
-\code{"custom"}). Exactly one \code{"mediator"} model is required.
+\code{"custom"}). At least one \code{"mediator"} model is required.
+Multiple mediator models are supported under \code{mediation_type = "I"}
+(Yamamuro et al. 2021); list them in temporal order. Multi-mediator
+analyses are not supported under \code{mediation_type = "N"}.
 
 The list order determines the simulation sequence at each time step and must match
 your assumed data-generating process. A common ordering is
@@ -160,11 +199,24 @@ For non-standard covariate distributions (bounded, zero-inflated, truncated), us
 \code{\link{spec_model}}. See the vignette section on custom covariate types.
 
 **Mediator pool (interventional effects)**
-For \code{mediation_type = "I"}, a separate cohort is simulated under \eqn{a^* = 0}
-to build the marginal mediator distribution. In survival analyses the pool is
-sampled with probability proportional to each individual's cumulative survival
-\eqn{Sc} under \eqn{a^*}, implementing the \eqn{S(1{:}t-1)=1} condition from
-Lin et al. (2017, Eq. 4).
+For \code{mediation_type = "I"}, a natural-course pass under each treatment
+level \eqn{a^*} stores every simulated individual's full mediator trajectory
+\eqn{M(1{:}T)} in a pool matrix. Each decomposition arm that fixes a
+mediator to its \eqn{a^*} value — \emph{including the reference arms}
+\code{Phi00} (\eqn{a^* = 0}) and \code{Phi11} (\eqn{a^* = 1}) — permutes the
+rows of that matrix once and assigns subject \eqn{i} the entire trajectory of
+pool individual \eqn{\pi(i)}: a joint, stochastic draw \eqn{G_{a^*}} from the
+simulated distribution of \eqn{M(1{:}T)}, independent of \eqn{i}'s own
+confounder history (and permuted independently across mediators). This makes
+\emph{all} interventional arms — references and cross-world alike — use the
+randomized interventional mediator distribution, as prescribed by Lin et al.
+(2017, Eq. 4), VanderWeele & Tchetgen Tchetgen (2017), and Yamamuro et al.
+(2021, Figure 3 step 3), and as implemented by the SAS mGFORMULA macro. The
+natural plug-in total effect is obtained from separate natural-course arms
+(\code{nat0}, \code{nat1}), so \eqn{TE} need not equal the sum of the
+interventional direct and indirect effects; their difference is reported as
+the mediated-interaction residual. The pool is not survival-weighted; the
+full reference cohort is used, mirroring the reference SAS implementations.
 
 **Warnings**
 Warnings from model fitting (e.g., convergence, near-separation) are collected
@@ -214,6 +266,18 @@ print(fit)
 Lin, S. H., Young, J. G., Logan, R., & VanderWeele, T. J. (2017).
 Mediation analysis for a survival outcome with time-varying exposures, mediators, and confounders.
 \emph{Statistics in Medicine}, 36(26), 4153–4166. \doi{10.1002/sim.7426}
+
+VanderWeele, T. J., & Tchetgen Tchetgen, E. J. (2017).
+Mediation analysis with time varying exposures and mediators.
+\emph{Journal of the Royal Statistical Society: Series B}, 79(3), 917–938.
+\doi{10.1111/rssb.12194}
+
+Yamamuro, S., Shinozaki, T., Iimuro, S., & Matsuyama, Y. (2021).
+Mediational g-formula for time-varying treatment and repeated-measured
+multiple mediators: Application to atorvastatin's effect on cardiovascular
+disease via cholesterol lowering and anti-inflammatory actions in elderly
+type 2 diabetics. \emph{Statistical Methods in Medical Research}, 30(8),
+1782–1799. \doi{10.1177/09622802211025988}
 
 Zheng, W., & van der Laan, M. (2017).
 Longitudinal mediation analysis with time-varying mediators and exposures, with application to survival outcomes.

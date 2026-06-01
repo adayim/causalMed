@@ -17,7 +17,6 @@ monte_g(
   mediation_type = c(NA, "N", "I"),
   return_data = FALSE,
   med_pool = NULL,
-  med_ref_val = 0L,
   collect_pool = FALSE
 )
 }
@@ -63,18 +62,14 @@ automatically and \code{ref_int} is set to \code{"natural"}.}
 \item{return_data}{Logical. If \code{TRUE}, return the stacked simulated data
 (all interventions) including predicted outcomes; may be large. Default \code{FALSE}.}
 
-\item{med_pool}{Named list of pre-simulated mediator values (collected during
-the reference-arm pass with \code{collect_pool = TRUE}), keyed by time index
-as character. Used by the Phi10 arm for interventional mediation.}
+\item{med_pool}{Optional named list keyed by mediator response variable.
+Each element is a pre-permuted `nrow(data) × T` matrix (column names =
+time index as character) supplying the cross-world joint trajectory for
+that mediator. The per-time slice is delivered to \code{simulate_data}.}
 
-\item{med_ref_val}{The reference exposure value (a*) passed through to
-\code{simulate_data} for the natural-effects mediator swap. Defaults to \code{0L}.}
-
-\item{collect_pool}{Logical. If \code{TRUE}, collect the mediator pool during the
-forward simulation and return it alongside the risk estimate. The returned value is
-then a \code{list(estimate = ..., pool = ...)} rather than a plain scalar/data.table.
-Used by \code{.gformula} to avoid a separate pool-collection pass for interventional
-mediation: the reference arm (Phi00) doubles as the pool source.}
+\item{collect_pool}{Logical. If \code{TRUE}, capture the simulated
+trajectory of every mediator into a named list of `nrow(data) × T`
+matrices and return it alongside the risk estimate.}
 }
 \description{
 Internal use only. Monte Carlo simulation.

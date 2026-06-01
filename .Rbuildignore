@@ -11,3 +11,6 @@
 ^pkgdown$
 ^doc$
 ^Meta$
+^\.positai$
+^\.claude$
+^references$

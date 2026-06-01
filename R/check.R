@@ -201,27 +201,28 @@ check_mediation_order <- function(models) {
 
   if (length(med_idx) == 0) return(invisible(NULL))
 
-  # Mediator must come before outcome/survival
-  if (length(out_idx) > 0 && med_idx > min(out_idx)) {
+  # Every mediator must come before the outcome/survival model.
+  if (length(out_idx) > 0 && any(med_idx > min(out_idx))) {
+    offenders <- med_idx[med_idx > min(out_idx)]
     warning(sprintf(
       paste0(
-        "Temporal ordering: mediator model at position [%d] appears after ",
+        "Temporal ordering: mediator model(s) at position(s) [%s] appear after ",
         "the outcome/survival model at position [%d]. ",
-        "The mediator must be simulated before the outcome."
+        "Mediators must be simulated before the outcome."
       ),
-      med_idx, min(out_idx)
+      paste(offenders, collapse = ", "), min(out_idx)
     ), call. = FALSE)
   }
 
-  # Exposure model must come before mediator
-  if (length(exp_idx) > 0 && exp_idx > med_idx) {
+  # Exposure model must come before the first mediator.
+  if (length(exp_idx) > 0 && exp_idx > min(med_idx)) {
     warning(sprintf(
       paste0(
         "Temporal ordering: exposure model at position [%d] appears after ",
-        "the mediator model at position [%d]. ",
-        "Exposure must be set before the mediator is simulated."
+        "the first mediator model at position [%d]. ",
+        "Exposure must be set before any mediator is simulated."
       ),
-      exp_idx, med_idx
+      exp_idx, min(med_idx)
     ), call. = FALSE)
   }
 

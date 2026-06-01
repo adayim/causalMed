@@ -38,12 +38,17 @@ devtools::install_github("adayim/causalMed")
   indirect pathways with time-varying mediators and exposure-induced
   mediator–outcome confounders
 - **Two mediation estimands**:
-  - `mediation_type = "I"`: interventional IDE/IIE (Lin et al. 2017) —
-    marginal mediator distribution via random permutation; does not
-    require cross-world independence
+  - `mediation_type = "I"`: interventional IDE/IIE (VanderWeele &
+    Tchetgen Tchetgen 2017; Lin et al. 2017; Yamamuro et al. 2021) —
+    cross-world mediator drawn as a **joint M(1:T) trajectory** by
+    row-permuting the reference (a\*) cohort, matching the SAS
+    `mGFORMULA` macro and the algorithm of Yamamuro et al. 2021. Does
+    not require cross-world independence. **Multiple mediator models**
+    are supported under this estimand (Yamamuro 2021 §4); per-mediator
+    IIE(M_k) is reported alongside the overall IDE/TE.
   - `mediation_type = "N"`: natural NDE/NIE (Zheng & van der Laan 2017)
     — conditional mediator distribution with exposure swapping; requires
-    stronger assumptions
+    stronger assumptions (single mediator only)
 - **Flexible model specification**: logistic regression (binary), linear
   regression (normal), multinomial logistic (categorical), and custom
   simulation functions
@@ -214,44 +219,58 @@ print(fit_med)
 #>   Mediation    : Interventional effects (IDE/IIE) -- Lin et al. (2017)
 #> 
 #> --- Marginal mean outcome per arm (Q-functionals) --- 
-#>   Phi11 = E[Y(a=1, M(1))]:  exposure=1, mediator under a=1
-#>   Phi10 = E[Y(a=1, M(0))]:  exposure=1, mediator under a=0  [cross-world]
-#>   Phi00 = E[Y(a=0, M(0))]:  exposure=0, mediator under a=0
+#>   Interventional arms draw mediators from independently-permuted pools (G):
+#>   Phi11 = E[Y(a=1, G1)]:  exposure=1, mediators ~ a=1 pool  [reference]
+#>   Phi10 = E[Y(a=1, G0)]:  exposure=1, mediators ~ a=0 pool  [cross-world]
+#>   Phi00 = E[Y(a=0, G0)]:  exposure=0, mediators ~ a=0 pool  [reference]
+#>   nat1/nat0 = E[Y(a=1)]/E[Y(a=0)]:  natural course (used for the total effect)
 #>    Intervention    Est     Sd RD 2.5%(pct) RD 97.5%(pct) RD 2.5%(norm)
-#>          <fctr>  <num>  <num>        <num>         <num>         <num>
-#> 1:        Phi11 0.1519 0.0075       0.1383        0.1661        0.1371
-#> 2:        Phi00 0.0847 0.0135       0.0607        0.1128        0.0582
-#> 3:        Phi10 0.1460 0.0073       0.1329        0.1589        0.1317
+#>          <char>  <num>  <num>        <num>         <num>         <num>
+#> 1:         nat0 0.0847 0.0135       0.0607        0.1128        0.0582
+#> 2:         nat1 0.1519 0.0075       0.1383        0.1661        0.1371
+#> 3:        Phi00 0.0848 0.0135       0.0608        0.1126        0.0584
+#> 4:        Phi10 0.1456 0.0074       0.1329        0.1586        0.1312
+#> 5:        Phi11 0.1517 0.0075       0.1389        0.1662        0.1370
 #>    RD 97.5%(norm)
 #>             <num>
-#> 1:         0.1667
-#> 2:         0.1112
-#> 3:         0.1604
+#> 1:         0.1112
+#> 2:         0.1667
+#> 3:         0.1112
+#> 4:         0.1600
+#> 5:         0.1664
 #> 
 #> --- Effect decomposition --- 
-#>   Total effect    = Phi11 - Phi00 =  E[Y(1,M(1))] - E[Y(0,M(0))]
-#>   Direct effect   = Phi10 - Phi00 =  E[Y(1,M(0))] - E[Y(0,M(0))]
-#>   Indirect effect = Phi11 - Phi10 =  E[Y(1,M(1))] - E[Y(1,M(0))]
-#>   Mediation Prop. = Indirect / Total  (as a percentage; RR not applicable)
+#>   Direct effect (IDE)   = Phi10 - Phi00
+#>   Indirect effect (IIE) = Phi11 - Phi10   (sequential per mediator when N>=2)
+#>   IDE + IIE             = Phi11 - Phi00    (interventional overall effect)
+#>   Total effect (TE)     = nat1 - nat0      (natural plug-in g-formula)
+#>   TE - (Direct+Indirect)= mediated-interaction residual (TE - overall)
+#>   Mediation Prop.       = (Total - Direct) / Total  (percentage; RR not applicable)
 #>   RD = risk difference;  RR = risk ratio
-#>                  Effect     RD     RR     Sd RD 2.5%(pct) RD 97.5%(pct)  Sd_RR
-#>                  <char>  <num>  <num>  <num>        <num>         <num>  <num>
-#> 1:      Indirect effect 0.0059 1.0401 0.0021       0.0024        0.0105 0.0148
-#> 2:        Direct effect 0.0613 1.7239 0.0151       0.0287        0.0854 0.2938
-#> 3:         Total effect 0.0672 1.7931 0.0153       0.0323        0.0916 0.3076
-#> 4: Mediation Proportion 8.7231     NA 3.6941       4.3050       17.5163     NA
-#>    RR 2.5%(pct) RR 97.5%(pct) RD 2.5%(norm) RD 97.5%(norm) RR 2.5%(norm)
-#>           <num>         <num>         <num>          <num>         <num>
-#> 1:       1.0164        1.0729        0.0018         0.0099        1.0112
-#> 2:       1.2612        2.3621        0.0318         0.0909        1.1480
-#> 3:       1.2961        2.4283        0.0371         0.0973        1.1903
-#> 4:           NA            NA        1.4829        15.9634            NA
-#>    RR 97.5%(norm)
-#>             <num>
-#> 1:         1.0690
-#> 2:         2.2997
-#> 3:         2.3959
-#> 4:             NA
+#>                                   Effect     RD     RR     Sd RD 2.5%(pct)
+#>                                   <char>  <num>  <num>  <num>        <num>
+#> 1:                       Indirect effect 0.0061 1.0421 0.0021       0.0025
+#> 2:                         Direct effect 0.0608 1.7168 0.0150       0.0287
+#> 3:                          Total effect 0.0672 1.7931 0.0153       0.0323
+#> 4:              TE - (Direct + Indirect) 0.0003     NA 0.0004      -0.0009
+#> 5:                  Mediation Proportion 9.5299     NA 3.7089       4.0617
+#> 6: Mediation Proportion (multiplicative) 9.1585     NA 3.7171       4.0309
+#>    RD 97.5%(pct)  Sd_RR RR 2.5%(pct) RR 97.5%(pct) RD 2.5%(norm) RD 97.5%(norm)
+#>            <num>  <num>        <num>         <num>         <num>          <num>
+#> 1:        0.0108 0.0149       1.0178        1.0732        0.0020         0.0103
+#> 2:        0.0856 0.2924       1.2632        2.3606        0.0313         0.0903
+#> 3:        0.0916 0.3076       1.2961        2.4283        0.0371         0.0973
+#> 4:        0.0007     NA           NA            NA       -0.0005         0.0011
+#> 5:       17.6448     NA           NA            NA        2.2606        16.7991
+#> 6:       17.7527     NA           NA            NA        1.8732        16.4438
+#>    RR 2.5%(norm) RR 97.5%(norm)
+#>            <num>          <num>
+#> 1:        1.0129         1.0713
+#> 2:        1.1437         2.2899
+#> 3:        1.1903         2.3959
+#> 4:            NA             NA
+#> 5:            NA             NA
+#> 6:            NA             NA
 ```
 
 The `estimate` component of `fit_med` contains:
@@ -266,6 +285,15 @@ The `estimate` component of `fit_med` contains:
 where Q(a₁, a₂) is the mean outcome when exposure is set to a₁ and the
 mediator distribution is drawn from the distribution it would have had
 under exposure a₂.
+
+For `mediation_type = "I"`, the cross-world mediator is drawn as a
+**joint trajectory**: a separate Monte Carlo cohort is simulated under
+a\* (= 0), and the Phi10 arm assigns each subject the full M(1:T) of a
+randomly permuted reference-cohort individual. This matches the SAS
+`mGFORMULA` macro (Lin et al. 2017, eAppendix) and the algorithm in
+Yamamuro et al. 2021 (Figure 3, step 3). Mediator values are not
+survival-weighted; the full reference cohort is used. See `?mediation`
+for details.
 
 ### Natural NDE/NIE (Zheng & van der Laan 2017)
 
@@ -334,3 +362,16 @@ head(nonsurvivaldata)
     analysis with time-varying mediators and exposures, with application
     to survival outcomes. *Journal of Causal Inference*, 5(2).
     [doi:10.1515/jci-2016-0006](https://doi.org/10.1515/jci-2016-0006)
+
+5.  VanderWeele, T. J., & Tchetgen Tchetgen, E. J. (2017). Mediation
+    analysis with time varying exposures and mediators. *Journal of the
+    Royal Statistical Society: Series B*, 79(3), 917–938.
+    [doi:10.1111/rssb.12194](https://doi.org/10.1111/rssb.12194)
+
+6.  Yamamuro, S., Shinozaki, T., Iimuro, S., & Matsuyama, Y. (2021).
+    Mediational g-formula for time-varying treatment and
+    repeated-measured multiple mediators: Application to atorvastatin’s
+    effect on cardiovascular disease via cholesterol lowering and
+    anti-inflammatory actions in elderly type 2 diabetics. *Statistical
+    Methods in Medical Research*, 30(8), 1782–1799.
+    [doi:10.1177/09622802211025988](https://doi.org/10.1177/09622802211025988)
