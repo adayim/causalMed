@@ -1,0 +1,479 @@
+---
+title: "Mediation Analysis for Survival Outcomes"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+    highlight: null
+vignette: >
+  %\VignetteIndexEntry{Mediation Analysis for Survival Outcomes}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse  = TRUE,
+  comment   = "#>",
+  fig.width = 7,
+  fig.height = 4
+)
+```
+
+## Introduction
+
+The mediational g-formula of Lin et al. (2017) was developed for **survival
+outcomes** with time-varying exposures, mediators, and confounders. This
+vignette walks through that setting:
+
+1. a single-mediator interventional analysis on a survival outcome,
+2. how to read every row of the output,
+3. the `n_vw` permutation-averaging parameter,
+4. multiple mediators — replicating the Yamamuro et al. (2021) simulation
+   setting, with estimates checked against documented true values,
+5. censoring, and
+6. restricting models with `subset` (absorbing states).
+
+For an introduction to the package (model specification, recode hooks,
+`gformula()` for total effects) see `vignette("causalMed-overview")`.
+
+```{r load}
+library(causalMed)
+library(data.table)
+```
+
+---
+
+## Survival Data Requirements
+
+With a survival outcome, `mediation()` (and `gformula()`) model the
+**discrete-time hazard**: at each time point, a binary model with
+`mod_type = "survival"` estimates the probability of the event among those
+still at risk. The simulation accumulates these hazards into a cumulative
+incidence, $1 - \prod_t (1 - h_t)$, so all reported quantities — the per-arm
+estimates and the effect decomposition — are **risks of the event by the end
+of follow-up**.
+
+The data must be in long format with one row per subject per period **at
+risk**: once the event occurs, no later rows for that subject may be present.
+
+```{r data}
+data("survivaldata")
+dat <- as.data.table(survivaldata)
+head(dat, 8)
+```
+
+`survivaldata` contains 3 000 subjects followed over five periods
+(`time` = 0–4):
+
+| Variable | Role |
+|----------|------|
+| `id` | Subject identifier |
+| `time` | Time index |
+| `V` | Time-fixed baseline covariate |
+| `A` | Time-varying binary exposure |
+| `L` | Time-varying continuous confounder |
+| `M` | Time-varying binary mediator |
+| `Y` | Event indicator (1 = event in this period) |
+| `lag1_A`, `lag1_L`, `lag1_M` | Previous-period values |
+
+The data-generating ordering within each period is **A → L → M → Y**
+(see `?survivaldata`): exposure first, then the confounder (affected by
+current exposure), then the mediator (affected by current exposure and
+confounder), then the hazard.
+
+---
+
+## Single Mediator: Interventional Effects
+
+Models are listed in the temporal order above. Note `mod_type = "survival"`
+for the outcome; the formula may include exposure–mediator interaction terms.
+
+```{r models}
+init_s <- recodes(lag1_A = 0, lag1_L = 0, lag1_M = 0)
+in_s   <- recodes(lag1_A = A, lag1_L = L, lag1_M = M)
+
+models_surv <- list(
+  spec_model(A ~ V + lag1_A + lag1_L + time,
+             var_type = "binary", mod_type = "exposure"),
+  spec_model(L ~ V + A + lag1_L + time,
+             var_type = "normal", mod_type = "covariate"),
+  spec_model(M ~ V + A + L + lag1_M + time,
+             var_type = "binary", mod_type = "mediator"),
+  spec_model(Y ~ V + A + M + L + A:M + time,
+             var_type = "binary", mod_type = "survival")   # discrete-time hazard
+)
+```
+
+```{r fit-single}
+fit_surv <- mediation(
+  data           = dat,
+  id_var         = "id",
+  time_var       = "time",
+  base_vars      = "V",
+  exposure       = "A",
+  outcome        = "Y",
+  models         = models_surv,
+  init_recode    = init_s,
+  in_recode      = in_s,
+  mediation_type = "I",
+  mc_sample      = 20000,
+  R              = 1,      # set R > 1 for bootstrap CIs (see below)
+  quiet          = TRUE,
+  seed           = 2026
+)
+```
+
+### Reading the per-arm table
+
+```{r arms-single}
+fit_surv$effect_size
+```
+
+Each row is the simulated cumulative incidence under one arm:
+
+- **`nat0` / `nat1`** — exposure fixed to 0 / 1, mediator following its
+  fitted model given each individual's own history. Their contrast is the
+  natural plug-in **total effect**.
+- **`Phi00` / `Phi11`** — exposure fixed to 0 / 1, mediator drawn from the
+  *permuted marginal pool* collected under that same exposure level
+  ($E[Y_{0,G_0}]$, $E[Y_{1,G_1}]$). These are the interventional reference
+  arms.
+- **`Phi10`** — the cross-world arm: exposure fixed to 1, mediator drawn from
+  the a = 0 pool ($E[Y_{1,G_0}]$).
+
+### Reading the decomposition
+
+```{r decomp-single}
+fit_surv$estimate
+```
+
+Row by row:
+
+- **Indirect effect (IIE)** = `Phi11 − Phi10`: the change in risk from
+  shifting the *population distribution* of the mediator from its
+  never-treated to its always-treated form, while exposure is held at 1.
+- **Direct effect (IDE)** = `Phi10 − Phi00`: the effect of exposure with the
+  mediator distribution held at its never-treated form.
+- **Total effect (TE)** = `nat1 − nat0`: the ordinary g-formula total effect.
+- **TE − (Direct + Indirect)**: IDE + IIE sum to the *interventional overall
+  effect* `Phi11 − Phi00`, not to TE; this row is the difference (a
+  mediated-interaction residual). It is usually small; a large value signals
+  strong exposure–mediator interaction in the outcome process. (For
+  `mediation_type = "N"` the decomposition is exact and this row is absent.)
+- **Mediation Proportion** = (TE − IDE) / TE × 100: the share of the total
+  effect *not* acting directly, i.e. the indirect effects plus the residual
+  (Yamamuro et al. 2021).
+- **Mediation Proportion (multiplicative)** =
+  $RR_{IDE}(RR_{IIE}-1)/(RR_{OE}-1) \times 100$ on the risk-ratio scale
+  (Lin et al. 2017, Table 2).
+
+The `RD` column is the risk-difference scale, `RR` the risk-ratio scale
+(`RR` is not applicable to the residual and proportion rows). With `R > 1`
+both scales get bootstrap standard errors and percentile/normal confidence
+intervals.
+
+`print(fit_surv)` displays both tables together with the arm definitions as
+a legend.
+
+### The `n_vw` argument
+
+Every cross-world arm draws the mediator by randomly permuting the pool of
+simulated mediator trajectories. `n_vw` controls how many independent
+permutations are averaged per arm (default `2`, matching the SAS
+`mGFORMULA` macro). Averaging reduces Monte Carlo noise from the permutation
+step at the cost of one extra simulation pass per arm; `n_vw = 1` is faster
+and slightly noisier. It has no effect on natural effects
+(`mediation_type = "N"`), which do not use permutation.
+
+```{r nvw, eval=FALSE}
+mediation(..., n_vw = 1)   # single permutation per arm: faster, noisier
+```
+
+---
+
+## Multiple Mediators: the Yamamuro et al. (2021) Simulation
+
+With `mediation_type = "I"`, any number of mediators can be analysed by
+supplying several `mod_type = "mediator"` models **in temporal order**. We
+demonstrate this on `yamamurodata`, a dataset simulated from the
+data-generating process of the Yamamuro et al. (2021) simulation study —
+a time-varying treatment `A`, a confounder `L`, two sequential mediators
+`M1` and `M2`, and a survival outcome over three visits, ordered
+**A → L → M1 → M2 → Y** within each visit. Because the process is known,
+the **true interventional effects are documented in `?yamamurodata`**
+(computed at $n = 10^7$), so the estimates below can be checked against
+the truth.
+
+```{r yam-data}
+data("yamamurodata")
+yam <- as.data.table(yamamurodata)
+head(yam, 6)
+```
+
+Three specification details are worth noting:
+
+- **Visit indicators.** The published models give each visit its own
+  intercept. Write these as `I(as.integer(time == k))` rather than
+  `factor(time)`: during simulation each Monte Carlo time slice carries a
+  single `time` value, so a factor would drop the unobserved levels while
+  the numeric indicator predicts safely at every step.
+- **`subset = time > 0`.** The visit-0 values of `A`, `L`, `M1`, `M2` are
+  baseline draws, not model output, so the time-varying models are fitted
+  and simulated only for `time > 0`. Visit 0 is seeded in the Monte Carlo
+  cohort from the time-fixed baseline columns (`L0base`, `M10base`,
+  `M20base`) via `init_recode`.
+- The models include the quadratic and lag terms of the published
+  "correctly specified" scenario.
+
+```{r yam-models}
+models_yam <- list(
+  spec_model(A ~ V + lag1_A + lag1_L + I(lag1_L^2) + lag1_M1 + lag1_M2 +
+               I(as.integer(time == 2)),
+             var_type = "binary", mod_type = "exposure", subset = time > 0),
+  spec_model(L ~ V + A + lag1_L + I(lag1_L^2) + lag1_M1 + lag1_M2 +
+               I(as.integer(time == 2)),
+             var_type = "normal", mod_type = "covariate", subset = time > 0),
+  spec_model(M1 ~ V + A + L + I(L^2) + lag1_L + I(lag1_L^2) + lag1_M1 + lag1_M2 +
+               I(as.integer(time == 2)),
+             var_type = "normal", mod_type = "mediator", subset = time > 0),
+  spec_model(M2 ~ V + A + L + I(L^2) + lag1_L + I(lag1_L^2) + lag1_M1 + lag1_M2 +
+               I(as.integer(time == 2)),
+             var_type = "normal", mod_type = "mediator", subset = time > 0),
+  spec_model(Y ~ V + A + L + I(L^2) + M1 + M2 + M1:M2 +
+               I(as.integer(time == 1)) + I(as.integer(time == 2)),
+             var_type = "binary", mod_type = "survival")
+)
+
+fit_yam <- mediation(
+  data           = yam,
+  id_var         = "id",
+  time_var       = "time",
+  base_vars      = c("V", "L0base", "M10base", "M20base"),
+  exposure       = "A",
+  outcome        = "Y",
+  models         = models_yam,
+  init_recode    = recodes(L = L0base, M1 = M10base, M2 = M20base,
+                           lag1_A = 0, lag1_L = 0, lag1_M1 = 0, lag1_M2 = 0),
+  in_recode      = recodes(lag1_A = A, lag1_L = L, lag1_M1 = M1, lag1_M2 = M2),
+  mediation_type = "I",
+  n_vw           = 2,      # matches the SAS mGFORMULA macro
+  mc_sample      = 20000,
+  R              = 1,
+  quiet          = TRUE,
+  seed           = 2026
+)
+
+fit_yam$effect_size
+```
+
+For $N$ mediators the arm list grows to $4 + N$: the intermediate arms
+`Phi1_k` switch the first $k$ mediators to the a = 1 pool while the rest
+stay at the a = 0 pool. Each mediator's indirect effect is the **sequential
+contrast** $IIE(M_k) = \Phi_{1,k} - \Phi_{1,k-1}$, labelled
+`Indirect effect (<name>)` in the output, and
+$IDE + \sum_k IIE(M_k)$ equals the interventional overall effect
+`Phi11 − Phi00`. Each mediator's pool is permuted independently.
+
+### Comparing against the true values
+
+```{r yam-truth}
+truth <- data.table(
+  Effect = c("Total effect", "Direct effect", "Indirect effect (M1)",
+             "Indirect effect (M2)", "TE - (Direct + Indirect)"),
+  True   = c(-6.36, -3.20, -2.29, -0.97, 0.10)   # from ?yamamurodata
+)
+est <- as.data.table(fit_yam$estimate)[, .(Effect, Estimate = RD * 100)]
+merge(truth, est, by = "Effect", sort = FALSE)
+```
+
+The estimates reproduce the structure of the truth: all signs and the
+relative magnitudes (IDE > IIE via M1 > IIE via M2, small positive
+residual) are recovered, and the two indirect effects are estimated
+closely. The total and direct effects deviate by roughly 1–1.5 percentage
+points — sampling error from fitting on a single dataset. The published
+study averages 1000 replicate datasets, under which the mean estimates
+match the true values (Yamamuro et al. 2021, and reproduced with this
+package during development); a per-dataset bootstrap (`R > 1`) quantifies
+this uncertainty in applied use.
+
+Because the decomposition is sequential, the *order* of the mediator models
+matters: it must reflect the assumed temporal/causal ordering among the
+mediators. Multiple mediators are not available for `mediation_type = "N"`
+(the natural-effects references define a single mediator only); `mediation()`
+stops with an error in that case.
+
+---
+
+## Censoring
+
+If follow-up can end for reasons other than the event, include a censoring
+indicator with `mod_type = "censor"`. To illustrate, we censor some
+follow-up in `survivaldata` with probability depending on the confounder
+(informative censoring), ending each subject's follow-up at their first
+censoring:
+
+```{r censor-data}
+set.seed(11)
+dat_c <- copy(dat)
+dat_c[, C := rbinom(.N, 1, plogis(-3.5 + 0.8 * L))]
+dat_c[, after_cens := cumsum(shift(C, fill = 0)), by = id]
+dat_c <- dat_c[after_cens == 0][, after_cens := NULL]
+dat_c[C == 1, Y := 0L]   # censored before the event in that period
+```
+
+Add a censoring model to the list (after the covariates/mediator it depends
+on, before the survival model):
+
+```{r fit-censor}
+models_cens <- list(
+  spec_model(A ~ V + lag1_A + lag1_L + time,
+             var_type = "binary", mod_type = "exposure"),
+  spec_model(L ~ V + A + lag1_L + time,
+             var_type = "normal", mod_type = "covariate"),
+  spec_model(M ~ V + A + L + lag1_M + time,
+             var_type = "binary", mod_type = "mediator"),
+  spec_model(C ~ V + A + L + time,
+             var_type = "binary", mod_type = "censor"),     # censoring model
+  spec_model(Y ~ V + A + M + L + A:M + time,
+             var_type = "binary", mod_type = "survival")
+)
+
+fit_cens <- mediation(
+  data           = dat_c,
+  id_var         = "id",
+  time_var       = "time",
+  base_vars      = "V",
+  exposure       = "A",
+  outcome        = "Y",
+  models         = models_cens,
+  init_recode    = init_s,
+  in_recode      = in_s,
+  mediation_type = "I",
+  mc_sample      = 20000,
+  R              = 1,
+  quiet          = TRUE,
+  seed           = 2026
+)
+
+fit_cens$estimate
+```
+
+In the simulation, censoring is **abolished** in every arm (all arms fix the
+exposure, and under an intervention the censoring indicator is set to 0), so
+the reported risks are counterfactual risks *in the absence of censoring* —
+the standard g-formula treatment of right-censoring. The censoring model's
+role is to let the hazard model be fitted on data where censoring depends on
+measured covariates. Here the estimates from the censored data are close to
+the full-data estimates above, as expected when censoring depends only on
+modelled covariates.
+
+---
+
+## Restricting Models with `subset` (Absorbing States)
+
+`spec_model(subset = ...)` fits and simulates a model only on rows meeting a
+condition. The classic use is an **absorbing state** — for example, in the
+GvHD analysis of Westreich et al. (2012) the exposure can only switch on
+once, so its model is estimated among the not-yet-exposed and the value is
+carried forward deterministically afterwards:
+
+```{r subset, eval=FALSE}
+# exposure can occur only while gvhdm1 == 0 …
+spec_model(gvhd ~ all + cmv + male + age + ...,
+           var_type = "binary", mod_type = "exposure",
+           subset = gvhdm1 == 0)
+
+# … and is locked at 1 afterwards via the end-of-step hook
+out_recode = recodes(gvhd = ifelse(gvhdm1 == 1, 1, gvhd))
+```
+
+Rows excluded by `subset` keep their current value at that step, so the
+`out_recode` carry-forward completes the absorbing behaviour.
+
+---
+
+## Bootstrap Confidence Intervals
+
+As elsewhere in the package, set `R > 1` for subject-level bootstrap CIs and
+optionally register a parallel plan first:
+
+```{r boot, eval=FALSE}
+library(future)
+plan(multisession)
+
+fit_ci <- mediation(
+  data           = dat,
+  id_var         = "id",
+  time_var       = "time",
+  base_vars      = "V",
+  exposure       = "A",
+  outcome        = "Y",
+  models         = models_surv,
+  init_recode    = init_s,
+  in_recode      = in_s,
+  mediation_type = "I",
+  mc_sample      = 20000,
+  R              = 500,
+  seed           = 2026
+)
+
+plan(sequential)
+
+# estimate now carries Sd, percentile and normal CIs on the RD and RR scales
+fit_ci$estimate
+```
+
+---
+
+## Natural Effects and Intermediate Confounding
+
+`mediation_type = "N"` (Zheng & van der Laan 2017) is also defined for
+survival outcomes. However, in this dataset the confounder `L` is affected by
+the current exposure — an *intermediate confounder* — and natural direct and
+indirect effects are **not identifiable** in that setting. `mediation()`
+detects the exposure on the right-hand side of a covariate model and warns:
+
+```{r natural, warning=TRUE}
+fit_nat <- mediation(
+  data           = dat,
+  id_var         = "id",
+  time_var       = "time",
+  base_vars      = "V",
+  exposure       = "A",
+  outcome        = "Y",
+  models         = models_surv,
+  init_recode    = init_s,
+  in_recode      = in_s,
+  mediation_type = "N",
+  mc_sample      = 20000,
+  R              = 1,
+  quiet          = TRUE,
+  seed           = 2026
+)
+```
+
+The interventional effects (`"I"`) remain identifiable under intermediate
+confounding and are the recommended estimand here — which is why they are
+the package default.
+
+---
+
+## References
+
+- Lin, S.-H., Young, J. G., Logan, R., & VanderWeele, T. J. (2017). Mediation
+  analysis for a survival outcome with time-varying exposures, mediators, and
+  confounders. *Statistics in Medicine*, 36, 4153–4166.
+- VanderWeele, T. J., & Tchetgen Tchetgen, E. J. (2017). Mediation analysis
+  with time varying exposures and mediators. *Journal of the Royal
+  Statistical Society: Series B*, 79(3), 917–938.
+- Yamamuro, S., Shinozaki, T., Iimuro, S., & Matsuyama, Y. (2021).
+  Mediational g-formula for time-varying treatment and repeated-measured
+  multiple mediators. *Statistical Methods in Medical Research*, 30(8),
+  1782–1799.
+- Zheng, W., & van der Laan, M. (2017). Longitudinal mediation analysis with
+  time-varying mediators and exposures, with application to survival
+  outcomes. *Journal of Causal Inference*, 5(2).
+- Westreich, D., Cole, S. R., Young, J. G., et al. (2012). The parametric
+  g-formula to estimate the effect of highly active antiretroviral therapy on
+  incident AIDS or death. *Statistics in Medicine*, 31, 2000–2009.

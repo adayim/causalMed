@@ -118,3 +118,59 @@ testthat::test_that("mediation(quiet = TRUE) disables the bootstrap progress bar
 
   testthat::expect_false(captured)
 })
+
+
+testthat::test_that("mediation recovers the documented Yamamuro true values on yamamurodata", {
+  testthat::skip_on_cran()
+  data("yamamurodata", package = "causalMed")
+
+  models_yam <- list(
+    spec_model(A ~ V + lag1_A + lag1_L + I(lag1_L^2) + lag1_M1 + lag1_M2 +
+                 I(as.integer(time == 2)),
+               var_type = "binary", mod_type = "exposure", subset = time > 0),
+    spec_model(L ~ V + A + lag1_L + I(lag1_L^2) + lag1_M1 + lag1_M2 +
+                 I(as.integer(time == 2)),
+               var_type = "normal", mod_type = "covariate", subset = time > 0),
+    spec_model(M1 ~ V + A + L + I(L^2) + lag1_L + I(lag1_L^2) + lag1_M1 + lag1_M2 +
+                 I(as.integer(time == 2)),
+               var_type = "normal", mod_type = "mediator", subset = time > 0),
+    spec_model(M2 ~ V + A + L + I(L^2) + lag1_L + I(lag1_L^2) + lag1_M1 + lag1_M2 +
+                 I(as.integer(time == 2)),
+               var_type = "normal", mod_type = "mediator", subset = time > 0),
+    spec_model(Y ~ V + A + L + I(L^2) + M1 + M2 + M1:M2 +
+                 I(as.integer(time == 1)) + I(as.integer(time == 2)),
+               var_type = "binary", mod_type = "survival")
+  )
+
+  fit <- suppressWarnings(mediation(
+    data = yamamurodata, id_var = "id", time_var = "time",
+    base_vars = c("V", "L0base", "M10base", "M20base"),
+    exposure = "A", outcome = "Y", models = models_yam,
+    init_recode = recodes(L = L0base, M1 = M10base, M2 = M20base,
+                          lag1_A = 0, lag1_L = 0, lag1_M1 = 0, lag1_M2 = 0),
+    in_recode = recodes(lag1_A = A, lag1_L = L, lag1_M1 = M1, lag1_M2 = M2),
+    mediation_type = "I", n_vw = 1,
+    mc_sample = 5000, R = 1, quiet = TRUE, seed = 7
+  ))
+
+  est <- fit$estimate
+  pick <- function(lbl) est$RD[est$Effect == lbl] * 100
+
+  # Documented large-sample true values (?yamamurodata), in percentage points.
+  # Tolerance covers single-dataset sampling error plus MC noise; this guards
+  # against gross regressions (sign flips, arm mix-ups), not fine accuracy.
+  truth <- c("Total effect" = -6.36, "Direct effect" = -3.20,
+             "Indirect effect (M1)" = -2.29, "Indirect effect (M2)" = -0.97,
+             "TE - (Direct + Indirect)" = 0.10)
+  for (lbl in names(truth)) {
+    testthat::expect_lt(abs(pick(lbl) - truth[[lbl]]), 2.5, label = lbl)
+  }
+
+  # Exact decomposition identity: IDE + sum(IIE) + residual == TE
+  testthat::expect_equal(
+    pick("Direct effect") + pick("Indirect effect (M1)") +
+      pick("Indirect effect (M2)") + pick("TE - (Direct + Indirect)"),
+    pick("Total effect"),
+    tolerance = 1e-8
+  )
+})

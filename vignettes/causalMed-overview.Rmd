@@ -61,7 +61,7 @@ The `nonsurvivaldata` dataset contains 1 000 subjects observed at five time poin
 | `M` | Time-varying continuous mediator |
 | `Y_bin` | Binary outcome (end-of-follow-up) |
 
-The assumed temporal ordering within each period is **A → M → L → Y**, meaning that within any time point, exposure precedes the mediator, which precedes the confounders, which precede the outcome.
+The assumed temporal ordering within each period is **A → L → M → Y**, meaning that within any time point, exposure precedes the confounders, which precede the mediator, which precedes the outcome (this matches the data-generating process documented in `?nonsurvivaldata`).
 
 ---
 
