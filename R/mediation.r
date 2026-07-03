@@ -198,13 +198,13 @@
 #'   )
 #'
 #' fit <- mediation(
-#'  data = non-survivaldata,
+#'  data = nonsurvivaldata,
 #'  id_var = "id",
 #'  base_vars = "V",
 #'  exposure = "A",
 #'  outcome = "Y",
 #'  time_var = "time",
-#'  models = models10,
+#'  models = models,
 #'  init_recode = recodes(M_lag1=0,L_lag1=0),
 #'  in_recode = recodes(M_lag1=M,L_lag1=L),
 #'  mediation_type = "I",
@@ -383,6 +383,7 @@ mediation <- function(data,
   if (R > 1) {
     # Run bootstrap
     arg_pools <- get_args_for(bootstrap_helper)
+    arg_pools$progress_bar <- !quiet
     arg_pools$future_seed <- boot_seed
     pools <- do.call(bootstrap_helper, arg_pools)
 

@@ -29,5 +29,5 @@ utils::globalVariables(c(
 ))
 
 #' @importFrom stats coef delete.response family formula model.matrix
-#'   na.omit predict quantile rbinom rnorm sd sigma terms
+#'   na.omit predict quantile rbinom rnorm sd setNames sigma terms
 NULL

@@ -47,11 +47,12 @@
       val_ran <- unique(na.omit(data[[rsp_vars]]))
     }
 
-    # Recode data before simulating
+    # Recode data before fitting this model. `recode` is a causalMed_recodes
+    # list of expressions, so it must go through apply_recodes() (the same
+    # path used at simulation time). Applied to a copy so per-model recodes
+    # do not leak across models or back to the caller's data.
     if (!is.null(mods$recode)) {
-      for (i in seq_along(mods$recode)) {
-        data <- within(data, eval(parse(text = mods$recode[i])))
-      }
+      data <- apply_recodes(data.table::copy(data), mods$recode)
     }
 
     mods$call$data <- substitute(data, env = parent.frame())
@@ -108,7 +109,6 @@
   # below can be served from the cache without a redundant simulation.
   pools       <- list()
   cached_arms <- list()
-  cached_data <- list()  # only populated when return_data = TRUE
 
   has_arm_intervention <- any(sapply(intervention, inherits, "causalMed_arm"))
 
@@ -139,7 +139,6 @@
       )
       pools[[as.character(lvl)]]       <- ref_run$pool
       cached_arms[[as.character(lvl)]] <- ref_run$estimate
-      if (return_data) cached_data[[as.character(lvl)]] <- ref_run$estimate
     }
   }
 
@@ -318,6 +317,11 @@ monte_g <- function(data,
   # dyn_int() and causalMed_arm objects are not replicated — the same rule
   # applies at every time step.
   time_len <- length(time_seq)
+  # check_intervention() accepts logical static interventions; coerce them to
+  # numeric so replication and exposure assignment treat them like {0, 1}.
+  if (is.logical(intervention)) {
+    intervention <- as.numeric(intervention)
+  }
   if (is.numeric(intervention) && length(intervention) == 1L) {
     intervention <- rep(intervention, time_len)
   }

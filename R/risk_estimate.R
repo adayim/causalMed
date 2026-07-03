@@ -31,7 +31,6 @@
 #' @importFrom data.table data.table
 #'
 #' @keywords internal
-#' @export
 
 
 # Point estimates: risk difference and risk ratio from the main g-formula run
