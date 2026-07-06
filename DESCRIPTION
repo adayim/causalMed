@@ -28,5 +28,5 @@ Suggests:
     testthat
 URL: https://github.com/adayim/causalMed
 BugReports: https://github.com/adayim/causalMed/issues
-RoxygenNote: 7.3.3
 VignetteBuilder: knitr
+Config/roxygen2/version: 8.0.0

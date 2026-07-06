@@ -9,8 +9,8 @@
 \arguments{
 \item{object}{Object of class \code{"gformula"}.}
 
-\item{digits}{Integer. Number of significant digits.
-Default \code{max(3, getOption("digits") - 3)}.}
+\item{digits}{Integer. Number of decimal places used when rounding
+numeric output. Default \code{max(3, getOption("digits") - 3)}.}
 
 \item{...}{Not used.}
 }

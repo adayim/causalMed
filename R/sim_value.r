@@ -36,7 +36,7 @@ sim_value <- function(model, newdt) {
   }
 
   # Fast linear predictor for binary and normal types.
-  # model$Xterms and model$beta are pre-extracted once after fitting in .gformula,
+  # model$Xterms and model$beta are pre-extracted once after fitting in .run_interventions,
   # avoiding the model.frame() + na.action overhead that predict() incurs.
   # model.matrix() + %*% is a direct BLAS call.
   mm <- model.matrix(model$Xterms, data = newdt)

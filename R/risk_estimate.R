@@ -9,14 +9,14 @@
 #' @details
 #' These functions are used internally within the g-formula framework for effect estimation.
 #' They are not intended for direct user input. The functions perform:
-#' - \code{risk_estimate.point}: Computes point estimates for risk difference and risk ratio.
-#' - \code{risk_estimate.boot}: Computes per-bootstrap-replicate estimates for the effects (RD/RR).
-#' - \code{risk_estimate.mediation}: Computes total, direct, and indirect effects by subtraction.
+#' - \code{risk_estimate_point}: Computes point estimates for risk difference and risk ratio.
+#' - \code{risk_estimate_boot}: Computes per-bootstrap-replicate estimates for the effects (RD/RR).
+#' - \code{risk_estimate_mediation}: Computes total, direct, and indirect effects by subtraction.
 #'
-#' These functions operate on the output of the \code{.gformula} function, estimating 
+#' These functions operate on the output of the \code{.run_interventions} function, estimating 
 #' effects (both point estimates and confidence intervals) from simulated data.
 #'
-#' @param data_list A list of simulated datasets returned by \code{.gformula}.
+#' @param data_list A list of simulated datasets returned by \code{.run_interventions}.
 #' @param ref_int Reference intervention to compare against.
 #' @param intervention A vector specifying the interventions to compare.
 #' @param return_data Logical. If \code{TRUE}, returns the simulated data along with effects.
@@ -34,7 +34,7 @@
 
 
 # Point estimates: risk difference and risk ratio from the main g-formula run
-risk_estimate.point <- function(data_list, ref_int, intervention, return_data) {
+risk_estimate_point <- function(data_list, ref_int, intervention, return_data) {
   ref_dat <- data_list[[ref_int]]
   vs_nam <- setdiff(names(intervention), ref_int)
   out <- sapply(vs_nam, function(x) {
@@ -57,7 +57,7 @@ risk_estimate.point <- function(data_list, ref_int, intervention, return_data) {
 }
 
 # Bootstrap replicate estimates: risk difference and risk ratio from a stacked bootstrap data.table
-risk_estimate.boot <- function(data_list, ref_int, intervention, return_data) {
+risk_estimate_boot <- function(data_list, ref_int, intervention, return_data) {
   ref_dat <- data_list[data_list$Intervention==ref_int,]
   vs_nam <- setdiff(names(intervention), ref_int)
   out <- sapply(vs_nam, function(x) {
@@ -79,14 +79,14 @@ risk_estimate.boot <- function(data_list, ref_int, intervention, return_data) {
   data.table::rbindlist(out, use.names = TRUE)
 }
 
-# Calculate mediation effects from a named list of arm Phi values.
+# Calculate mediation effects from a named list of intervention Phi values.
 # Supports N >= 1 mediators (Yamamuro et al. 2021 multi-mediator extension).
 #
-# data_list must be a named list keyed by arm name (see build_mediation_arms):
+# data_list must be a named list keyed by intervention name (see build_mediation_interventions):
 #   Phi00, Phi10, Phi11                   (always required)
 #   Phi1_k for k = 1..N-1                 (required when N >= 2)
 #   nat0, nat1                            (interventional path only; natural
-#                                          never-/always-treat arms for the
+#                                          never-/always-treat interventions for the
 #                                          plug-in total effect)
 # Each element is a scalar Phi value (mean Pred_Y) or a numeric vector that
 # will be averaged. The legacy `return_data = TRUE` path (data tables) is
@@ -95,7 +95,7 @@ risk_estimate.boot <- function(data_list, ref_int, intervention, return_data) {
 # Decomposition (sequential, Phi1_0 = Phi10, Phi1_N = Phi11):
 #   IDE      = Phi10  - Phi00
 #   IIE(M_k) = Phi1_k - Phi1_{k-1}
-#   OE       = Phi11  - Phi00 = IDE + sum_k IIE(M_k)   (overall via the arms)
+#   OE       = Phi11  - Phi00 = IDE + sum_k IIE(M_k)   (overall via the interventions)
 #
 # INTERVENTIONAL path (nat0/nat1 present, mediation_type = "I"): Phi00 and Phi11
 # are the PERMUTED-pool interventional references (E[Y_{0,G0}], E[Y_{1,G1}]), so
@@ -106,13 +106,13 @@ risk_estimate.boot <- function(data_list, ref_int, intervention, return_data) {
 # (Lin et al. 2017; VanderWeele & Tchetgen Tchetgen 2017; Yamamuro et al. 2021).
 #
 # NATURAL path (nat0/nat1 absent, mediation_type = "N"): Phi00/Phi11 are the
-# natural reference arms, TE = Phi11 - Phi00, the decomposition sums exactly to
+# natural reference interventions, TE = Phi11 - Phi00, the decomposition sums exactly to
 # TE and no residual row is added (Zheng & van der Laan 2017).
-risk_estimate.mediation <- function(data_list, med_vars = NULL, return_data = FALSE) {
+risk_estimate_mediation <- function(data_list, med_vars = NULL, return_data = FALSE) {
 
   # Robust scalar extraction (handles vector Pred_Y when return_data legacy
-  # path is used, plus the attached "phi_estimate" attribute set by .gformula
-  # for n_vw-averaged arms).
+  # path is used, plus the attached "phi_estimate" attribute set by .run_interventions
+  # for n_vw-averaged interventions).
   to_phi <- function(name) {
     v <- data_list[[name]]
     if (is.null(v)) return(NA_real_)
@@ -126,13 +126,13 @@ risk_estimate.mediation <- function(data_list, med_vars = NULL, return_data = FA
   phi_11 <- to_phi("Phi11")
   phi_10 <- to_phi("Phi10")
 
-  # Interventional path uses separate natural-course arms for the total effect.
+  # Interventional path uses separate natural-course interventions for the total effect.
   interventional <- !is.null(data_list[["nat0"]]) && !is.null(data_list[["nat1"]])
   nat0 <- if (interventional) to_phi("nat0") else phi_00
   nat1 <- if (interventional) to_phi("nat1") else phi_11
 
   # Number of mediators inferred from med_vars (preferred) or from the number
-  # of Phi1_k arms present in data_list (fallback).
+  # of Phi1_k interventions present in data_list (fallback).
   if (is.null(med_vars)) {
     n_med <- 1L + sum(grepl("^Phi1_\\d+$", names(data_list)))
   } else {

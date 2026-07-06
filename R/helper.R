@@ -130,3 +130,50 @@ emit_warnings <- function() {
 }
 
 
+
+# Summarize the input data for display by print.gformula():
+# number of individuals, observations, and time points.
+summarize_input_data <- function(data, id_var, time_var) {
+  times <- sort(unique(na.omit(data[[time_var]])))
+  list(
+    n_id    = data.table::uniqueN(data[[id_var]]),
+    n_obs   = nrow(data),
+    n_times = length(times),
+    t_min   = min(times),
+    t_max   = max(times)
+  )
+}
+
+# Observed nonparametric benchmark of the outcome, printed alongside the
+# simulated intervention means as an informal model check.
+#   - Survival outcomes: product-limit (Kaplan-Meier-type) cumulative
+#     incidence by the last time point. Long format with post-event rows
+#     removed means the per-time at-risk set shrinks with events and
+#     censoring, so hazard = events / at-risk handles right-censoring.
+#   - Non-survival outcomes: observed mean of the outcome at the last
+#     time point.
+# Implemented with base tapply (no data.table NSE) to avoid adding columns
+# to utils::globalVariables().
+observed_benchmark <- function(data, outcome, time_var, is_survival) {
+  tt <- data[[time_var]]
+  yy <- data[[outcome]]
+  ok <- !is.na(tt) & !is.na(yy)
+  tt <- tt[ok]
+  yy <- yy[ok]
+  if (length(yy) == 0L) {
+    return(list(value = NA_real_, label = sprintf("mean of %s", outcome)))
+  }
+  if (is_survival) {
+    events  <- tapply(yy, tt, sum)
+    at_risk <- tapply(yy, tt, length)
+    value   <- 1 - prod(1 - events / at_risk)
+    label   <- sprintf("cumulative incidence of %s by t = %s (product-limit)",
+                       outcome, max(tt))
+  } else {
+    last  <- tt == max(tt)
+    value <- mean(yy[last])
+    label <- sprintf("mean of %s at t = %s (end of follow-up)",
+                     outcome, max(tt))
+  }
+  list(value = value, label = label)
+}

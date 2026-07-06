@@ -33,10 +33,11 @@ implementation of the parametric g-formula in R.
 This vignette describes:
 
 1. The shared statistical foundation of both packages
-2. What `gfoRmula` offers that `causalMed` currently does not
-3. The mediation extension that motivated `causalMed`
-4. Side-by-side total-effect estimates confirming numerical equivalence
-5. Guidance on when to use each package
+2. Their common lineage in the GFORMULA-SAS reference macro
+3. What `gfoRmula` offers that `causalMed` currently does not
+4. The mediation extension that motivated `causalMed`
+5. Side-by-side total-effect estimates confirming numerical equivalence
+6. Guidance on when to use each package
 
 ```{r pkgs}
 library(causalMed)
@@ -55,20 +56,40 @@ order, the intervention is imposed on the exposure variable, and the predicted
 outcomes are accumulated across simulated individuals. Confidence intervals are
 obtained by non-parametric bootstrap resampling at the individual level.
 
-The two packages share support for:
+---
 
-| Feature | causalMed | gfoRmula |
-|---------|:---------:|:--------:|
-| Parametric g-formula | ✓ | ✓ |
-| Long-format longitudinal data | ✓ | ✓ |
-| Binary, normal, categorical covariates | ✓ | ✓ |
-| Binary end-of-follow-up outcome | ✓ | ✓ |
-| Survival (discrete-time hazard) outcome | ✓ | ✓ |
-| Static interventions (always/never treat) | ✓ | ✓ |
-| Dynamic (threshold-based) interventions | ✓ | ✓ |
-| Time-varying lag history | ✓ | ✓ |
-| Non-parametric bootstrap CIs | ✓ | ✓ |
-| Parallel bootstrap | ✓ | ✓ |
+## Relationship to GFORMULA-SAS
+
+The original reference implementation of the parametric g-formula is the
+**GFORMULA SAS macro** (Logan, Young, Taubman, Hernán and colleagues; available
+from the Harvard Causal Inference group). `gfoRmula` is the R port of that macro,
+and `causalMed`'s total-effect engine (`gformula()`) targets the same algorithm.
+All three share the identical core: fit parametric models on the observed long
+data, Monte Carlo–resample baseline records, forward-simulate the covariate →
+exposure → outcome sequence one time step at a time, compute survival risk as
+$1 - \prod_t (1 - h_t)$ with censoring disabled under intervention, and bootstrap
+over subjects for confidence intervals. The `causalMed` regression tests
+cross-check total-effect estimates against `gfoRmula` (the R twin of the SAS
+macro) to Monte Carlo noise.
+
+Two clarifications are worth keeping in mind:
+
+- **GFORMULA-SAS estimates total effects only.** It contains no mediator
+  decomposition. The direct/indirect machinery in `causalMed` (see the mediation
+  section below) is an *extension* beyond what GFORMULA-SAS or `gfoRmula`
+  provide. The cross-world mediator-permutation step `causalMed` uses for
+  interventional effects follows a *separate* SAS macro, `mGFORMULA` (Lin et al.
+  2017), not the total-effect GFORMULA macro.
+- **The SAS macro has a much larger declarative vocabulary.** It exposes up to
+  eight covariate distribution types, keyword-driven functional forms of
+  covariate history (lags, cumulative averages, restricted cubic splines via
+  `ptype`), several packaged intervention types (threshold, increment, sampling
+  from the observed distribution), competing-event handling, and additional
+  end-of-follow-up outcome models. `causalMed` covers the same modelling *power*
+  through a smaller surface — model formulas plus `recode`/`dyn_int()`
+  expressions and `custom_fit`/`custom_sim` — but several of these conveniences
+  must be coded by hand rather than requested by keyword. The specific gaps are
+  itemised below.
 
 ---
 
@@ -99,13 +120,6 @@ For datasets containing variables that require these distributions (e.g. a
 biomarker that can be zero or a treatment that is absorbing once initiated),
 `gfoRmula` is the appropriate choice. However, one can use `custom_fit` and `custom_sim` to implement custom distributions and simulations in `spec_model` function. This gives users the flexibility to model complex scenarios, but it should be done with caution and careful validation, as it requires more manual coding and is not yet supported by built-in diagnostics.
 
-### Natural-course validation output
-
-`gfoRmula` automatically compares simulated natural-course covariate means and
-outcome risk against the observed data at each time point. This diagnostic,
-described in Westreich et al. (2012), is an important model-fit check and is
-not yet available in `causalMed`.
-
 ### Competing events
 
 `gfoRmula` provides explicit support for competing events via the
@@ -119,9 +133,14 @@ competing-event interface.
 access to the full simulated dataset, the time index, and all parameter values
 at each step. This gives more control for complex multi-variable interventions.
 `causalMed` offers `dyn_int()`, which captures an R expression evaluated inside
-the simulated dataset at each step. This covers common threshold rules concisely
-but does not expose the pool object or time index the way `gfoRmula`'s full
-function interface does.
+the simulated dataset at each step. The current time step is in scope — the
+`time_var` column is refreshed before every step — so a rule may reference it
+directly (e.g. `dyn_int(as.numeric(A > 0 & time >= 2))`), and history-dependent
+rules can be built by maintaining lagged columns through the recode mechanism
+(`in_recode` / `out_recode`). The practical difference is that `causalMed` does
+not pass a single pooled data-frame object to a user function the way
+`gfoRmula`'s full function interface does; multi-step logic is expressed instead
+through recodes plus the captured expression.
 
 ### CRAN stability and community support
 
@@ -201,7 +220,7 @@ are specified:
 | Model specification | `spec_model()` per variable: formula + `var_type` + `mod_type` in a list | Separate `covparams`, `ymodel`, `covtypes`, `covnames`, `outcome_type` arguments |
 | Lag / history | `init_recode` / `in_recode` via `recodes()` (arbitrary expressions) | Built-in `lagged`, `cumavg` functions via `histories` / `histvars` |
 | End-of-step transforms | `out_recode` hook | Not available |
-| Intervention arms | Named list, any number | Up to 3 (`intervention1.X`, `intervention2.X`, `intervention3.X`) |
+| Interventions | Named list, any number | Up to 3 (`intervention1.X`, `intervention2.X`, `intervention3.X`) |
 | Risk contrasts | Computed automatically (`ref_int`) | Manual post-processing of `$result` |
 | Output | S3 object with `print`/`summary` | List with `$result` data.table |
 
@@ -449,10 +468,13 @@ gfoRmula::gformula(
 
 Both approaches evaluate the rule within the simulated dataset at each time
 step, so the exposure reflects its natural-course draw before the threshold is
-applied. `gfoRmula`'s function-based interface additionally exposes the full
-pool object and time index, enabling more complex history-dependent rules.
-`causalMed`'s `dyn_int()` is more concise for common threshold rules and
-integrates naturally with the package's expression-capture pattern.
+applied. The current time step is available inside the `dyn_int()` expression as
+the tracked `time_var` column (e.g. `dyn_int(as.numeric(L1 > 0 & time >= 2))`),
+and history-dependent rules can be built by maintaining lagged columns through
+`in_recode` / `out_recode`. The difference from `gfoRmula` is interface rather
+than capability: `gfoRmula` hands a user function the full pooled data object,
+whereas `causalMed` expresses the same logic through its recode-plus-expression
+pattern.
 
 ---
 

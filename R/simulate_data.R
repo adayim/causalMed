@@ -8,22 +8,22 @@
 #' @param intervention One of:
 #'   \itemize{
 #'     \item \code{NULL} — natural-course draw of the exposure (gformula) or
-#'           Phi10 cross-world arm (mediation, when \code{mediation_type} is
+#'           Phi10 cross-world intervention (mediation, when \code{mediation_type} is
 #'           non-\code{NA}). The legacy NULL = Phi10 path is kept for
 #'           backwards compatibility but \code{mediation()} now constructs
-#'           \code{causalMed_arm} objects internally.
+#'           \code{causalMed_intervention} objects internally.
 #'     \item Numeric scalar/vector or \code{causalMed_dynint} — static or
 #'           dynamic exposure rule for \code{gformula()}.
-#'     \item \code{causalMed_arm} — structured mediation arm carrying a
+#'     \item \code{causalMed_intervention} — structured mediation intervention carrying a
 #'           fixed treatment value plus an optional named list of
-#'           per-mediator overrides. See \code{arm_spec()}.
+#'           per-mediator overrides. See \code{intervention_spec()}.
 #'   }
 #' @param mediation_type Type of the mediation analysis, if the value is \code{NA}
 #' no mediation analysis will be performed (default).
 #' @param med_pool Optional named list keyed by mediator response variable.
 #'   Each element is the time-\eqn{t} slice of a pre-permuted joint
-#'   mediator-trajectory matrix built by \code{.gformula} from the
-#'   corresponding reference arm (Phi00 or Phi11). When the arm
+#'   mediator-trajectory matrix built by \code{.run_interventions} from the
+#'   corresponding reference intervention (Phi00 or Phi11). When the intervention
 #'   \code{intervention} requires a mediator override under
 #'   \code{mediation_type = "I"}, the mediator is assigned directly from this
 #'   vector (joint draw matching Lin et al. 2017 Eq. 4, the SAS mGFORMULA
@@ -46,7 +46,7 @@ simulate_data <- function(data,
     stop("'mediation_type' must be NA, \"N\", or \"I\"")
   }
 
-  is_arm     <- inherits(intervention, "causalMed_arm")
+  is_intervention_spec     <- inherits(intervention, "causalMed_intervention")
   is_phi10   <- !is.na(mediation_type) && is.null(intervention)
   is_dynamic <- inherits(intervention, "causalMed_dynint")
 
@@ -54,20 +54,20 @@ simulate_data <- function(data,
   data.table::setDT(data)
 
   # Set exposure for every flavour that fixes treatment.
-  if (is_arm) {
+  if (is_intervention_spec) {
     set(data, j = exposure, value = intervention$treatment)
   } else if (!is.null(intervention) && !is_dynamic) {
     set(data, j = exposure, value = intervention)
   } else if (is_phi10) {
-    # Legacy Phi10 path (no arm_spec passed): fix exposure to 1.
+    # Legacy Phi10 path (no intervention_spec passed): fix exposure to 1.
     set(data, j = exposure, value = 1L)
   }
 
-  # Per-mediator metadata for an arm-driven simulation. For "N" arms, the
+  # Per-mediator metadata for an intervention-driven simulation. For "N" interventions, the
   # override value is the swap-target exposure used when re-evaluating the
-  # mediator model; for "I" arms the corresponding pool slice is read from
+  # mediator model; for "I" interventions the corresponding pool slice is read from
   # med_pool by mediator name.
-  med_overrides <- if (is_arm) intervention$mediator_overrides else NULL
+  med_overrides <- if (is_intervention_spec) intervention$mediator_overrides else NULL
 
   # Loop through models
   for (indx in seq_along(models)) {
@@ -90,7 +90,7 @@ simulate_data <- function(data,
 
     # Skip the exposure model when treatment is already fixed:
     #   (a) static / dynamic intervention (gformula path),
-    #   (b) arm_spec path (mediation),
+    #   (b) intervention_spec path (mediation),
     #   (c) legacy Phi10 path.
     if (resp_var == exposure && (!is.null(intervention) || is_phi10)) {
       if (is_dynamic) {
@@ -109,23 +109,23 @@ simulate_data <- function(data,
 
       # ── Mediator handling under a cross-world override ──────────────────────
       # Three triggers for cross-world handling:
-      #   (1) arm_spec with this mediator in mediator_overrides,
+      #   (1) intervention_spec with this mediator in mediator_overrides,
       #   (2) legacy single-mediator Phi10 path (is_phi10),
       # Otherwise the mediator is simulated normally from its fitted model.
-      mediator_override_value <- if (is_arm && mod_type == "mediator" &&
+      mediator_override_value <- if (is_intervention_spec && mod_type == "mediator" &&
                                      resp_var %in% names(med_overrides)) {
         med_overrides[[resp_var]]
       } else {
         NULL
       }
-      has_arm_override <- !is.null(mediator_override_value)
+      has_med_override <- !is.null(mediator_override_value)
 
-      if (mod_type == "mediator" && (has_arm_override || is_phi10)) {
+      if (mod_type == "mediator" && (has_med_override || is_phi10)) {
         if (mediation_type == "N") {
           # Natural effects (Zheng et al., 2012, Eq. 5): evaluate the
-          # mediator model on the arm's own covariate history but with the
+          # mediator model on the intervention's own covariate history but with the
           # exposure swapped to the cross-world value.
-          swap_val <- if (has_arm_override) mediator_override_value else 0L
+          swap_val <- if (has_med_override) mediator_override_value else 0L
           interv_swap <- parse(text = paste0(exposure, " = ", swap_val))
           med_value <- sim_value(model = model,
                                  newdt = within(data[cond], eval(interv_swap)))
@@ -134,17 +134,17 @@ simulate_data <- function(data,
         } else {
           # Interventional effects (Lin et al. 2017 Eq. 4; Yamamuro et al.
           # 2021 Fig. 3 step 3): direct assignment from the pre-permuted
-          # joint-trajectory pool slice for this mediator. arm_spec carries
+          # joint-trajectory pool slice for this mediator. intervention_spec carries
           # the pool source (0 or 1) but the actual pool slice was looked up
-          # by mediator name in .gformula and is delivered via med_pool.
+          # by mediator name in .run_interventions and is delivered via med_pool.
           this_pool <- if (!is.null(med_pool)) med_pool[[resp_var]] else NULL
           if (!is.null(this_pool)) {
             data[cond, (resp_var) := this_pool[cond]]
           } else {
-            # Fallback (no pool collected, e.g., reference arm had no
+            # Fallback (no pool collected, e.g., reference intervention had no
             # mediator model): draw from the mediator model at the
             # cross-world exposure and permute within this time step.
-            swap_val <- if (has_arm_override) mediator_override_value else 0L
+            swap_val <- if (has_med_override) mediator_override_value else 0L
             interv_swap <- parse(text = paste0(exposure, " = ", swap_val))
             med_value <- sim_value(model = model,
                                    newdt = within(data[cond], eval(interv_swap)))

@@ -158,7 +158,7 @@ testthat::test_that("mediation recovers the documented Yamamuro true values on y
 
   # Documented large-sample true values (?yamamurodata), in percentage points.
   # Tolerance covers single-dataset sampling error plus MC noise; this guards
-  # against gross regressions (sign flips, arm mix-ups), not fine accuracy.
+  # against gross regressions (sign flips, intervention mix-ups), not fine accuracy.
   truth <- c("Total effect" = -6.36, "Direct effect" = -3.20,
              "Indirect effect (M1)" = -2.29, "Indirect effect (M2)" = -0.97,
              "TE - (Direct + Indirect)" = 0.10)
@@ -173,4 +173,31 @@ testthat::test_that("mediation recovers the documented Yamamuro true values on y
     pick("Total effect"),
     tolerance = 1e-8
   )
+})
+
+
+testthat::test_that("observed_benchmark matches survival::survfit KM under censoring (gvhd)", {
+  testthat::skip_if_not_installed("survival")
+
+  data("gvhd", package = "causalMed")
+
+  ob <- observed_benchmark(gvhd, "d", "day", is_survival = TRUE)
+
+  # Gold standard: Kaplan-Meier cumulative incidence at end of follow-up,
+  # from one record per subject (last day, ever-death status). gvhd has
+  # real loss-to-follow-up (censlost) plus administrative censoring, so
+  # this exercises the product-limit correction on genuinely censored data.
+  per_id <- data.frame(
+    time   = tapply(gvhd$day, gvhd$id, max),
+    status = tapply(gvhd$d,   gvhd$id, max)
+  )
+  km <- survival::survfit(survival::Surv(time, status) ~ 1, data = per_id)
+  km_ci <- 1 - min(km$surv)
+
+  testthat::expect_equal(ob$value, km_ci, tolerance = 1e-12)
+
+  # And the naive ever-event proportion must differ (censoring bias),
+  # guarding against a regression to the naive estimator.
+  naive <- sum(per_id$status) / nrow(per_id)
+  testthat::expect_gt(abs(ob$value - naive), 0.01)
 })

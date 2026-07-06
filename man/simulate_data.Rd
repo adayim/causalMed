@@ -21,15 +21,15 @@ simulate_data(
 \item{intervention}{One of:
 \itemize{
   \item \code{NULL} — natural-course draw of the exposure (gformula) or
-        Phi10 cross-world arm (mediation, when \code{mediation_type} is
+        Phi10 cross-world intervention (mediation, when \code{mediation_type} is
         non-\code{NA}). The legacy NULL = Phi10 path is kept for
         backwards compatibility but \code{mediation()} now constructs
-        \code{causalMed_arm} objects internally.
+        \code{causalMed_intervention} objects internally.
   \item Numeric scalar/vector or \code{causalMed_dynint} — static or
         dynamic exposure rule for \code{gformula()}.
-  \item \code{causalMed_arm} — structured mediation arm carrying a
+  \item \code{causalMed_intervention} — structured mediation intervention carrying a
         fixed treatment value plus an optional named list of
-        per-mediator overrides. See \code{arm_spec()}.
+        per-mediator overrides. See \code{intervention_spec()}.
 }}
 
 \item{mediation_type}{Type of the mediation analysis, if the value is \code{NA}
@@ -37,8 +37,8 @@ no mediation analysis will be performed (default).}
 
 \item{med_pool}{Optional named list keyed by mediator response variable.
 Each element is the time-\eqn{t} slice of a pre-permuted joint
-mediator-trajectory matrix built by \code{.gformula} from the
-corresponding reference arm (Phi00 or Phi11). When the arm
+mediator-trajectory matrix built by \code{.run_interventions} from the
+corresponding reference intervention (Phi00 or Phi11). When the intervention
 \code{intervention} requires a mediator override under
 \code{mediation_type = "I"}, the mediator is assigned directly from this
 vector (joint draw matching Lin et al. 2017 Eq. 4, the SAS mGFORMULA

@@ -28,6 +28,5 @@ utils::globalVariables(c(
   "perct_ucl_RR"
 ))
 
-#' @importFrom stats coef delete.response family formula model.matrix
-#'   na.omit predict quantile rbinom rnorm sd setNames sigma terms
+#' @importFrom stats coef delete.response family formula model.matrix na.omit predict quantile rbinom rnorm sd setNames sigma terms
 NULL

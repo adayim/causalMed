@@ -52,7 +52,7 @@ element is one of:
         \code{list(natural = NULL, threshold = dyn_int(as.numeric(A > 0)))}.
 }
 If \code{intervention} is \code{NULL}, only the natural course is
-evaluated. If a \code{natural} arm is not provided, it is added
+evaluated. If a \code{natural} intervention is not provided, it is added
 automatically and \code{ref_int} is set to \code{"natural"}.}
 
 \item{init_recode}{Optional expression/function applied once at time 0 before the Monte Carlo loop

@@ -28,7 +28,14 @@ test_that("gformula runs successfully on nonsurvivaldata", {
 
   expect_s3_class(fit, "gformula")
   expect_true(is.list(fit))
-  expect_named(fit, c("call", "all.args", "estimate", "effect_size", "sim_data", "fitted_models"))
+  expect_named(fit, c("call", "all.args", "estimate", "effect_size", "sim_data",
+                      "fitted_models", "boot_estimates", "data_summary", "observed"))
+
+  # No bootstrap (R = 0): per-replicate estimates absent, summaries present
+  expect_null(fit$boot_estimates)
+  expect_equal(fit$data_summary$n_id, length(unique(nonsurvivaldata$id)))
+  expect_equal(fit$data_summary$n_obs, nrow(nonsurvivaldata))
+  expect_true(is.finite(fit$observed$value))
 
   # Check effect_size
   expect_true(inherits(fit$effect_size, "data.table"))
@@ -472,4 +479,46 @@ testthat::test_that("High-precision cross-validation: causalMed vs gfoRmula (tol
 
   # ----- High-precision comparison ------------------------------------------
   testthat::expect_equal(means_cm, means_gf, tolerance = 0.0001)
+})
+
+
+test_that("gformula retains per-replicate bootstrap estimates and prints new fields", {
+  data(nonsurvivaldata)
+
+  mod1 <- spec_model(A ~ V, var_type = "binary", mod_type = "exposure")
+  mod3 <- spec_model(Y_bin ~ A + V, var_type = "binary", mod_type = "outcome")
+  models <- list(mod1, mod3)
+
+  fit <- gformula(
+    data = nonsurvivaldata,
+    id_var = "id",
+    base_vars = "V",
+    exposure = "A",
+    time_var = "time",
+    models = models,
+    intervention = list(natural = NULL, always = 1),
+    ref_int = 0,
+    mc_sample = 200,
+    R = 5,
+    quiet = TRUE
+  )
+
+  # boot_estimates: 5 replicates x 2 interventions; 5 x 2 contrast rows (RD + RR)
+  expect_true(is.list(fit$boot_estimates))
+  bi <- fit$boot_estimates$interventions
+  expect_true(all(c("replicate", "Intervention", "Est") %in% names(bi)))
+  expect_equal(nrow(bi), 5L * 2L)
+  expect_equal(sort(unique(bi$replicate)), 1:5)
+  bc <- fit$boot_estimates$contrasts
+  expect_true(all(c("replicate", "Intervention", "Risk_type", "Estimate") %in% names(bc)))
+  expect_equal(nrow(bc), 5L * 2L)
+
+  # print shows the new setup fields, observed benchmark, and CI footnote
+  out <- paste(capture.output(print(fit)), collapse = "\n")
+  expect_match(out, "Outcome      : Y_bin")
+  expect_match(out, "Data         :")
+  expect_match(out, "Observed (nonparametric)", fixed = TRUE)
+  expect_match(out, "95% CIs", fixed = TRUE)
+  # per-intervention mean CIs must NOT be labelled as RD
+  expect_false(grepl("RD 2.5%", out, fixed = TRUE))
 })

@@ -53,13 +53,13 @@ element is one of:
         \code{list(natural = NULL, threshold = dyn_int(as.numeric(A > 0)))}.
 }
 If \code{intervention} is \code{NULL}, only the natural course is
-evaluated. If a \code{natural} arm is not provided, it is added
+evaluated. If a \code{natural} intervention is not provided, it is added
 automatically and \code{ref_int} is set to \code{"natural"}.}
 
 \item{ref_int}{Reference intervention for contrasts. Either an integer index
 (\code{0} = natural course; \code{1}, \code{2}, … = elements of
 \code{intervention}) or a character name matching an element (e.g.,
-\code{"always"}). If no \code{natural} arm is provided, it is added and
+\code{"always"}). If no \code{natural} intervention is provided, it is added and
 \code{ref_int} is set to \code{"natural"}. Default: \code{0}.}
 
 \item{init_recode}{Optional expression/function applied once at time 0 before the Monte Carlo loop
@@ -108,6 +108,21 @@ An object of class \code{"gformula"} with components:
         If \code{return_fitted = TRUE}, returns full model objects plus attributes
         (\code{recodes}, \code{subset}, \code{var_type}, \code{mod_type});
         otherwise, a compact list with \code{call} and \code{coeff}.
+  \item \code{boot_estimates}: when \code{R > 1}, a list of per-replicate
+        bootstrap estimates: \code{$interventions} (columns
+        \code{replicate}, \code{Intervention}, \code{Est}) and
+        \code{$contrasts} (columns \code{replicate}, \code{Intervention},
+        \code{Risk_type}, \code{Estimate}; \code{NULL} with a single
+        intervention). These are scalar summaries whose size is
+        independent of the input data. \code{NULL} when \code{R <= 1}.
+  \item \code{data_summary}: list with the number of individuals
+        (\code{n_id}), observations (\code{n_obs}), and time points
+        (\code{n_times}, \code{t_min}, \code{t_max}) of the input data.
+  \item \code{observed}: list with the observed nonparametric benchmark of
+        the outcome (\code{value}, \code{label}): the mean outcome at the
+        last time point, or the product-limit cumulative incidence for
+        survival outcomes. Printed alongside the simulated means as an
+        informal model check.
 }
 }
 \description{
@@ -137,7 +152,7 @@ Provide a named list \code{intervention} with exposure values per time
 (e.g., \code{list(natural = NULL, always = c(1,1,1), never = c(0,0,0))}).
 If \code{intervention} is \code{NULL}, the function evaluates the natural course only.
 If at least one element is \code{NULL} and \code{ref_int == 0}, that element is used
-as the reference ("natural"). Otherwise, a \code{natural} arm is added automatically,
+as the reference ("natural"). Otherwise, a \code{natural} intervention is added automatically,
 and \code{ref_int} is set to \code{"natural"}.
 
 **Model specification**

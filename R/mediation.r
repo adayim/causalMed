@@ -40,18 +40,18 @@
 #' **Mediator pool (interventional effects)**
 #' For \code{mediation_type = "I"}, a natural-course pass under each treatment
 #' level \eqn{a^*} stores every simulated individual's full mediator trajectory
-#' \eqn{M(1{:}T)} in a pool matrix. Each decomposition arm that fixes a
-#' mediator to its \eqn{a^*} value — \emph{including the reference arms}
+#' \eqn{M(1{:}T)} in a pool matrix. Each decomposition intervention that fixes a
+#' mediator to its \eqn{a^*} value — \emph{including the reference interventions}
 #' \code{Phi00} (\eqn{a^* = 0}) and \code{Phi11} (\eqn{a^* = 1}) — permutes the
 #' rows of that matrix once and assigns subject \eqn{i} the entire trajectory of
 #' pool individual \eqn{\pi(i)}: a joint, stochastic draw \eqn{G_{a^*}} from the
 #' simulated distribution of \eqn{M(1{:}T)}, independent of \eqn{i}'s own
 #' confounder history (and permuted independently across mediators). This makes
-#' \emph{all} interventional arms — references and cross-world alike — use the
+#' \emph{all} interventions in the decomposition — references and cross-world alike — use the
 #' randomized interventional mediator distribution, as prescribed by Lin et al.
 #' (2017, Eq. 4), VanderWeele & Tchetgen Tchetgen (2017), and Yamamuro et al.
 #' (2021, Figure 3 step 3), and as implemented by the SAS mGFORMULA macro. The
-#' natural plug-in total effect is obtained from separate natural-course arms
+#' natural plug-in total effect is obtained from separate natural-course interventions
 #' (\code{nat0}, \code{nat1}), so \eqn{TE} need not equal the sum of the
 #' interventional direct and indirect effects; their difference is reported as
 #' the mediated-interaction residual. The pool is not survival-weighted; the
@@ -98,7 +98,7 @@
 #'   confounding.
 #'
 #' @param n_vw Integer. Number of independent permutation draws averaged for
-#'   each interventional cross-world arm. The same averaging is applied
+#'   each interventional cross-world intervention. The same averaging is applied
 #'   within every bootstrap replicate. Default \code{2L} to match the SAS
 #'   \code{mGFORMULA} macro's \code{n_vw = 2}. Set to \code{1L} to disable
 #'   averaging (faster, slightly noisier Monte Carlo). Has no effect when
@@ -111,18 +111,18 @@
   #'   \item \code{call}: the matched function call.
   #'   \item \code{all.args}: a named list of evaluated arguments for reproducibility.
   #'   \item \code{effect_size}: a \code{data.table} with one row per
-  #'         simulated arm (columns \code{Intervention} and \code{Est}).
+  #'         simulated intervention (columns \code{Intervention} and \code{Est}).
   #'         For \code{mediation_type = "I"} the mediator(s) in every
-  #'         decomposition arm are drawn from independently-permuted marginal
+  #'         decomposition intervention are drawn from independently-permuted marginal
   #'         pools (stochastic draws \eqn{G}): \code{Phi00} (= \eqn{E[Y_{0,G_0}]})
   #'         and \code{Phi11} (= \eqn{E[Y_{1,G_1}]}) are the interventional
-  #'         reference arms, \code{Phi10} (= \eqn{E[Y_{1,G_0}]}) is the
-  #'         cross-world arm, and for \eqn{N \ge 2} mediators \code{Phi1_k}
+  #'         reference interventions, \code{Phi10} (= \eqn{E[Y_{1,G_0}]}) is the
+  #'         cross-world intervention, and for \eqn{N \ge 2} mediators \code{Phi1_k}
   #'         (k = 1, …, N-1) capture the sequential per-mediator transition.
-  #'         Two additional natural-course arms \code{nat0} (= \eqn{E[Y_0]}) and
+  #'         Two additional natural-course interventions \code{nat0} (= \eqn{E[Y_0]}) and
   #'         \code{nat1} (= \eqn{E[Y_1]}) give the plug-in total effect. For
-  #'         \code{mediation_type = "N"} the arms \code{Phi00}/\code{Phi11} are
-  #'         the natural never-/always-treat arms (no permutation). With
+  #'         \code{mediation_type = "N"} the interventions \code{Phi00}/\code{Phi11} are
+  #'         the natural never-/always-treat interventions (no permutation). With
   #'         \code{R > 1} the table also carries \code{Sd},
   #'         \code{perct_lcl}/\code{perct_ucl}, and \code{norm_lcl}/\code{norm_ucl}.
   #'   \item \code{estimate}: a \code{data.table} summarizing the decomposition
@@ -163,6 +163,23 @@
   #'         and mediator variables. If \code{return_fitted = TRUE}, returns full model objects
   #'         plus attributes (\code{recodes}, \code{subset}, \code{var_type}, \code{mod_type});
   #'         otherwise, a compact list with \code{call} and \code{coeff}.
+  #'   \item \code{boot_estimates}: when \code{R > 1}, a list of per-replicate
+  #'         bootstrap estimates: \code{$interventions} (columns
+  #'         \code{replicate}, \code{Intervention}, \code{Est}) and
+  #'         \code{$effects} (columns \code{replicate}, \code{Effect},
+  #'         \code{RD}, \code{RR}; includes the per-replicate Mediation
+  #'         Proportion draws). Useful for diagnostics such as counting
+  #'         non-finite replicates or computing custom intervals. These are
+  #'         scalar summaries whose size is independent of the input data.
+  #'         \code{NULL} when \code{R <= 1}.
+  #'   \item \code{data_summary}: list with the number of individuals
+  #'         (\code{n_id}), observations (\code{n_obs}), and time points
+  #'         (\code{n_times}, \code{t_min}, \code{t_max}) of the input data.
+  #'   \item \code{observed}: list with the observed nonparametric benchmark
+  #'         of the outcome (\code{value}, \code{label}): the mean outcome at
+  #'         the last time point, or the product-limit cumulative incidence
+  #'         for survival outcomes. Printed next to the simulated
+  #'         intervention means as an informal benchmark.
   #' }
 #'
 #' @references
@@ -290,6 +307,13 @@ mediation <- function(data,
                      character(1))
   N_med <- length(med_vars)
 
+  # Data summary and observed nonparametric benchmark (displayed by print
+  # as an informal benchmark next to the simulated intervention means).
+  is_survival  <- any(sapply(models, function(mods)
+    mods$mod_type %in% c("survival", "censor")))
+  data_summary <- summarize_input_data(data, id_var, time_var)
+  observed     <- observed_benchmark(data, outcome, time_var, is_survival)
+
   # Multi-mediator IDE/IIE is the Yamamuro et al. (2021) extension of the
   # Lin et al. (2017) interventional g-formula; it is defined for
   # mediation_type = "I" only. The natural-effects path (Zheng &
@@ -301,13 +325,13 @@ mediation <- function(data,
     ), domain = "causalMed")
   }
 
-  # Build the arm list (see build_mediation_arms()).
-  #   mediation_type = "I": natural-course arms nat0, nat1 (for the plug-in TE)
-  #     plus permuted-pool interventional arms Phi00, Phi10, Phi1_k (k=1..N-1),
-  #     Phi11  ->  4 + N arms.
-  #   mediation_type = "N" (single mediator): natural-reference arms
-  #     Phi00, Phi11, Phi10, Phi01  ->  4 arms.
-  intervention <- build_mediation_arms(med_vars, mediation_type)
+  # Build the intervention list (see build_mediation_interventions()).
+  #   mediation_type = "I": natural-course interventions nat0, nat1 (for the plug-in TE)
+  #     plus permuted-pool interventions Phi00, Phi10, Phi1_k (k=1..N-1),
+  #     Phi11  ->  4 + N interventions.
+  #   mediation_type = "N" (single mediator): natural-reference interventions
+  #     Phi00, Phi11, Phi10, Phi01  ->  4 interventions.
+  intervention <- build_mediation_interventions(med_vars, mediation_type)
 
   # Warn if the model list order violates the assumed A(t) -> M(t) -> L(t) -> S(t) ordering.
   check_mediation_order(models)
@@ -320,16 +344,16 @@ mediation <- function(data,
   }
 
   # Run original estimate
-  arg_est <- get_args_for(.gformula)
+  arg_est <- get_args_for(.run_interventions)
   arg_est$return_fitted <- TRUE
-  est_ori <- do.call(.gformula, arg_est)
+  est_ori <- do.call(.run_interventions, arg_est)
 
-  # Convert each arm result (scalar Phi, or a data.table when return_data is
+  # Convert each intervention result (scalar Phi, or a data.table when return_data is
   # TRUE) into a plain Phi value for the effect calculations.
-  arm_to_phi <- function(x) {
+  interv_to_phi <- function(x) {
     if (is.null(x)) return(NA_real_)
     if (data.table::is.data.table(x) || is.data.frame(x)) {
-      # Prefer the attached attribute (set by .gformula when n_vw > 1 so the
+      # Prefer the attached attribute (set by .run_interventions when n_vw > 1 so the
       # scalar reflects the average, not the last permutation alone).
       attr_phi <- attr(x, "phi_estimate", exact = TRUE)
       if (!is.null(attr_phi)) return(as.numeric(attr_phi))
@@ -337,16 +361,16 @@ mediation <- function(data,
     }
     as.numeric(x)
   }
-  phi_values <- sapply(est_ori$gform.data, arm_to_phi)
+  phi_values <- sapply(est_ori$gform.data, interv_to_phi)
 
-  # Effect-size table: one row per arm.
+  # Effect-size table: one row per intervention.
   est_out <- data.table::data.table(
     Intervention = names(phi_values),
     Est          = unname(phi_values)
   )
 
   # Compute additive and multiplicative effects (TE, IDE, IIE per mediator).
-  risk_est <- risk_estimate.mediation(as.list(phi_values), med_vars = med_vars)
+  risk_est <- risk_estimate_mediation(as.list(phi_values), med_vars = med_vars)
 
   # Point estimates for proportion mediated (additive + multiplicative).
   # Additive PM follows Yamamuro et al. (2021): the proportion of the total
@@ -379,6 +403,11 @@ mediation <- function(data,
     rr_ide * (prod(rr_iie_k) - 1) / (rr_oe - 1) * 100
   }
 
+  # Per-replicate bootstrap estimates, retained on the returned object
+  # whenever R > 1 (scalar summaries only; size independent of the data).
+  boot_interventions <- NULL
+  boot_effects       <- NULL
+
   # Get the mean of bootstrap results
   if (R > 1) {
     # Run bootstrap
@@ -392,6 +421,11 @@ mediation <- function(data,
       colnames(out) <- c("Est", "Intervention")
       return(out)
     })
+    # Retain the per-replicate intervention means on the returned object.
+    # These are scalar summaries only (size independent of the input data).
+    boot_interventions <- data.table::rbindlist(pools_res, idcol = "replicate")
+    data.table::setcolorder(boot_interventions,
+                            c("replicate", "Intervention", "Est"))
     pools_res <- data.table::rbindlist(pools_res)
 
     # Calculate Sd and percentile confidence interval
@@ -411,27 +445,29 @@ mediation <- function(data,
     )]
 
     # Per-bootstrap Phi values
-    boot_phi <- lapply(pools, function(bt) sapply(bt$gform.data, arm_to_phi))
+    boot_phi <- lapply(pools, function(bt) sapply(bt$gform.data, interv_to_phi))
 
     # Per-bootstrap effects table
     res_pools <- lapply(boot_phi,
-                        function(p) risk_estimate.mediation(as.list(p),
+                        function(p) risk_estimate_mediation(as.list(p),
                                                             med_vars = med_vars))
-    res_pools <- data.table::rbindlist(res_pools)
+    res_pools <- data.table::rbindlist(res_pools, idcol = "replicate")
+    # Retain a per-replicate copy before aggregation (PM rows appended below).
+    boot_effects <- data.table::copy(res_pools)
 
     # Per-bootstrap proportion mediated (additive + multiplicative).
     # Computed per replicate from boot_phi (the rbindlist above lost the
     # replicate index, so we recompute from the per-replicate Phi map).
     boot_pm_add  <- vapply(boot_phi, function(p) {
       one <- as.list(p)
-      r <- risk_estimate.mediation(one, med_vars = med_vars)
+      r <- risk_estimate_mediation(one, med_vars = med_vars)
       total  <- r$RD[r$Effect == "Total effect"]
       direct <- r$RD[r$Effect == "Direct effect"]
       if (isTRUE(abs(total) < 1e-10)) NA_real_ else (total - direct) / total * 100
     }, numeric(1))
     boot_pm_mult <- vapply(boot_phi, function(p) {
       one <- as.list(p)
-      r <- risk_estimate.mediation(one, med_vars = med_vars)
+      r <- risk_estimate_mediation(one, med_vars = med_vars)
       rr_oe <- as.numeric(p[["Phi11"]] / p[["Phi00"]])   # interventional overall RR
       rr_d  <- r$RR[r$Effect == "Direct effect"]
       rr_i  <- r$RR[grepl("^Indirect effect", r$Effect)]
@@ -439,6 +475,22 @@ mediation <- function(data,
           !all(is.finite(c(rr_oe, rr_d, rr_i)))) NA_real_
       else rr_d * (prod(rr_i) - 1) / (rr_oe - 1) * 100
     }, numeric(1))
+
+    # Append the per-replicate proportion-mediated draws to the retained
+    # effects table so users (and print) can see how many replicates were
+    # non-finite for each effect.
+    boot_effects <- rbind(
+      boot_effects,
+      data.table::data.table(
+        replicate = rep(seq_along(boot_pm_add), times = 2L),
+        Effect    = rep(c("Mediation Proportion",
+                          "Mediation Proportion (multiplicative)"),
+                        each = length(boot_pm_add)),
+        RD        = c(boot_pm_add, boot_pm_mult),
+        RR        = NA_real_
+      )
+    )
+    data.table::setorderv(boot_effects, "replicate")
 
     # Calculate Sd and percentile confidence interval for RD and RR scales
     res_pools <- res_pools[, .(
@@ -539,12 +591,21 @@ mediation <- function(data,
 
   emit_warnings()
 
+  boot_estimates <- if (R > 1) {
+    list(interventions = boot_interventions, effects = boot_effects)
+  } else {
+    NULL
+  }
+
   y <- list(call = tpcall,
             all.args = all.args,
             estimate = risk_est,
             effect_size = est_out,
             sim_data = dat_out,
-            fitted_models = fitted_mods
+            fitted_models = fitted_mods,
+            boot_estimates = boot_estimates,
+            data_summary = data_summary,
+            observed = observed
           )
   class(y) <- c("gformula", class(y))
   return(y)

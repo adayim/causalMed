@@ -6,7 +6,7 @@
 \title{Yamamuro et al. (2021) Multi-Mediator Simulation Dataset}
 \format{
 A data frame with 29482 rows and 15 variables (long at-risk
-format: one row per subject per visit until the event):
+  format: one row per subject per visit until the event):
 \describe{
   \item{id}{Unique subject identifier.}
   \item{time}{Visit index (0, 1, 2).}
@@ -26,10 +26,10 @@ format: one row per subject per visit until the event):
 }
 \source{
 Simulated from the data-generating process of Yamamuro, S.,
-Shinozaki, T., Iimuro, S., & Matsuyama, Y. (2021). Mediational g-formula
-for time-varying treatment and repeated-measured multiple mediators.
-\emph{Statistical Methods in Medical Research}, 30(8), 1782-1799.
-\doi{10.1177/09622802211025988}
+  Shinozaki, T., Iimuro, S., & Matsuyama, Y. (2021). Mediational g-formula
+  for time-varying treatment and repeated-measured multiple mediators.
+  \emph{Statistical Methods in Medical Research}, 30(8), 1782-1799.
+  \doi{10.1177/09622802211025988}
 }
 \usage{
 yamamurodata
@@ -67,7 +67,7 @@ SE in parentheses):
   Interventional indirect effect via M2 \tab \eqn{-0.97} (0.009) \cr
   Mediated-interaction residual (TE \eqn{-} overall) \tab \eqn{0.10} (0.016) \cr
 }
-Every interventional arm, including the references, draws each mediator
+Every intervention in the interventional decomposition, including the references, draws each mediator
 jointly over time from an independently permuted marginal pool
 (Yamamuro et al. 2021, Eq. 2 and Fig. 3); the total effect is the
 natural-course contrast, so the residual row is non-zero.
