@@ -13,8 +13,8 @@
 coefficients, or full summary when \code{return_fitted = TRUE}).
 Default \code{FALSE}.}
 
-\item{digits}{Integer. Number of significant digits for numeric output.
-Default \code{max(3, getOption("digits") - 3)}.}
+\item{digits}{Integer. Number of decimal places used when rounding
+numeric output. Default \code{max(3, getOption("digits") - 3)}.}
 
 \item{...}{Not used.}
 }

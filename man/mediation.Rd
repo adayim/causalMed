@@ -73,7 +73,7 @@ side, which is a sufficient (though not necessary) signal of intermediate
 confounding.}
 
 \item{n_vw}{Integer. Number of independent permutation draws averaged for
-each interventional cross-world arm. The same averaging is applied
+each interventional cross-world intervention. The same averaging is applied
 within every bootstrap replicate. Default \code{2L} to match the SAS
 \code{mGFORMULA} macro's \code{n_vw = 2}. Set to \code{1L} to disable
 averaging (faster, slightly noisier Monte Carlo). Has no effect when
@@ -108,18 +108,18 @@ An object of class \code{"gformula"} with components:
   \item \code{call}: the matched function call.
   \item \code{all.args}: a named list of evaluated arguments for reproducibility.
   \item \code{effect_size}: a \code{data.table} with one row per
-        simulated arm (columns \code{Intervention} and \code{Est}).
+        simulated intervention (columns \code{Intervention} and \code{Est}).
         For \code{mediation_type = "I"} the mediator(s) in every
-        decomposition arm are drawn from independently-permuted marginal
+        decomposition intervention are drawn from independently-permuted marginal
         pools (stochastic draws \eqn{G}): \code{Phi00} (= \eqn{E[Y_{0,G_0}]})
         and \code{Phi11} (= \eqn{E[Y_{1,G_1}]}) are the interventional
-        reference arms, \code{Phi10} (= \eqn{E[Y_{1,G_0}]}) is the
-        cross-world arm, and for \eqn{N \ge 2} mediators \code{Phi1_k}
+        reference interventions, \code{Phi10} (= \eqn{E[Y_{1,G_0}]}) is the
+        cross-world intervention, and for \eqn{N \ge 2} mediators \code{Phi1_k}
         (k = 1, …, N-1) capture the sequential per-mediator transition.
-        Two additional natural-course arms \code{nat0} (= \eqn{E[Y_0]}) and
+        Two additional natural-course interventions \code{nat0} (= \eqn{E[Y_0]}) and
         \code{nat1} (= \eqn{E[Y_1]}) give the plug-in total effect. For
-        \code{mediation_type = "N"} the arms \code{Phi00}/\code{Phi11} are
-        the natural never-/always-treat arms (no permutation). With
+        \code{mediation_type = "N"} the interventions \code{Phi00}/\code{Phi11} are
+        the natural never-/always-treat interventions (no permutation). With
         \code{R > 1} the table also carries \code{Sd},
         \code{perct_lcl}/\code{perct_ucl}, and \code{norm_lcl}/\code{norm_ucl}.
   \item \code{estimate}: a \code{data.table} summarizing the decomposition
@@ -160,6 +160,23 @@ An object of class \code{"gformula"} with components:
         and mediator variables. If \code{return_fitted = TRUE}, returns full model objects
         plus attributes (\code{recodes}, \code{subset}, \code{var_type}, \code{mod_type});
         otherwise, a compact list with \code{call} and \code{coeff}.
+  \item \code{boot_estimates}: when \code{R > 1}, a list of per-replicate
+        bootstrap estimates: \code{$interventions} (columns
+        \code{replicate}, \code{Intervention}, \code{Est}) and
+        \code{$effects} (columns \code{replicate}, \code{Effect},
+        \code{RD}, \code{RR}; includes the per-replicate Mediation
+        Proportion draws). Useful for diagnostics such as counting
+        non-finite replicates or computing custom intervals. These are
+        scalar summaries whose size is independent of the input data.
+        \code{NULL} when \code{R <= 1}.
+  \item \code{data_summary}: list with the number of individuals
+        (\code{n_id}), observations (\code{n_obs}), and time points
+        (\code{n_times}, \code{t_min}, \code{t_max}) of the input data.
+  \item \code{observed}: list with the observed nonparametric benchmark
+        of the outcome (\code{value}, \code{label}): the mean outcome at
+        the last time point, or the product-limit cumulative incidence
+        for survival outcomes. Printed next to the simulated
+        intervention means as an informal benchmark.
 }
 }
 \description{
@@ -201,18 +218,18 @@ For non-standard covariate distributions (bounded, zero-inflated, truncated), us
 **Mediator pool (interventional effects)**
 For \code{mediation_type = "I"}, a natural-course pass under each treatment
 level \eqn{a^*} stores every simulated individual's full mediator trajectory
-\eqn{M(1{:}T)} in a pool matrix. Each decomposition arm that fixes a
-mediator to its \eqn{a^*} value — \emph{including the reference arms}
+\eqn{M(1{:}T)} in a pool matrix. Each decomposition intervention that fixes a
+mediator to its \eqn{a^*} value — \emph{including the reference interventions}
 \code{Phi00} (\eqn{a^* = 0}) and \code{Phi11} (\eqn{a^* = 1}) — permutes the
 rows of that matrix once and assigns subject \eqn{i} the entire trajectory of
 pool individual \eqn{\pi(i)}: a joint, stochastic draw \eqn{G_{a^*}} from the
 simulated distribution of \eqn{M(1{:}T)}, independent of \eqn{i}'s own
 confounder history (and permuted independently across mediators). This makes
-\emph{all} interventional arms — references and cross-world alike — use the
+\emph{all} interventions in the decomposition — references and cross-world alike — use the
 randomized interventional mediator distribution, as prescribed by Lin et al.
 (2017, Eq. 4), VanderWeele & Tchetgen Tchetgen (2017), and Yamamuro et al.
 (2021, Figure 3 step 3), and as implemented by the SAS mGFORMULA macro. The
-natural plug-in total effect is obtained from separate natural-course arms
+natural plug-in total effect is obtained from separate natural-course interventions
 (\code{nat0}, \code{nat1}), so \eqn{TE} need not equal the sum of the
 interventional direct and indirect effects; their difference is reported as
 the mediated-interaction residual. The pool is not survival-weighted; the
@@ -242,13 +259,13 @@ models <- list(
   )
 
 fit <- mediation(
- data = non-survivaldata,
+ data = nonsurvivaldata,
  id_var = "id",
  base_vars = "V",
  exposure = "A",
  outcome = "Y",
  time_var = "time",
- models = models10,
+ models = models,
  init_recode = recodes(M_lag1=0,L_lag1=0),
  in_recode = recodes(M_lag1=M,L_lag1=L),
  mediation_type = "I",

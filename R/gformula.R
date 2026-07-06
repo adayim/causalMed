@@ -28,7 +28,7 @@
 #' (e.g., \code{list(natural = NULL, always = c(1,1,1), never = c(0,0,0))}).
 #' If \code{intervention} is \code{NULL}, the function evaluates the natural course only.
 #' If at least one element is \code{NULL} and \code{ref_int == 0}, that element is used
-#' as the reference ("natural"). Otherwise, a \code{natural} arm is added automatically,
+#' as the reference ("natural"). Otherwise, a \code{natural} intervention is added automatically,
 #' and \code{ref_int} is set to \code{"natural"}.
 #'
 #' **Model specification**
@@ -70,12 +70,12 @@
 #'           \code{list(natural = NULL, threshold = dyn_int(as.numeric(A > 0)))}.
 #'   }
 #'   If \code{intervention} is \code{NULL}, only the natural course is
-#'   evaluated. If a \code{natural} arm is not provided, it is added
+#'   evaluated. If a \code{natural} intervention is not provided, it is added
 #'   automatically and \code{ref_int} is set to \code{"natural"}.
 #' @param ref_int Reference intervention for contrasts. Either an integer index
 #'   (\code{0} = natural course; \code{1}, \code{2}, … = elements of
 #'   \code{intervention}) or a character name matching an element (e.g.,
-#'   \code{"always"}). If no \code{natural} arm is provided, it is added and
+#'   \code{"always"}). If no \code{natural} intervention is provided, it is added and
 #'   \code{ref_int} is set to \code{"natural"}. Default: \code{0}.
 #' @param init_recode Optional expression/function applied once at time 0 before the Monte Carlo loop
 #'   (e.g., initializing baseline-derived variables). Should be defined with \code{\link{recodes}}. See Details.
@@ -115,6 +115,21 @@
 #'         If \code{return_fitted = TRUE}, returns full model objects plus attributes
 #'         (\code{recodes}, \code{subset}, \code{var_type}, \code{mod_type});
 #'         otherwise, a compact list with \code{call} and \code{coeff}.
+#'   \item \code{boot_estimates}: when \code{R > 1}, a list of per-replicate
+#'         bootstrap estimates: \code{$interventions} (columns
+#'         \code{replicate}, \code{Intervention}, \code{Est}) and
+#'         \code{$contrasts} (columns \code{replicate}, \code{Intervention},
+#'         \code{Risk_type}, \code{Estimate}; \code{NULL} with a single
+#'         intervention). These are scalar summaries whose size is
+#'         independent of the input data. \code{NULL} when \code{R <= 1}.
+#'   \item \code{data_summary}: list with the number of individuals
+#'         (\code{n_id}), observations (\code{n_obs}), and time points
+#'         (\code{n_times}, \code{t_min}, \code{t_max}) of the input data.
+#'   \item \code{observed}: list with the observed nonparametric benchmark of
+#'         the outcome (\code{value}, \code{label}): the mean outcome at the
+#'         last time point, or the product-limit cumulative incidence for
+#'         survival outcomes. Printed alongside the simulated means as an
+#'         informal model check.
 #' }
 #'
 #' @note
@@ -239,6 +254,9 @@ gformula <- function(data,
         ref_int <- "natural"
       }
     }
+    # Record the resolved reference so print() shows the name actually used
+    # (e.g. "natural") rather than the raw 0 placeholder.
+    all.args$ref_int <- ref_int
   }
 
   if (is.null(intervention)) {
@@ -250,10 +268,17 @@ gformula <- function(data,
   out_flag <- which(out_flag)
   outcome_var <- all.vars(formula(models[[out_flag]]$call)[[2]])
 
+  # Data summary and observed nonparametric benchmark (displayed by print
+  # as an informal model check against the simulated intervention means).
+  is_survival  <- any(sapply(models, function(mods)
+    mods$mod_type %in% c("survival", "censor")))
+  data_summary <- summarize_input_data(data, id_var, time_var)
+  observed     <- observed_benchmark(data, outcome_var, time_var, is_survival)
+
   # Run original estimate
-  arg_est <- get_args_for(.gformula)
+  arg_est <- get_args_for(.run_interventions)
   arg_est$return_fitted <- TRUE
-  est_ori <- do.call(.gformula, arg_est)
+  est_ori <- do.call(.run_interventions, arg_est)
 
   # Mean value of the outcome at each time point by intervention
   if(return_data){
@@ -267,6 +292,12 @@ gformula <- function(data,
     colnames(est_out) <- c("Est", "Intervention")
   }
   setcolorder(est_out, c("Intervention", "Est"))
+
+  # Per-replicate bootstrap estimates, retained on the returned object.
+  # These are scalar summaries only (their size is independent of the input
+  # data), so they are always kept when R > 1.
+  boot_interventions <- NULL
+  boot_contrasts     <- NULL
 
   # Run bootstrap
   if (R > 1) {
@@ -283,6 +314,10 @@ gformula <- function(data,
       colnames(out) <- c("Est", "Intervention")
       return(out)
     })
+    boot_interventions <- data.table::rbindlist(pools_list, use.names = TRUE,
+                                                idcol = "replicate")
+    data.table::setcolorder(boot_interventions,
+                            c("replicate", "Intervention", "Est"))
     pools_res <- data.table::rbindlist(pools_list, use.names = TRUE)
 
     # Calculate Sd and percentile confidence interval
@@ -304,18 +339,19 @@ gformula <- function(data,
 
   # Calculate the difference and ratio
   if (length(intervention) > 1) {
-    risk_est <- risk_estimate.point(est_ori$gform.data,
+    risk_est <- risk_estimate_point(est_ori$gform.data,
                                ref_int = ref_int,
                                intervention = intervention,
                                return_data = return_data)
 
     if (R > 1) {
       res_pools <- lapply(pools_list,
-                          risk_estimate.boot,
+                          risk_estimate_boot,
                           ref_int = ref_int,
                           intervention = intervention,
                           return_data = return_data)
-      res_pools <- data.table::rbindlist(res_pools)
+      res_pools <- data.table::rbindlist(res_pools, idcol = "replicate")
+      boot_contrasts <- data.table::copy(res_pools)
       # Calculate Sd and percentile confidence interval
       res_pools <- res_pools[, .(
         Sd = sd(Estimate, na.rm = TRUE),
@@ -372,12 +408,21 @@ gformula <- function(data,
 
   emit_warnings()
 
+  boot_estimates <- if (R > 1) {
+    list(interventions = boot_interventions, contrasts = boot_contrasts)
+  } else {
+    NULL
+  }
+
   y <- list(call = tpcall,
             all.args = all.args,
             estimate = risk_est,
             effect_size = est_out,
             sim_data = dat_out,
-            fitted_models = fitted_mods
+            fitted_models = fitted_mods,
+            boot_estimates = boot_estimates,
+            data_summary = data_summary,
+            observed = observed
           )
   class(y) <- c("gformula", class(y))
   return(y)

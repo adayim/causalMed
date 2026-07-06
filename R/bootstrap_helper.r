@@ -26,8 +26,13 @@ bootstrap_helper <- function(data,
                              future_seed = TRUE) {
   mediation_type <- match.arg(mediation_type)
 
-  # Progress bar
+  # Progress bar. progressr::handlers() sets a SESSION-WIDE option, so we save
+  # the caller's current handlers and restore them on exit — otherwise a
+  # bootstrap run would silently replace the user's progressr configuration for
+  # the rest of their session (affecting every other progressr-aware package).
   if (progress_bar) {
+    old_handlers <- progressr::handlers()
+    on.exit(progressr::handlers(old_handlers), add = TRUE)
     progressr::handlers(list(
       progressr::handler_progress(
         format   = "Bootstrap [:bar] :current/:total (:percent) | Elapsed: :elapsed | ETA: :eta",
@@ -49,7 +54,7 @@ bootstrap_helper <- function(data,
     boot_data[, (id_var) := new_id]
     boot_data[, new_id := NULL]
 
-    res <- .gformula(data = boot_data,
+    res <- .run_interventions(data = boot_data,
                      id_var = id_var,
                      base_vars = base_vars,
                      time_var = time_var,

@@ -25,13 +25,13 @@ element is one of:
         \code{list(natural = NULL, threshold = dyn_int(as.numeric(A > 0)))}.
 }
 If \code{intervention} is \code{NULL}, only the natural course is
-evaluated. If a \code{natural} arm is not provided, it is added
+evaluated. If a \code{natural} intervention is not provided, it is added
 automatically and \code{ref_int} is set to \code{"natural"}.}
 
 \item{ref_int}{Reference intervention for contrasts. Either an integer index
 (\code{0} = natural course; \code{1}, \code{2}, … = elements of
 \code{intervention}) or a character name matching an element (e.g.,
-\code{"always"}). If no \code{natural} arm is provided, it is added and
+\code{"always"}). If no \code{natural} intervention is provided, it is added and
 \code{ref_int} is set to \code{"natural"}. Default: \code{0}.}
 
 \item{time_len}{length of the time in the data.}

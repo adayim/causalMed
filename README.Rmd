@@ -172,7 +172,13 @@ The `estimate` component of `fit_med` contains:
 | Direct effect   | Q(1,0) − Q(0,0): effect not through the mediator |
 | Total effect    | natural plug-in g-formula contrast E[Y₁] − E[Y₀] |
 | TE − (Direct + Indirect) | mediated-interaction residual (interventional only; exactly 0, and omitted, for natural effects) |
-| Mediation proportion | (Total − Direct) / Total × 100% |
+| Mediation Proportion | (Total − Direct) / Total × 100% (additive) |
+| Mediation Proportion (multiplicative) | RR-scale proportion mediated (Lin et al. 2017, Table 2) |
+
+With `R > 1`, `estimate` additionally carries bootstrap SEs and percentile/normal
+CIs on the RD and RR scales, and the returned object gains `boot_estimates` (the
+per-replicate draws), `data_summary`, and an `observed` nonparametric benchmark
+that `print()` displays next to the simulated means.
 
 For `mediation_type = "I"`, Q(a₁, a₂) is the mean outcome when exposure is set to
 a₁ and each mediator is a **stochastic draw** from its marginal distribution
@@ -182,11 +188,11 @@ the total effect; their gap is the residual row. For `mediation_type = "N"` the
 references use each subject's own mediator and the decomposition sums exactly to
 the total effect (no residual row).
 
-Under `mediation_type = "I"`, the mediators in **every** arm — the references
-Q(0,0) and Q(1,1) as well as the cross-world Q(1,0) — are drawn as **joint
-trajectories**: a natural-course cohort is simulated under each a*, and the arm
-assigns each subject the full M(1:T) of a randomly permuted reference-cohort
-individual (each mediator permuted independently). This matches the SAS
+Under `mediation_type = "I"`, the mediators in **every** intervention — the
+references Q(0,0) and Q(1,1) as well as the cross-world Q(1,0) — are drawn as
+**joint trajectories**: a natural-course cohort is simulated under each a*, and
+the intervention assigns each subject the full M(1:T) of a randomly permuted
+reference-cohort individual (each mediator permuted independently). This matches the SAS
 `mGFORMULA` macro (Lin et al. 2017, eAppendix) and Yamamuro et al. 2021
 (Figure 3, step 3). Mediator values are not survival-weighted; the full
 reference cohort is used. See `?mediation` for details.
@@ -221,17 +227,13 @@ plan(sequential)     # reset after use
 
 Input data must be in **long format** with one row per subject per time point. The time
 variable should be an ordered integer starting at 0. Variables used in models as lags
-(e.g., `A_lag1`) must be pre-computed and present in the data, or created via
+(e.g., `lag1_A`) must be pre-computed and present in the data, or created via
 `init_recode` / `in_recode` hooks. The `nonsurvivaldata` bundled with the package
 illustrates the required structure.
 
-```{r data-example, eval = FALSE}
+```{r data-example}
 data("nonsurvivaldata", package = "causalMed")
 head(nonsurvivaldata)
-#>   id time V          L A         M Y M_lag1    L_lag1 A_lag1
-#> 1  1    0 1 -0.4557851 0 0.1847927 0      0  0.000000      0
-#> 2  1    1 1  0.4651968 0 0.9559358 0      0 -0.455785      0
-#> 3  1    2 1  0.2498987 1 1.3503895 0      1  0.465197      0
 ```
 
 ## References

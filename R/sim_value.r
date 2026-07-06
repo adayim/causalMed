@@ -27,12 +27,16 @@ sim_value <- function(model, newdt) {
 
   # Categorical: multinom returns a probability matrix — predict() is required
   if (var_type == "categorical") {
+    if (!requireNamespace("Hmisc", quietly = TRUE)) {
+      stop("Package 'Hmisc' is required for var_type = \"categorical\". ",
+           "Please install it.", call. = FALSE)
+    }
     pred <- predict(model$fitted, newdata = newdt, type = "probs")
     return(Hmisc::rMultinom(pred, 1))
   }
 
   # Fast linear predictor for binary and normal types.
-  # model$Xterms and model$beta are pre-extracted once after fitting in .gformula,
+  # model$Xterms and model$beta are pre-extracted once after fitting in .run_interventions,
   # avoiding the model.frame() + na.action overhead that predict() incurs.
   # model.matrix() + %*% is a direct BLAS call.
   mm <- model.matrix(model$Xterms, data = newdt)

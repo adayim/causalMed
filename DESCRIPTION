@@ -1,6 +1,6 @@
 Package: causalMed
 Title: Causal Mediation Analysis in Survival settings
-Version: 0.0.3
+Version: 0.0.4
 Authors@R: c(person("Alimu", "Dayimu", 
                     email = "alimdayim@hotmail.com", 
                     role = c("aut", "cre")),
@@ -28,5 +28,5 @@ Suggests:
     testthat
 URL: https://github.com/adayim/causalMed
 BugReports: https://github.com/adayim/causalMed/issues
-RoxygenNote: 7.3.3
 VignetteBuilder: knitr
+Config/roxygen2/version: 8.0.0

@@ -152,10 +152,11 @@ check_intervention <- function(models, intervention, ref_int, time_len) {
     )
   }
 
-  # Check if all null
+  # At most one element may be NULL (the natural-course reference)
   interv_value <- sapply(intervention, is.null)
   if (sum(interv_value) > 1) {
-    stop("All intervention are NULL.", domain = "causalMed")
+    stop("Only one intervention element may be NULL (the natural course).",
+         domain = "causalMed")
   }
 
   # Check for intervention is a named list

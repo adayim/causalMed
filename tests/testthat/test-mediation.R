@@ -1,7 +1,3 @@
-# Unit tests for mediation()
-# Only point estimates (R = 1); bootstrap CIs should be computed locally, not in CI.
-# Requires: testthat (>= 3.0.0)
-
 
 testthat::test_that("mediation runs without error on nonsurvivaldata", {
   testthat::skip_on_cran()
@@ -150,7 +146,7 @@ testthat::test_that("Multi-mediator (N=2, type=I): sum(IIE_k) + IDE = TE (Yamamu
   )
 
   # Arms: natural-course nat0/nat1 (for TE) plus permuted-pool interventional
-  # arms Phi00, Phi10, Phi1_1, Phi11.
+  # interventions Phi00, Phi10, Phi1_1, Phi11.
   testthat::expect_setequal(
     fit$effect_size$Intervention,
     c("nat0", "nat1", "Phi00", "Phi10", "Phi1_1", "Phi11")
@@ -183,3 +179,57 @@ testthat::test_that("Multi-mediator with mediation_type='N' is rejected", {
   )
 })
 
+
+
+testthat::test_that("mediation retains per-replicate bootstrap estimates and prints new fields", {
+  data("nonsurvivaldata", package = "causalMed")
+
+  m_L2  <- spec_model(L2    ~ A + V + time,      var_type = "binary", mod_type = "covariate")
+  m_med <- spec_model(L1    ~ A + V + L2 + time, var_type = "normal", mod_type = "mediator")
+  m_Y   <- spec_model(Y_bin ~ A + L1 + L2 + V,   var_type = "binary", mod_type = "outcome")
+  models <- list(m_L2, m_med, m_Y)
+
+  fit <- suppressWarnings(
+    mediation(
+      data           = nonsurvivaldata,
+      id_var         = "id",
+      base_vars      = "V",
+      exposure       = "A",
+      outcome        = "Y_bin",
+      time_var       = "time",
+      models         = models,
+      mediation_type = "I",
+      mc_sample      = 500L,
+      R              = 4L,
+      quiet          = TRUE,
+      seed           = 42L
+    )
+  )
+
+  # Interventions: 4 replicates x 5 (nat0, nat1, Phi00, Phi10, Phi11)
+  bi <- fit$boot_estimates$interventions
+  testthat::expect_true(all(c("replicate", "Intervention", "Est") %in% names(bi)))
+  testthat::expect_equal(nrow(bi), 4L * 5L)
+
+  # Effects: 4 replicates x (Indirect, Direct, Total, residual + 2 PM rows) = 4 x 6
+  be <- fit$boot_estimates$effects
+  testthat::expect_true(all(c("replicate", "Effect", "RD", "RR") %in% names(be)))
+  testthat::expect_equal(nrow(be), 4L * 6L)
+  testthat::expect_true(all(c("Mediation Proportion",
+                              "Mediation Proportion (multiplicative)") %in% be$Effect))
+
+  # Data summary and observed benchmark
+  testthat::expect_equal(fit$data_summary$n_id, length(unique(nonsurvivaldata$id)))
+  testthat::expect_true(is.finite(fit$observed$value))
+
+  # print: mediator line, n_vw, observed benchmark, CI footnote,
+  # correctly-scaled decomposition CI labels
+  out <- paste(capture.output(print(fit)), collapse = "\n")
+  testthat::expect_match(out, "Mediator(s)  : L1", fixed = TRUE)
+  testthat::expect_match(out, "Outcome      : Y_bin")
+  testthat::expect_match(out, "n_vw")
+  testthat::expect_match(out, "Observed (nonparametric)", fixed = TRUE)
+  testthat::expect_match(out, "RD 2.5%", fixed = TRUE)
+  testthat::expect_match(out, "RR 2.5%", fixed = TRUE)
+  testthat::expect_match(out, "95% CIs", fixed = TRUE)
+})
