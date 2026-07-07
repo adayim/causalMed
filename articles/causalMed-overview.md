@@ -1,0 +1,894 @@
+# Getting Started with causalMed
+
+## Introduction
+
+**causalMed** implements the parametric g-formula for two related goals:
+
+1.  **Total effect estimation** (`gformula`): estimate the
+    counterfactual mean outcome had everyone in the study followed a
+    given exposure strategy, using the standard parametric g-formula of
+    Westreich et al. (2012) and McGrath et al. (2020).
+
+2.  **Causal mediation analysis** (`mediation`): decompose the total
+    effect into a direct component (not through the mediator) and an
+    indirect component (through the mediator), using either:
+
+    - **Interventional direct/indirect effects (IDE/IIE)** via the
+      survival mediational g-formula of Lin et al. (2017);
+    - **Natural direct/indirect effects (NDE/NIE)** via the longitudinal
+      identification formula of Zheng & van der Laan (2017).
+
+Both approaches handle time-varying exposures, mediators, and
+confounders — including confounders that are themselves affected by
+prior exposure (exposure-induced mediator–outcome confounding), a
+setting where standard regression-based mediation fails.
+
+``` r
+
+library(causalMed)
+library(data.table)
+#> 
+#> Attaching package: 'data.table'
+#> The following object is masked from 'package:base':
+#> 
+#>     %notin%
+```
+
+------------------------------------------------------------------------
+
+## Data Structure
+
+The package requires **long-format** data: one row per subject per time
+point.
+
+``` r
+
+data("nonsurvivaldata")
+head(nonsurvivaldata, 10)
+#>        id  time         V           L1    L2     A           M    Y_cont Y_bin
+#>     <num> <num>     <num>        <num> <num> <num>       <num>     <num> <num>
+#>  1:     1     0 0.5218287  0.552784243     0     1 -0.21967591        NA    NA
+#>  2:     1     1 0.5218287 -0.175805742     1     1  0.47192720        NA    NA
+#>  3:     1     2 0.5218287  0.590332001     0     1 -0.22377223        NA    NA
+#>  4:     1     3 0.5218287  1.317409776     0     1  0.38782689        NA    NA
+#>  5:     1     4 0.5218287  0.797477545     0     1 -0.41632904 0.1348551     0
+#>  6:     2     0 0.4066671  0.549200095     1     1  1.05809977        NA    NA
+#>  7:     2     1 0.4066671  0.427872915     1     1 -0.07225413        NA    NA
+#>  8:     2     2 0.4066671  0.738161034     1     1  1.38211221        NA    NA
+#>  9:     2     3 0.4066671 -0.002468347     0     0 -0.30093080        NA    NA
+#> 10:     2     4 0.4066671  1.058167173     0     1  0.69489534 0.2214175     0
+#>     lag1_A      lag1_L1 lag1_L2      lag1_M
+#>      <num>        <num>   <num>       <num>
+#>  1:     NA           NA      NA          NA
+#>  2:      1  0.552784243       0 -0.21967591
+#>  3:      1 -0.175805742       1  0.47192720
+#>  4:      1  0.590332001       0 -0.22377223
+#>  5:      1  1.317409776       0  0.38782689
+#>  6:     NA           NA      NA          NA
+#>  7:      1  0.549200095       1  1.05809977
+#>  8:      1  0.427872915       1 -0.07225413
+#>  9:      1  0.738161034       1  1.38211221
+#> 10:      0 -0.002468347       0 -0.30093080
+```
+
+The `nonsurvivaldata` dataset contains 1 000 subjects observed at five
+time points (0, 1, 2, 3, 4):
+
+| Variable | Role                               |
+|----------|------------------------------------|
+| `id`     | Subject identifier                 |
+| `time`   | Time index (0, 1, 2, 3, 4)         |
+| `V`      | Time-fixed baseline covariate      |
+| `A`      | Time-varying binary exposure       |
+| `L1`     | Time-varying continuous confounder |
+| `L2`     | Time-varying binary confounder     |
+| `M`      | Time-varying continuous mediator   |
+| `Y_bin`  | Binary outcome (end-of-follow-up)  |
+
+The assumed temporal ordering within each period is **A → L → M → Y**,
+meaning that within any time point, exposure precedes the confounders,
+which precede the mediator, which precedes the outcome (this matches the
+data-generating process documented in
+[`?nonsurvivaldata`](https://adayim.github.io/causalMed/reference/nonsurvivaldata.md)).
+
+------------------------------------------------------------------------
+
+## Specifying Models
+
+Every variable that is not time-fixed and not the identifier needs a
+parametric model. Models are created with
+[`spec_model()`](https://adayim.github.io/causalMed/reference/spec_model.md)
+and collected into a list **in the temporal order they should be
+simulated**.
+
+``` r
+
+spec_model(
+  formula,            # Standard R formula: response ~ predictors
+  var_type,           # Distribution for simulation
+  mod_type,           # Role in the causal structure
+  subset  = NULL,     # Optional condition restricting which rows are used
+  recode  = NULL      # Optional within-loop recoding (see recodes())
+)
+```
+
+### `var_type` — how to draw simulated values
+
+| Value | Distribution | Typical use |
+|----|----|----|
+| `"binary"` | logistic regression | Binary covariates, exposure, outcome |
+| `"normal"` | linear regression | Continuous covariates, mediator |
+| `"categorical"` | Multinomial via [`nnet::multinom`](https://rdrr.io/pkg/nnet/man/multinom.html) | Unordered categorical covariates |
+| `"custom"` | User-supplied function | Specialised distributions |
+
+### `mod_type` — causal role
+
+| Value | Description |
+|----|----|
+| `"covariate"` | Time-varying confounder |
+| `"exposure"` | Intervention variable |
+| `"mediator"` | Mediator (required for [`mediation()`](https://adayim.github.io/causalMed/reference/mediation.md)) |
+| `"outcome"` | Binary end-of-follow-up outcome |
+| `"survival"` | Discrete-time event indicator (hazard model) |
+| `"censor"` | Right-censoring indicator |
+
+### Temporal ordering is critical
+
+The list order determines the simulation sequence at each time step.
+This should follow the data-generating mechanism. Confounders at time
+*t* that are affected by exposure at time *t* must come **after** the
+exposure model but **before** the outcome model.
+
+------------------------------------------------------------------------
+
+## Managing Lagged Variables
+
+Most models condition on previous-time values (lags). These are created
+using
+[`recodes()`](https://adayim.github.io/causalMed/reference/recodes.md),
+which captures expressions to be evaluated inside the simulated dataset
+at each step.
+
+Three hooks are available:
+
+| Hook | When applied | Typical use |
+|----|----|----|
+| `init_recode` | Once at the first time point | Set lag variables to their baseline values |
+| `in_recode` | Start of each subsequent time step | Update lags from the previous step’s values |
+| `out_recode` | End of each time step | Post-simulation transforms (cumulative sums, etc.) |
+
+``` r
+
+init_rc <- recodes(lag1_A  = 0,   # At t=0, all lags initialised to 0
+                   lag1_L1 = 0,
+                   lag1_L2 = 0)
+
+in_rc   <- recodes(lag1_A  = A,   # At each subsequent step, copy current values
+                   lag1_L1 = L1,
+                   lag1_L2 = L2)
+```
+
+If lag columns are already present in the data (pre-computed before
+calling
+[`gformula()`](https://adayim.github.io/causalMed/reference/gformula.md)),
+you do not need recoding hooks.
+
+------------------------------------------------------------------------
+
+## Total Effect Estimation with `gformula()`
+
+### Example 1 — Binary end-of-follow-up outcome
+
+``` r
+
+# ── 1. Specify models in temporal order: L1 → L2 → A → Y ──────────────────
+m_L1 <- spec_model(L1    ~ lag1_A + lag1_L1 + V + time,
+                   var_type = "normal",  mod_type = "covariate")
+m_L2 <- spec_model(L2    ~ lag1_A + lag1_L2 + V + time,
+                   var_type = "binary",  mod_type = "covariate")
+m_A  <- spec_model(A     ~ lag1_A + L1 + L2 + V + time,
+                   var_type = "binary",  mod_type = "exposure")
+m_Y  <- spec_model(Y_bin ~ A + L1 + L2,
+                   var_type = "binary",  mod_type = "outcome")
+
+models_bin <- list(m_L1, m_L2, m_A, m_Y)
+
+# ── 2. Define intervention strategies ──────────────────────────────────────
+# NULL  = natural course (draw exposure from its fitted model)
+# 1 / 0 = always treat / never treat
+ints <- list(natural = NULL, always_treat = 1, never_treat = 0)
+
+# ── 3. Run g-formula ────────────────────────────────────────────────────────
+fit_bin <- gformula(
+  data        = nonsurvivaldata,
+  id_var      = "id",
+  time_var    = "time",
+  base_vars   = "V",
+  exposure    = "A",
+  models      = models_bin,
+  intervention = ints,
+  ref_int     = "natural",
+  init_recode = init_rc,
+  in_recode   = in_rc,
+  mc_sample   = 10000,
+  R           = 1,        # set R > 1 for bootstrap CIs; kept low here for speed
+  quiet       = TRUE,
+  seed        = 2025
+)
+```
+
+``` r
+
+# Risk (mean outcome) under each strategy
+fit_bin$effect_size
+#>    Intervention        Est
+#>          <fctr>      <num>
+#> 1:      natural 0.14053451
+#> 2: always_treat 0.15080952
+#> 3:  never_treat 0.08672456
+
+# Contrasts vs the reference (natural course)
+fit_bin$estimate
+#>              Intervention  Risk_type    Estimate
+#>                    <char>     <char>       <num>
+#> 1: always_treat - natural Difference  0.01027501
+#> 2: always_treat / natural      Ratio  1.07311378
+#> 3:  never_treat - natural Difference -0.05380995
+#> 4:  never_treat / natural      Ratio  0.61710506
+```
+
+The `effect_size` table gives the estimated mean outcome under each
+intervention. The `estimate` table gives contrasts (risk difference and
+risk ratio) against the reference intervention.
+
+### Example 2 — Survival (time-to-event) outcome
+
+For survival outcomes use `mod_type = "survival"`. The model estimates
+the discrete-time hazard at each time point; the package accumulates
+these into cumulative incidence (1 − product-limit survival).
+
+``` r
+
+data("survivaldata")
+
+m_L  <- spec_model(L ~ V + lag1_L + time,
+                   var_type = "normal", mod_type = "covariate")
+m_A2 <- spec_model(A ~ V + lag1_A + lag1_L + L + time,
+                   var_type = "binary", mod_type = "exposure")
+m_Y2 <- spec_model(Y ~ lag1_A + A + L + lag1_L + time,
+                   var_type = "binary", mod_type = "survival")  # <-- survival
+
+models_surv <- list(m_L, m_A2, m_Y2)
+
+fit_surv <- gformula(
+  data        = survivaldata,
+  id_var      = "id",
+  base_vars   = "V",
+  exposure    = "A",
+  time_var    = "time",
+  models      = models_surv,
+  intervention = list(natural = NULL, never = 0, always = 1),
+  ref_int     = "natural",
+  init_recode = recodes(lag1_L = 0, lag1_A = 0),
+  in_recode   = recodes(lag1_L = L, lag1_A = A),
+  mc_sample   = 10000,
+  R           = 1,
+  quiet       = TRUE,
+  seed        = 2025
+)
+
+fit_surv$effect_size   # Cumulative incidence by strategy
+#>    Intervention       Est
+#>          <fctr>     <num>
+#> 1:      natural 0.9338057
+#> 2:        never 0.8536939
+#> 3:       always 0.9702788
+fit_surv$estimate      # Risk contrasts
+#>        Intervention  Risk_type    Estimate
+#>              <char>     <char>       <num>
+#> 1:  never - natural Difference -0.08011181
+#> 2:  never / natural      Ratio  0.91420934
+#> 3: always - natural Difference  0.03647311
+#> 4: always / natural      Ratio  1.03905856
+```
+
+### A published example — preventing GvHD (Keil et al. 2014)
+
+The toy examples above isolate one feature at a time. A realistic
+analysis usually combines several. The package ships `gvhd`, the
+person-day bone-marrow transplant data used in the parametric g-formula
+illustration of Keil et al. (2014), and the code below reproduces that
+analysis: the counterfactual risk of death by day 1825 had
+graft-versus-host disease (GvHD) **never** occurred, versus the natural
+course.
+
+This single example exercises features the toy examples do not:
+
+- **five models** in temporal order — relapse → platelet recovery → GvHD
+  (exposure) → censoring → death (survival hazard);
+- **absorbing states** via `subset =` (each state is modelled only among
+  those not yet in it) plus an `out_recode` carry-forward that locks the
+  state at 1 afterwards;
+- a **censoring model** (`mod_type = "censor"`);
+- **restricted cubic splines** of age and day, and day counters, built
+  through the three recode hooks working together;
+- real daily-scale survival data (137 subjects, 1 825 days).
+
+The models follow Appendix 2 of the paper (see
+[`?gvhd`](https://adayim.github.io/causalMed/reference/gvhd.md)).
+Because the response distributions are all binary/logistic, every model
+uses `var_type = "binary"`:
+
+``` r
+
+data("gvhd")
+
+# Baseline transforms: restricted cubic splines of age (agecurs1/2) and day
+# (daycurs1/2), plus agesq/daysq. See references/paper_example.R for the full
+# spline expressions (knots from the paper's Appendix).
+gvhd <- within(gvhd, {
+  agesq <- age^2; daysq <- day^2
+  agecurs1 <- (age > 17) * (age - 17)^3 -
+              ((age > 30) * (age - 30)^3) * (41.4 - 17) / (41.4 - 30)
+  agecurs2 <- (age > 25.4) * (age - 25.4)^3 -
+              ((age > 41.4) * (age - 41.4)^3) * (41.4 - 25.4) / (41.4 - 30)
+  daycurs1 <- (day > 83.6) * ((day - 83.6) / 83.6)^3 -            # + higher-knot
+              (day > 947) * ((day - 947) / 83.6)^3 * (1862.2 - 83.6) / (1862.2 - 947)
+  daycurs2 <- (day > 401.4) * ((day - 401.4) / 83.6)^3 -          # terms; see script
+              (day > 947) * ((day - 947) / 83.6)^3 * (1862.2 - 401.4) / (1862.2 - 947)
+})
+
+models_gvhd <- list(
+  # Each time-varying state is absorbing: modelled only while it is still 0.
+  spec_model(relapse ~ all + cmv + male + age + gvhdm1 + daysgvhd + platnormm1 +
+               daysnoplatnorm + agecurs1 + agecurs2 + day + daysq + wait,
+             var_type = "binary", mod_type = "covariate", subset = relapsem1 == 0),
+  spec_model(platnorm ~ all + cmv + male + age + agecurs1 + agecurs2 + gvhdm1 +
+               daysgvhd + daysnorelapse + wait,
+             var_type = "binary", mod_type = "covariate", subset = platnormm1 == 0),
+  spec_model(gvhd ~ all + cmv + male + age + platnormm1 + daysnoplatnorm +
+               relapsem1 + daysnorelapse + agecurs1 + agecurs2 + day + daysq + wait,
+             var_type = "binary", mod_type = "exposure", subset = gvhdm1 == 0),
+  spec_model(censlost ~ all + cmv + male + age + daysgvhd + daysnoplatnorm +
+               daysnorelapse + agesq + day + daycurs1 + daycurs2 + wait,
+             var_type = "binary", mod_type = "censor"),
+  spec_model(d ~ all + cmv + male + age + gvhd + platnorm + daysnoplatnorm +
+               relapse + daysnorelapse + agesq + wait +
+               day * gvhd + daycurs1 * gvhd + daycurs2 * gvhd,
+             var_type = "binary", mod_type = "survival")
+)
+```
+
+The three recode hooks cooperate: `init_recode` seeds day 1 (states at
+0, counters at 0, splines computed), `in_recode` refreshes the functions
+of day and the one-day lags at the start of each day, and `out_recode`
+advances the day counters and enforces the absorbing carry-forward at
+the end of each day.
+
+``` r
+
+# init_recode / in_recode also recompute daysq, daycurs1, daycurs2 each step
+# (omitted here for brevity — identical spline expressions as above).
+init_recode <- recodes(daysq = day^2, # + daycurs1, daycurs2 as above
+  relapse = 0, gvhd = 0, platnorm = 0, gvhdm1 = 0, relapsem1 = 0, platnormm1 = 0,
+  daysnorelapse = 0, daysnoplatnorm = 0, daysnogvhd = 0,
+  daysrelapse = 0, daysplatnorm = 0, daysgvhd = 0)
+
+in_recode <- recodes(daysq = day^2, # + daycurs1, daycurs2 as above
+  platnormm1 = platnorm, relapsem1 = relapse, gvhdm1 = gvhd)
+
+out_recode <- recodes(
+  daysnorelapse  = ifelse(relapse == 0,  daysnorelapse + 1,  daysnorelapse),
+  daysnoplatnorm = ifelse(platnorm == 0, daysnoplatnorm + 1, daysnoplatnorm),
+  daysnogvhd     = ifelse(gvhd == 0,     daysnogvhd + 1,     daysnogvhd),
+  daysgvhd       = ifelse(gvhd == 1,     daysgvhd + 1,       daysgvhd),
+  # absorbing carry-forward: once a state was 1 yesterday, keep it at 1
+  platnorm = ifelse(platnormm1 == 1, 1, platnorm),
+  relapse  = ifelse(relapsem1 == 1,  1, relapse),
+  gvhd     = ifelse(gvhdm1 == 1,     1, gvhd))
+
+fit_gvhd <- gformula(gvhd,
+  id_var    = "id", time_var = "day", exposure = "gvhd",
+  base_vars = c("age", "agesq", "agecurs1", "agecurs2", "male", "cmv", "all", "wait"),
+  models    = models_gvhd,
+  intervention = list(never = 0),     # a natural-course reference is added automatically
+  init_recode = init_recode, in_recode = in_recode, out_recode = out_recode,
+  mc_sample = 20000, R = 1, quiet = TRUE, seed = 20260703)
+
+fit_gvhd$effect_size
+fit_gvhd$estimate
+```
+
+A representative run (`mc_sample = 20000`) gives:
+
+    #> --- effect_size ---
+    #>   Intervention   Est
+    #>        natural 0.612
+    #>          never 0.588
+    #>
+    #> --- estimate (never vs natural) ---
+    #>   Risk difference  -0.024
+    #>   Risk ratio        0.961
+
+so preventing GvHD is estimated to lower the 5-year risk of death by
+about 2.4 percentage points. This example is **not evaluated when the
+vignette is built** — with 1 825 daily time steps the Monte Carlo loop
+takes minutes. Set `R > 1` there for bootstrap confidence intervals.
+
+### Example 3 — Dynamic (threshold) intervention
+
+A **dynamic intervention** assigns exposure based on a rule that depends
+on the individual’s current covariate values. For example, we might
+treat individuals when a covariate exceeds a specified threshold. Wrap
+the rule in
+[`dyn_int()`](https://adayim.github.io/causalMed/reference/dyn_int.md):
+
+``` r
+
+fit_dyn <- gformula(
+  data        = nonsurvivaldata,
+  id_var      = "id",
+  time_var    = "time",
+  base_vars   = "V",
+  exposure    = "A",
+  models      = models_bin,
+  intervention = list(
+    natural  = NULL,
+    treat_if_L1_pos = dyn_int(as.numeric(L1 > 0))
+  ),
+  ref_int     = "natural",
+  init_recode = init_rc,
+  in_recode   = in_rc,
+  mc_sample   = 10000,
+  R           = 1,
+  quiet       = TRUE,
+  seed        = 2025
+)
+
+fit_dyn$effect_size
+#>       Intervention       Est
+#>             <fctr>     <num>
+#> 1:         natural 0.1405345
+#> 2: treat_if_L1_pos 0.1330619
+fit_dyn$estimate
+#>                 Intervention  Risk_type     Estimate
+#>                       <char>     <char>        <num>
+#> 1: treat_if_L1_pos - natural Difference -0.007472612
+#> 2: treat_if_L1_pos / natural      Ratio  0.946827212
+```
+
+The expression inside
+[`dyn_int()`](https://adayim.github.io/causalMed/reference/dyn_int.md)
+is evaluated within the simulated dataset at each time step. All current
+column values — including the exposure after its natural-course draw —
+are in scope, so rules like
+`dyn_int(as.numeric(A > 0 & L1 > median(L1)))` are valid.
+
+------------------------------------------------------------------------
+
+## Causal Mediation Analysis with `mediation()`
+
+The
+[`mediation()`](https://adayim.github.io/causalMed/reference/mediation.md)
+function decomposes the total effect into direct and indirect
+components. For **natural** effects (`mediation_type = "N"`) the
+decomposition is exact:
+
+``` math
+\underbrace{E[Y_{1,M(1)}] - E[Y_{0,M(0)}]}_{\text{Total effect}} =
+  \underbrace{E[Y_{1,M(0)}] - E[Y_{0,M(0)}]}_{\text{Direct effect}} +
+  \underbrace{E[Y_{1,M(1)}] - E[Y_{1,M(0)}]}_{\text{Indirect effect}}
+```
+
+where $`Y_{a, M(a^*)}`$ is the potential outcome under exposure $`a`$
+with the mediator at its natural value under $`a^*`$.
+
+For **interventional** effects (`mediation_type = "I"`) the mediator is
+instead set to a *stochastic* draw $`G_{a^*}`$ from its marginal
+distribution under $`a^*`$ (drawn independently across mediators). The
+direct and indirect effects are defined relative to these draws and sum
+to the **interventional overall effect**
+$`E[Y_{1,G_1}] - E[Y_{0,G_0}]`$, which generally differs from the
+natural total effect $`E[Y_1] - E[Y_0]`$.
+[`mediation()`](https://adayim.github.io/causalMed/reference/mediation.md)
+therefore reports the total effect from a separate natural-course pass
+and adds a row `TE - (Direct + Indirect)` — the mediated-interaction
+residual ($`TE`$ minus the overall effect). For natural effects that
+residual is exactly zero and the row is omitted.
+
+You must include at least one model with `mod_type = "mediator"` in the
+model list, and pass the outcome variable name via `outcome`.
+
+### Requirements and defaults
+
+**Binary exposure.** The exposure variable must be coded as `0`
+(reference/untreated) and `1` (active/treated). Both Lin et al. (2017)
+and Zheng & van der Laan (2017) are defined for binary exposures;
+[`mediation()`](https://adayim.github.io/causalMed/reference/mediation.md)
+will stop with an informative error if other values are found.
+
+**One or more mediators.** At least one `mod_type = "mediator"` model is
+required. Multiple mediators are supported for `mediation_type = "I"`
+(Yamamuro et al. 2021) — list them in temporal order;
+`mediation_type = "N"` is single-mediator only.
+
+**Temporal ordering.** The list order determines the simulation
+sequence. Two orderings are common:
+
+- `A → L → M → S` — confounders at time *t* are not affected by the
+  mediator at time *t* (mediator conditions on L; outcome conditions on
+  A, M, L).
+- `A → M → L → S` — confounders at time *t* are affected by both
+  exposure and mediator (Lin et al. 2017 DAG). This is the setting where
+  standard regression fails.
+
+The function checks that exposure precedes the mediator and that the
+mediator precedes the outcome, and warns if either is violated.
+
+**Joint mediator trajectory (interventional effects).** For
+`mediation_type = "I"`, a natural-course Monte Carlo cohort is simulated
+under each treatment level $`a^*`$ and every individual’s full mediator
+trajectory $`M(1{:}T)`$ is stored as a row of a pool matrix. Each
+intervention that fixes a mediator to its $`a^*`$ value — **including
+the reference interventions** $`\Phi_{00} = E[Y_{0,G_0}]`$ and
+$`\Phi_{11} = E[Y_{1,G_1}]`$, not only the cross-world $`\Phi_{10}`$ —
+row-permutes the relevant pool once and assigns subject $`i`$ the
+*entire* trajectory of one randomly chosen pool individual (each
+mediator permuted independently). This is the joint-trajectory algorithm
+described by Yamamuro et al. (2021, Figure 3 step 3) and implemented by
+the SAS `mGFORMULA` macro (Lin et al. 2017 eAppendix); it samples the
+marginal mediator distribution targeted by Lin et al. (2017, Eq. 4) and
+VanderWeele & Tchetgen Tchetgen (2017). The pool is not
+survival-weighted; the full reference cohort is used at every time step
+(matching both reference SAS implementations).
+
+**Warning summary.** Warnings from model fitting (e.g., convergence,
+near-separation) are held and printed as a deduplicated summary at
+function exit. Repeated warnings (e.g., across 500 bootstrap replicates)
+are shown once with a count.
+
+### Setting up models for mediation
+
+The mediator model must condition on exposure and all confounders at the
+same time point; the outcome model must include both exposure and
+mediator. The example below uses the `A → L → M → Y` ordering
+(confounders not affected by the mediator).
+
+``` r
+
+init_med <- recodes(lag1_A = 0, lag1_L1 = 0, lag1_L2 = 0, lag1_M = 0)
+in_med   <- recodes(lag1_A = A, lag1_L1 = L1, lag1_L2 = L2, lag1_M = M)
+
+models_med <- list(
+  spec_model(A   ~ V + lag1_L1 + lag1_L2 + lag1_A + time,
+             var_type = "binary",  mod_type = "exposure"),
+  spec_model(L1  ~ V + A + lag1_L1 + time,
+             var_type = "normal",  mod_type = "covariate"),
+  spec_model(L2  ~ V + A + lag1_L2 + time,
+             var_type = "binary",  mod_type = "covariate"),
+  spec_model(M   ~ V + A + L1 + L2 + lag1_M + time,
+             var_type = "normal",  mod_type = "mediator"),   # <-- mediator
+  spec_model(Y_bin ~ V + A + M + L1 + L2,
+             var_type = "binary",  mod_type = "outcome")
+)
+```
+
+### Interventional effects (IDE/IIE) — Lin et al. (2017); VanderWeele & Tchetgen Tchetgen (2017); Yamamuro et al. (2021)
+
+Interventional effects do not require cross-world independence and are
+generally preferred for time-varying settings. **Every** decomposition
+intervention — the references $`\Phi_{00}`$ and $`\Phi_{11}`$ as well as
+the cross-world $`\Phi_{10}`$ — draws a **joint $`M(1{:}T)`$
+trajectory** from the relevant reference pool (row-permuted once, each
+mediator independently), breaking the individual-level
+mediator–confounder dependence while preserving the marginal mediator
+distribution under $`a^*`$. The reported total effect is the natural
+plug-in g-formula contrast (interventions `nat0`/`nat1`), so the
+direct + indirect effects sum to the interventional *overall* effect
+rather than the total effect; the gap is the `TE - (Direct + Indirect)`
+residual.
+
+``` r
+
+fit_ide <- mediation(
+  data           = nonsurvivaldata,
+  id_var         = "id",
+  time_var       = "time",
+  base_vars      = "V",
+  exposure       = "A",
+  outcome        = "Y_bin",
+  models         = models_med,
+  init_recode    = init_med,
+  in_recode      = in_med,
+  mediation_type = "I",     # Interventional IDE/IIE
+  mc_sample      = 10000,
+  R              = 1,
+  quiet          = TRUE,
+  seed           = 2025
+)
+```
+
+``` r
+
+# Per-intervention risks: interventional Phi00/Phi10/Phi11 plus natural-course nat0/nat1
+fit_ide$effect_size
+#>    Intervention        Est
+#>          <char>      <num>
+#> 1:         nat0 0.08471692
+#> 2:         nat1 0.15190348
+#> 3:        Phi00 0.08479577
+#> 4:        Phi10 0.14557952
+#> 5:        Phi11 0.15170765
+
+# Effect decomposition (includes the TE - (Direct + Indirect) residual row)
+fit_ide$estimate
+#>                                   Effect           RD       RR
+#>                                   <char>        <num>    <num>
+#> 1:                       Indirect effect 0.0061281325 1.042095
+#> 2:                         Direct effect 0.0607837461 1.716825
+#> 3:                          Total effect 0.0671865531 1.793071
+#> 4:              TE - (Direct + Indirect) 0.0002746745       NA
+#> 5:                  Mediation Proportion 9.5298935864       NA
+#> 6: Mediation Proportion (multiplicative) 9.1585121678       NA
+```
+
+### Natural effects (NDE/NIE) — Zheng & van der Laan (2017)
+
+Natural effects use the **conditional** mediator distribution: at each
+time step the mediator is predicted using the individual’s own covariate
+history under $`a = 1`$ but with the exposure argument in the mediator
+model swapped to $`a^* = 0`$. This requires the additional assumption of
+no unmeasured exposure-induced mediator–outcome confounding.
+
+``` r
+
+fit_nde <- mediation(
+  data           = nonsurvivaldata,
+  id_var         = "id",
+  time_var       = "time",
+  base_vars      = "V",
+  exposure       = "A",
+  outcome        = "Y_bin",
+  models         = models_med,
+  init_recode    = init_med,
+  in_recode      = in_med,
+  mediation_type = "N",     # Natural NDE/NIE
+  mc_sample      = 10000,
+  R              = 1,
+  quiet          = TRUE,
+  seed           = 2025
+)
+#> Warning: mediation_type = "N" requested, but covariate model(s) for {L1, L2}
+#> include the exposure 'A' on the right-hand side, indicating an intermediate
+#> (exposure-affected) confounder. Natural direct and indirect effects are NOT
+#> identifiable from observational data in this setting (Avin, Shpitser & Pearl
+#> 2005; VanderWeele 2014; VanderWeele & Tchetgen Tchetgen 2017). Consider
+#> mediation_type = "I" for identifiable interventional (randomized-analogue)
+#> effects.
+
+fit_nde$estimate
+#>                                   Effect          RD       RR
+#>                                   <char>       <num>    <num>
+#> 1:                       Indirect effect 0.004595977 1.031200
+#> 2:                         Direct effect 0.062590576 1.738820
+#> 3:                          Total effect 0.067186553 1.793071
+#> 4:                  Mediation Proportion 6.840620162       NA
+#> 5: Mediation Proportion (multiplicative) 6.840620162       NA
+```
+
+The key identifiability difference between `"I"` and `"N"`:
+
+|  | Interventional (`"I"`) | Natural (`"N"`) |
+|----|----|----|
+| Mediator drawn from | Marginal distribution (permutation) | Conditional distribution (individual history) |
+| Cross-world independence required | No | Yes |
+| Interpretation | Shift in mediator *population* distribution | Hypothetical individual-level swap |
+| Reference | Lin et al. (2017) | Zheng & van der Laan (2017) |
+
+------------------------------------------------------------------------
+
+## Bootstrap Confidence Intervals
+
+Set `R > 1` to obtain percentile and normal-approximation confidence
+intervals. The bootstrap resamples whole subjects (all time points
+together), preserving the longitudinal correlation structure.
+
+``` r
+
+fit_boot <- gformula(
+  data        = nonsurvivaldata,
+  id_var      = "id",
+  time_var    = "time",
+  base_vars   = "V",
+  exposure    = "A",
+  models      = models_bin,
+  intervention = list(natural = NULL, always = 1),
+  ref_int     = "natural",
+  init_recode = init_rc,
+  in_recode   = in_rc,
+  mc_sample   = 10000,
+  R           = 200,       # 200 bootstrap replicates
+  quiet       = TRUE,
+  seed        = 2025
+)
+
+# effect_size now includes Sd, perct_lcl/ucl, norm_lcl/ucl
+fit_boot$effect_size
+fit_boot$estimate
+
+# the individual per-replicate draws are retained in boot_estimates
+# ($interventions and $contrasts), for custom intervals or diagnostics
+fit_boot$boot_estimates$interventions
+```
+
+### Parallel bootstrap
+
+The bootstrap loop uses
+[`future.apply::future_lapply`](https://future.apply.futureverse.org/reference/future_lapply.html)
+internally. Enable parallelism by setting a parallel plan before calling
+the function:
+
+``` r
+
+library(future)
+plan(multisession)   # use multiple R sessions in parallel
+
+fit_par <- gformula(..., R = 500)
+
+plan(sequential)     # restore default after use
+```
+
+On Unix/macOS, `plan(multicore)` (forking) is more memory-efficient.
+
+------------------------------------------------------------------------
+
+## Working with Results
+
+### Extracting fitted models
+
+Set `return_fitted = TRUE` to access the full fitted model objects and
+their coefficients:
+
+``` r
+
+fit_full <- gformula(
+  data        = nonsurvivaldata,
+  id_var      = "id",
+  time_var    = "time",
+  base_vars   = "V",
+  exposure    = "A",
+  models      = models_bin,
+  intervention = list(natural = NULL, always = 1),
+  init_recode = init_rc,
+  in_recode   = in_rc,
+  mc_sample   = 5000,
+  R           = 1,
+  return_fitted = TRUE,
+  quiet       = TRUE,
+  seed        = 2025
+)
+
+# Names correspond to the response variable of each model
+names(fit_full$fitted_models)
+#> [1] "L1"    "L2"    "A"     "Y_bin"
+
+# Access a specific model's coefficients
+coef(fit_full$fitted_models$A)
+#> (Intercept)      lag1_A          L1          L2           V        time 
+#>   0.8203352   0.2010294   0.3239525   0.1913994   0.7488656   0.0408861
+```
+
+### Retrieving the simulated data
+
+Set `return_data = TRUE` to retrieve the full Monte Carlo dataset (can
+be large):
+
+``` r
+
+fit_data <- gformula(..., return_data = TRUE)
+
+# Simulated trajectories with predicted outcomes, one row per MC subject per time
+head(fit_data$sim_data)
+```
+
+------------------------------------------------------------------------
+
+## Causal Assumptions
+
+Valid inference requires the following assumptions to hold for the
+observed data:
+
+1.  **Consistency**: the potential outcome under the observed exposure
+    history equals the observed outcome.
+2.  **Positivity**: every covariate pattern that occurs under the
+    intervention also occurs in the observed data (non-zero probability
+    of receiving each exposure level).
+3.  **Sequential exchangeability**: no unmeasured confounding of the
+    exposure–outcome relationship at each time point, conditional on the
+    measured past.
+
+For **natural effects** (`mediation_type = "N"`), an additional
+assumption is required:
+
+4.  **No unmeasured exposure-induced mediator–outcome confounding**:
+    there are no confounders of the mediator–outcome relationship that
+    are themselves caused by prior exposure. Interventional effects
+    (`mediation_type = "I"`) do not require this assumption.
+
+------------------------------------------------------------------------
+
+## Non-standard Covariate Distributions
+
+The four built-in `var_type` values cover the most common cases:
+
+| `var_type` | Distribution |
+|----|----|
+| `"binary"` | Bernoulli (logistic regression) |
+| `"normal"` | Gaussian (linear regression) |
+| `"categorical"` | Multinomial ([`nnet::multinom`](https://rdrr.io/pkg/nnet/man/multinom.html)) |
+| `"custom"` | User-supplied fit and simulation functions |
+
+For distributions not in this list — **bounded normal**, **truncated
+normal**, **zero-inflated normal**, **absorbing states** — use
+`var_type = "custom"` with the `custom_fit` and `custom_sim` arguments
+to
+[`spec_model()`](https://adayim.github.io/causalMed/reference/spec_model.md):
+
+``` r
+
+# Example: bounded normal covariate in [0, 1]
+my_fit <- function(formula, data, ...) {
+  # fit any model you like; return the fitted object
+  lm(formula, data = data)
+}
+
+my_sim <- function(model, newdt, ...) {
+  pred <- predict(model, newdata = newdt)
+  # draw from N(pred, sigma^2) and clamp to [0, 1]
+  draws <- rnorm(length(pred), pred, sigma(model))
+  pmin(pmax(draws, 0), 1)
+}
+
+m_bounded <- spec_model(
+  X ~ A + L + time,
+  var_type   = "custom",
+  mod_type   = "covariate",
+  custom_fit = my_fit,
+  custom_sim = my_sim
+)
+```
+
+`custom_fit(formula, data, ...)` is called during model fitting and must
+return an object that `custom_sim` knows how to predict from.
+`custom_sim(model, newdt, ...)` is called at each simulation step and
+must return a vector of simulated values of length `nrow(newdt)`.
+
+------------------------------------------------------------------------
+
+## Reference
+
+- Westreich, D., Cole, S. R., Young, J. G., et al. (2012). The
+  parametric g-formula to estimate the effect of highly active
+  antiretroviral therapy on incident AIDS or death. *Statistics in
+  Medicine*, 31, 2000–2009.
+- Keil, A. P., Edwards, J. K., Richardson, D. B., Naimi, A. I., &
+  Cole, S. R. (2014). The parametric g-formula for time-to-event data:
+  intuition and a worked example. *Epidemiology*, 25(6), 889–897.
+- McGrath, S., Lin, V., Zhang, Z., et al. (2020). gfoRmula: An R package
+  for estimating the effects of sustained treatment strategies via the
+  parametric g-formula. *Patterns*, 1, 100008.
+- Zheng, W., & van der Laan, M. (2017). Longitudinal mediation analysis
+  with time-varying mediators and exposures, with application to
+  survival outcomes. *Journal of Causal Inference*, 5(2), 20160006.
+- Lin, S.-H., Young, J. G., Logan, R., & VanderWeele, T. J. (2017).
+  Mediation analysis for a survival outcome with time-varying exposures,
+  mediators, and confounders. *Statistics in Medicine*, 36, 4153–4166.
+- VanderWeele, T. J., & Tchetgen Tchetgen, E. J. (2017). Mediation
+  analysis with time varying exposures and mediators. *Journal of the
+  Royal Statistical Society: Series B*, 79(3), 917–938.
+- Yamamuro, S., Shinozaki, T., Iimuro, S., & Matsuyama, Y. (2021).
+  Mediational g-formula for time-varying treatment and repeated-measured
+  multiple mediators: Application to atorvastatin’s effect on
+  cardiovascular disease via cholesterol lowering and anti-inflammatory
+  actions in elderly type 2 diabetics. *Statistical Methods in Medical
+  Research*, 30(8), 1782–1799.
