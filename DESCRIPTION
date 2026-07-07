@@ -25,6 +25,7 @@ Suggests:
     Hmisc,
     knitr,
     rmarkdown,
+    survival,
     testthat
 URL: https://github.com/adayim/causalMed, https://adayim.github.io/causalMed/
 BugReports: https://github.com/adayim/causalMed/issues

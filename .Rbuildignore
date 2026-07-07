@@ -4,10 +4,11 @@
 ^LICENSE\.md$
 ^cran-comments\.md$
 ^data-raw$
-^\.github$ 
+^\.github$
 ^_pkgdown\.yml$
 ^docs$
 ^pkgdown$
 ^doc$
 ^Meta$
 ^references$
+^LICENSE$
