@@ -26,7 +26,7 @@ Suggests:
     knitr,
     rmarkdown,
     testthat
-URL: https://github.com/adayim/causalMed
+URL: https://github.com/adayim/causalMed, https://adayim.github.io/causalMed/
 BugReports: https://github.com/adayim/causalMed/issues
 VignetteBuilder: knitr
 Config/roxygen2/version: 8.0.0
