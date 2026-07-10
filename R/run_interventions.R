@@ -37,50 +37,7 @@
     stop("'mediation_type' must be NA, \"N\", or \"I\"")
   }
 
-  fit_mods <- lapply(models, function(mods) {
-    rsp_vars <- all.vars(formula(mods$call)[[2]])
-
-    # Observed values range
-    if (is.numeric(data[[rsp_vars]])) {
-      val_ran <- range(na.omit(data[[rsp_vars]]))
-    } else {
-      val_ran <- unique(na.omit(data[[rsp_vars]]))
-    }
-
-    # Recode data before fitting this model. `recode` is a causalMed_recodes
-    # list of expressions, so it must go through apply_recodes() (the same
-    # path used at simulation time). Applied to a copy so per-model recodes
-    # do not leak across models or back to the caller's data.
-    if (!is.null(mods$recode)) {
-      data <- apply_recodes(data.table::copy(data), mods$recode)
-    }
-
-    mods$call$data <- substitute(data, env = parent.frame())
-
-    fitmodel <- run_withwarning_collect(
-      eval(mods$call),
-      msg = sprintf("Outcome model: %s", rsp_vars)
-    )
-
-    # Pre-extract prediction components so the hot-path simulation loop can
-    # skip predict() overhead (model.frame construction + na.action).
-    # model.matrix(Xterms, newdt) %*% beta is a direct BLAS call.
-    list(
-      fitted     = fitmodel,
-      Xterms     = delete.response(terms(fitmodel)),
-      beta       = coef(fitmodel),
-      linkinv    = if (inherits(fitmodel, "glm")) family(fitmodel)$linkinv
-                   else identity,
-      sigma      = tryCatch(sigma(fitmodel), error = function(e) NULL),
-      recodes    = mods$recode,
-      subset     = mods$subset,
-      var_type   = mods$var_type,
-      mod_type   = mods$mod_type,
-      custom_sim = mods$custom_sim,
-      rsp_vars   = rsp_vars,
-      val_ran    = val_ran
-    )
-  })
+  fit_mods <- fit_spec_models(models, data)
 
   # only call set.seed() when a seed is explicitly supplied.
   # Omitting the seed inside bootstrap replicates lets each replicate draw
@@ -274,6 +231,57 @@
   } else {
     return(list(gform.data = res))
   }
+}
+
+# Fit every spec_model() in `models` on `data` and pre-extract the
+# prediction components used by both the Monte Carlo engine (sim_value,
+# simulate_data) and the TMLE engine (density evaluation). Extracted from
+# .run_interventions() so the two estimators share one fitting path.
+fit_spec_models <- function(models, data) {
+  lapply(models, function(mods) {
+    rsp_vars <- all.vars(formula(mods$call)[[2]])
+
+    # Observed values range
+    if (is.numeric(data[[rsp_vars]])) {
+      val_ran <- range(na.omit(data[[rsp_vars]]))
+    } else {
+      val_ran <- unique(na.omit(data[[rsp_vars]]))
+    }
+
+    # Recode data before fitting this model. `recode` is a causalMed_recodes
+    # list of expressions, so it must go through apply_recodes() (the same
+    # path used at simulation time). Applied to a copy so per-model recodes
+    # do not leak across models or back to the caller's data.
+    if (!is.null(mods$recode)) {
+      data <- apply_recodes(data.table::copy(data), mods$recode)
+    }
+
+    mods$call$data <- substitute(data, env = parent.frame())
+
+    fitmodel <- run_withwarning_collect(
+      eval(mods$call),
+      msg = sprintf("Outcome model: %s", rsp_vars)
+    )
+
+    # Pre-extract prediction components so the hot-path simulation loop can
+    # skip predict() overhead (model.frame construction + na.action).
+    # model.matrix(Xterms, newdt) %*% beta is a direct BLAS call.
+    list(
+      fitted     = fitmodel,
+      Xterms     = delete.response(terms(fitmodel)),
+      beta       = coef(fitmodel),
+      linkinv    = if (inherits(fitmodel, "glm")) family(fitmodel)$linkinv
+                   else identity,
+      sigma      = tryCatch(sigma(fitmodel), error = function(e) NULL),
+      recodes    = mods$recode,
+      subset     = mods$subset,
+      var_type   = mods$var_type,
+      mod_type   = mods$mod_type,
+      custom_sim = mods$custom_sim,
+      rsp_vars   = rsp_vars,
+      val_ran    = val_ran
+    )
+  })
 }
 
 #' Monte Carlo simulation

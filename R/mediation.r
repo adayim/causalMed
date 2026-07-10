@@ -19,7 +19,7 @@
 #' **Model specification**
 #' Each element of \code{models} is created by \code{\link{spec_model}} and must specify:
 #' (i) a formula, (ii) \code{mod_type} (\code{"exposure"}, \code{"covariate"},
-#' \code{"mediator"}, \code{"outcome"}, \code{"survival"}, or \code{"censoring"}), and
+#' \code{"mediator"}, \code{"outcome"}, \code{"survival"}, or \code{"censor"}), and
 #' (iii) \code{var_type} (\code{"binary"}, \code{"normal"}, \code{"categorical"}, or
 #' \code{"custom"}). At least one \code{"mediator"} model is required.
 #' Multiple mediator models are supported under \code{mediation_type = "I"}
@@ -105,6 +105,29 @@
 #'   \code{mediation_type = "N"} (the natural-effect mediator swap is not
 #'   permutation-based).
 #'
+#' @param estimator Character. \code{"gcomp"} (default) for the parametric
+#'   g-formula plug-in (Monte Carlo simulation + bootstrap CIs), or
+#'   \code{"tmle"} for the targeted maximum likelihood estimator of Zheng &
+#'   van der Laan (2017, Section 4.3). \code{"tmle"} is available for
+#'   \code{mediation_type = "N"} only (single mediator, binary \{0, 1\}
+#'   outcome or survival event indicator; an exposure model is required and
+#'   \code{var_type = "custom"} / \code{spec_model(subset = )} are not
+#'   supported). The TMLE uses backward iterated regressions with logistic
+#'   fluctuations instead of forward simulation: it is multiply robust
+#'   (consistent when specific subsets of the nuisance models are correct,
+#'   not only when all are), reports Wald CIs from the efficient influence
+#'   curve without bootstrapping (\code{R} is ignored), and has no Monte
+#'   Carlo simulation error (\code{mc_sample} is ignored). Practical
+#'   positivity violations (few subjects following an intervened regime) are
+#'   handled by skipping the affected fluctuation steps and truncating
+#'   extreme weights, with collected warnings — inspect these before trusting
+#'   the affected functionals.
+#'
+#' @param tmle_weight_trunc Numeric in (0, 1]. Quantile at which each
+#'   clever-covariate weight vector is truncated in the TMLE fluctuation
+#'   steps (positivity protection). Default \code{0.995}; \code{1} disables
+#'   truncation. Ignored for \code{estimator = "gcomp"}.
+#'
 #' @return
 #' An object of class \code{"gformula"} with components:
 #' \itemize{
@@ -180,6 +203,18 @@
   #'         the last time point, or the product-limit cumulative incidence
   #'         for survival outcomes. Printed next to the simulated
   #'         intervention means as an informal benchmark.
+  #'   \item \code{tmle_diag}: for \code{estimator = "tmle"} only, a list with
+  #'         the subject-level efficient-influence-curve matrix (\code{eic},
+  #'         one column per functional), its column means (\code{eic_mean},
+  #'         near zero for well-supported functionals at the targeted fit),
+  #'         and the number of subjects (\code{n}). \code{NULL} for
+  #'         \code{estimator = "gcomp"}.
+  #'   \item \code{intermediate_confounders}: for \code{mediation_type = "N"},
+  #'         a character vector of covariate names whose model includes the
+  #'         exposure (exposure-affected/intermediate confounders that make
+  #'         the natural effects non-identifiable); empty when none. The
+  #'         \code{print} method re-surfaces a short identifiability caveat
+  #'         when this is non-empty.
   #' }
 #'
 #' @references
@@ -250,6 +285,8 @@ mediation <- function(data,
                       mc_sample = nrow(data)*100,
                       mediation_type = c("I", "N"),
                       n_vw = 2L,
+                      estimator = c("gcomp", "tmle"),
+                      tmle_weight_trunc = 0.995,
                       return_fitted = FALSE,
                       return_data = FALSE,
                       R = 500,
@@ -263,6 +300,8 @@ mediation <- function(data,
   init_warn()
 
   mediation_type <- match.arg(mediation_type)
+  estimator      <- match.arg(estimator)
+  all.args$estimator <- estimator
 
   data <- as.data.table(data)
 
@@ -338,15 +377,70 @@ mediation <- function(data,
 
   # For mediation_type = "N", natural direct/indirect effects are not identifiable
   # when an intermediate (exposure-affected) confounder is present. Detect this by
-  # scanning covariate model RHS for the exposure variable.
+  # scanning covariate model RHS for the exposure variable. The offending
+  # confounder names are retained on the return object so print()/summary()
+  # can re-surface a short version of this caveat (it is easy to miss in the
+  # runtime warning stream).
+  intermediate_confounders <- character(0)
   if (identical(mediation_type, "N")) {
-    check_natural_identifiability(models, exposure)
+    intermediate_confounders <- check_natural_identifiability(models, exposure)
+  }
+
+  # ---- TMLE-specific validation (Zheng & van der Laan 2017, Section 4.3) ----
+  if (identical(estimator, "tmle")) {
+    if (!identical(mediation_type, "N")) {
+      stop("estimator = 'tmle' is only available for mediation_type = 'N' ",
+           "(Zheng & van der Laan 2017). The interventional path has no TMLE yet.",
+           domain = "causalMed")
+    }
+    if (!any(sapply(models, function(m) m$mod_type == "exposure"))) {
+      stop("estimator = 'tmle' requires an exposure model (mod_type = 'exposure') ",
+           "for the clever-covariate weights.", domain = "causalMed")
+    }
+    if (any(sapply(models, function(m) !is.null(m$custom_sim)))) {
+      stop("estimator = 'tmle' does not support var_type = 'custom' models ",
+           "(their conditional density cannot be evaluated).", domain = "causalMed")
+    }
+    if (any(sapply(models, function(m) !is.null(m$subset)))) {
+      stop("estimator = 'tmle' does not support spec_model(subset = ...); ",
+           "use estimator = 'gcomp' for subset-restricted models.",
+           domain = "causalMed")
+    }
+    out_vals <- unique(na.omit(data[[outcome]]))
+    if (!all(out_vals %in% c(0, 1))) {
+      stop("estimator = 'tmle' requires a binary {0, 1} outcome ",
+           "(binary endpoint or survival event indicator).", domain = "causalMed")
+    }
+    if (R > 1) {
+      if (!quiet)
+        message("estimator = 'tmle': bootstrap skipped; 95% CIs are Wald ",
+                "intervals from the efficient influence curve.")
+      R <- 1L
+      all.args$R <- 1L
+    }
   }
 
   # Run original estimate
-  arg_est <- get_args_for(.run_interventions)
-  arg_est$return_fitted <- TRUE
-  est_ori <- do.call(.run_interventions, arg_est)
+  if (identical(estimator, "tmle")) {
+    tmle_res <- tmle_natural_mediation(
+      data         = data,
+      id_var       = id_var,
+      base_vars    = base_vars,
+      exposure     = exposure,
+      outcome      = outcome,
+      time_var     = time_var,
+      models       = models,
+      in_recode    = in_recode,
+      init_recode  = init_recode,
+      weight_trunc = tmle_weight_trunc
+    )
+    est_ori <- list(fitted.models = tmle_res$fit_mods,
+                    gform.data    = as.list(tmle_res$psi))
+  } else {
+    arg_est <- get_args_for(.run_interventions)
+    arg_est$return_fitted <- TRUE
+    est_ori <- do.call(.run_interventions, arg_est)
+  }
 
   # Convert each intervention result (scalar Phi, or a data.table when return_data is
   # TRUE) into a plain Phi value for the effect calculations.
@@ -554,7 +648,60 @@ mediation <- function(data,
       )
     )
   }
-  
+
+  # ---- EIC-based Wald CIs for the TMLE (no bootstrap) ----------------------
+  # The influence-curve of each functional gives SE = sd(EIC)/sqrt(n); effect
+  # SEs follow by the delta method on per-subject EIC contrasts (Zheng &
+  # van der Laan 2017, Corollary 1).
+  if (identical(estimator, "tmle")) {
+    eic  <- tmle_res$eic
+    nsub <- tmle_res$n
+    p    <- phi_values
+    zq   <- stats::qnorm(0.975)
+    se_of <- function(v) stats::sd(v) / sqrt(nsub)
+
+    # Per-intervention SEs
+    int_sd <- apply(eic, 2, se_of)
+    est_out[, Sd := unname(int_sd[Intervention])]
+    est_out[, `:=`(norm_lcl = Est - zq * Sd, norm_ucl = Est + zq * Sd)]
+
+    # RD-scale effect EICs
+    eic_nie <- eic[, "Phi11"] - eic[, "Phi10"]
+    eic_nde <- eic[, "Phi10"] - eic[, "Phi00"]
+    eic_te  <- eic[, "Phi11"] - eic[, "Phi00"]
+    # RR-scale delta method: r = pa/pb  =>  EIC_r = (EIC_a - r * EIC_b) / pb
+    eic_ratio <- function(nam_a, nam_b) {
+      r <- p[[nam_a]] / p[[nam_b]]
+      (eic[, nam_a] - r * eic[, nam_b]) / p[[nam_b]]
+    }
+    # Additive PM = 100 * NIE / TE  =>  delta method
+    te  <- p[["Phi11"]] - p[["Phi00"]]
+    nie <- p[["Phi11"]] - p[["Phi10"]]
+    eic_pm <- if (abs(te) < 1e-10) rep(NA_real_, nsub) else
+      100 * (eic_nie * te - nie * eic_te) / te^2
+
+    eff_tbl <- data.table::data.table(
+      Effect = c("Indirect effect", "Direct effect", "Total effect",
+                 "Mediation Proportion",
+                 "Mediation Proportion (multiplicative)"),
+      Sd     = c(se_of(eic_nie), se_of(eic_nde), se_of(eic_te),
+                 if (all(is.na(eic_pm))) NA_real_ else se_of(eic_pm),
+                 NA_real_),
+      Sd_RR  = c(se_of(eic_ratio("Phi11", "Phi10")),
+                 se_of(eic_ratio("Phi10", "Phi00")),
+                 se_of(eic_ratio("Phi11", "Phi00")),
+                 NA_real_, NA_real_)
+    )
+    risk_est <- data.table::as.data.table(risk_est)
+    risk_est <- merge(risk_est, eff_tbl, by = "Effect", sort = FALSE)
+    risk_est[, `:=`(
+      norm_lcl    = RD - zq * Sd,
+      norm_ucl    = RD + zq * Sd,
+      norm_lcl_RR = RR - zq * Sd_RR,
+      norm_ucl_RR = RR + zq * Sd_RR
+    )]
+  }
+
   # Extract fitted model information. Wrap with the same attribute set as
   # gformula() so that print.gformula(models = TRUE) and summary.gformula()
   # can display var_type / mod_type / recodes / subset labels.
@@ -583,6 +730,12 @@ mediation <- function(data,
   names(fitted_mods) <- resp_vars_list
 
   # Return data
+  if (return_data && identical(estimator, "tmle")) {
+    warning("return_data is not available for estimator = 'tmle' ",
+            "(no Monte Carlo dataset is simulated); returning NULL sim_data.",
+            call. = FALSE)
+    return_data <- FALSE
+  }
   if(return_data){
     dat_out <- data.table::rbindlist(est_ori$gform.data, idcol = "Intervention")
   }else{
@@ -597,6 +750,17 @@ mediation <- function(data,
     NULL
   }
 
+  # TMLE diagnostics: per-functional EIC means (should be ~0 at the targeted
+  # fit whenever the fluctuations were not skipped for sparse support) and
+  # the subject-level influence-curve matrix for custom contrasts.
+  tmle_diag <- if (identical(estimator, "tmle")) {
+    list(eic_mean = colMeans(tmle_res$eic),
+         eic      = tmle_res$eic,
+         n        = tmle_res$n)
+  } else {
+    NULL
+  }
+
   y <- list(call = tpcall,
             all.args = all.args,
             estimate = risk_est,
@@ -605,7 +769,9 @@ mediation <- function(data,
             fitted_models = fitted_mods,
             boot_estimates = boot_estimates,
             data_summary = data_summary,
-            observed = observed
+            observed = observed,
+            tmle_diag = tmle_diag,
+            intermediate_confounders = intermediate_confounders
           )
   class(y) <- c("gformula", class(y))
   return(y)

@@ -18,6 +18,8 @@ mediation(
   mc_sample = nrow(data) * 100,
   mediation_type = c("I", "N"),
   n_vw = 2L,
+  estimator = c("gcomp", "tmle"),
+  tmle_weight_trunc = 0.995,
   return_fitted = FALSE,
   return_data = FALSE,
   R = 500,
@@ -79,6 +81,29 @@ within every bootstrap replicate. Default \code{2L} to match the SAS
 averaging (faster, slightly noisier Monte Carlo). Has no effect when
 \code{mediation_type = "N"} (the natural-effect mediator swap is not
 permutation-based).}
+
+\item{estimator}{Character. \code{"gcomp"} (default) for the parametric
+g-formula plug-in (Monte Carlo simulation + bootstrap CIs), or
+\code{"tmle"} for the targeted maximum likelihood estimator of Zheng &
+van der Laan (2017, Section 4.3). \code{"tmle"} is available for
+\code{mediation_type = "N"} only (single mediator, binary \{0, 1\}
+outcome or survival event indicator; an exposure model is required and
+\code{var_type = "custom"} / \code{spec_model(subset = )} are not
+supported). The TMLE uses backward iterated regressions with logistic
+fluctuations instead of forward simulation: it is multiply robust
+(consistent when specific subsets of the nuisance models are correct,
+not only when all are), reports Wald CIs from the efficient influence
+curve without bootstrapping (\code{R} is ignored), and has no Monte
+Carlo simulation error (\code{mc_sample} is ignored). Practical
+positivity violations (few subjects following an intervened regime) are
+handled by skipping the affected fluctuation steps and truncating
+extreme weights, with collected warnings — inspect these before trusting
+the affected functionals.}
+
+\item{tmle_weight_trunc}{Numeric in (0, 1]. Quantile at which each
+clever-covariate weight vector is truncated in the TMLE fluctuation
+steps (positivity protection). Default \code{0.995}; \code{1} disables
+truncation. Ignored for \code{estimator = "gcomp"}.}
 
 \item{return_fitted}{Logical. If \code{TRUE}, return full fitted model objects; otherwise,
 a light-weight summary (call and coefficients). Default \code{FALSE}.}
@@ -177,6 +202,18 @@ An object of class \code{"gformula"} with components:
         the last time point, or the product-limit cumulative incidence
         for survival outcomes. Printed next to the simulated
         intervention means as an informal benchmark.
+  \item \code{tmle_diag}: for \code{estimator = "tmle"} only, a list with
+        the subject-level efficient-influence-curve matrix (\code{eic},
+        one column per functional), its column means (\code{eic_mean},
+        near zero for well-supported functionals at the targeted fit),
+        and the number of subjects (\code{n}). \code{NULL} for
+        \code{estimator = "gcomp"}.
+  \item \code{intermediate_confounders}: for \code{mediation_type = "N"},
+        a character vector of covariate names whose model includes the
+        exposure (exposure-affected/intermediate confounders that make
+        the natural effects non-identifiable); empty when none. The
+        \code{print} method re-surfaces a short identifiability caveat
+        when this is non-empty.
 }
 }
 \description{
@@ -197,7 +234,7 @@ are defined for binary exposures only.
 **Model specification**
 Each element of \code{models} is created by \code{\link{spec_model}} and must specify:
 (i) a formula, (ii) \code{mod_type} (\code{"exposure"}, \code{"covariate"},
-\code{"mediator"}, \code{"outcome"}, \code{"survival"}, or \code{"censoring"}), and
+\code{"mediator"}, \code{"outcome"}, \code{"survival"}, or \code{"censor"}), and
 (iii) \code{var_type} (\code{"binary"}, \code{"normal"}, \code{"categorical"}, or
 \code{"custom"}). At least one \code{"mediator"} model is required.
 Multiple mediator models are supported under \code{mediation_type = "I"}

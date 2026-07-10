@@ -393,8 +393,9 @@ Rows excluded by `subset` keep their current value at that step, so the
 `out_recode` carry-forward completes the absorbing behaviour. The package ships
 the `gvhd` dataset (see `?gvhd`) used in that paper, and a complete total-effect
 g-formula analysis on it — three absorbing states, a censoring model, and
-restricted cubic splines — is given in `references/paper_example.R` and walked
-through in `vignette("causalMed-overview")`.
+restricted cubic splines — is walked through in
+`vignette("causalMed-overview")` (Keil et al. 2014 describe the analysis in
+full, including the spline knots).
 
 ---
 
@@ -465,6 +466,70 @@ fit_nat <- mediation(
 The interventional effects (`"I"`) remain identifiable under intermediate
 confounding and are the recommended estimand here — which is why they are
 the package default.
+
+### A targeted (TMLE) estimator for natural effects with survival outcomes
+
+When the natural-effects estimand *is* appropriate for your data, the plug-in
+simulation is not the only estimator: `estimator = "tmle"` implements the
+targeted maximum likelihood estimator from the same reference (Zheng & van der
+Laan 2017, Section 4.3), including right-censored survival outcomes. Instead
+of simulating forward, it runs backward iterated regressions with targeted
+fluctuation steps, weighting by inverse treatment *and* censoring
+probabilities. It is multiply robust (consistent when certain subsets of the
+nuisance models are correct) and reports Wald CIs from the efficient
+influence curve, so no bootstrap is required (`R` and `mc_sample` are
+ignored).
+
+Reusing the censored dataset and model list from the censoring section (which
+already includes the required exposure model):
+
+```{r tmle-survival}
+fit_tmle_s <- mediation(
+  data           = dat_c,
+  id_var         = "id",
+  time_var       = "time",
+  base_vars      = "V",
+  exposure       = "A",
+  outcome        = "Y",
+  models         = models_cens,
+  init_recode    = init_s,
+  in_recode      = in_s,
+  mediation_type = "N",
+  estimator      = "tmle",
+  quiet          = TRUE,
+  seed           = 2026
+)
+
+fit_tmle_s$estimate
+```
+
+Two caveats, stated plainly:
+
+- **The identification warning still applies.** The TMLE changes the
+  *estimator*, not the estimand: if an intermediate confounder makes natural
+  effects unidentifiable (as in this dataset, where `L` depends on current
+  `A`), no estimator can fix that. The same warning is emitted at run time
+  and re-surfaced as a short caveat under the decomposition when you
+  `print()` the result (the offending confounders are also stored in
+  `fit$intermediate_confounders`), and the interventional path remains the
+  recommended analysis here.
+- **Positivity warnings deserve attention.** If few subjects follow an
+  intervened regime (e.g., never treated at every time point), the affected
+  targeting steps are skipped with a collected warning and the corresponding
+  functional leans on model extrapolation, like the plug-in — but with the
+  sparse support made visible instead of silent. Relatedly, the
+  influence-curve Wald CIs can be somewhat anti-conservative for functionals
+  under positivity strain: in our replication of the reference paper's
+  heavily censored simulation, coverage for the never-treat functionals was
+  about 87% (rather than 95%) even at n = 4000, while the treated
+  functionals covered at nominal rates. Interpret CIs for sparsely supported
+  regimes with corresponding caution.
+
+In simulations replicating the survival design of Zheng & van der Laan
+(2017, Section 5), this implementation reproduces the published true value
+of the cross-world functional and shows the expected bias reduction from
+targeting, with the caveat that its GLM-based sequential regressions are
+coarser than the Super Learner fits used in the paper.
 
 ---
 
