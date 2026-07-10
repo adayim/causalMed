@@ -233,3 +233,51 @@ testthat::test_that("mediation retains per-replicate bootstrap estimates and pri
   testthat::expect_match(out, "RR 2.5%", fixed = TRUE)
   testthat::expect_match(out, "95% CIs", fixed = TRUE)
 })
+
+
+
+testthat::test_that("natural-effect intermediate-confounder caveat is retained and printed", {
+  data("nonsurvivaldata", package = "causalMed")
+
+  # L2's covariate model includes the exposure A on the RHS -> exposure-affected
+  # (intermediate) confounder, so the natural effects are not point-identified.
+  m_L2  <- spec_model(L2    ~ A + V + time,      var_type = "binary", mod_type = "covariate")
+  m_med <- spec_model(L1    ~ A + V + L2 + time, var_type = "normal", mod_type = "mediator")
+  m_Y   <- spec_model(Y_bin ~ A + L1 + L2 + V,   var_type = "binary", mod_type = "outcome")
+  models <- list(m_L2, m_med, m_Y)
+
+  fit <- suppressWarnings(
+    mediation(
+      data           = nonsurvivaldata,
+      id_var         = "id",
+      base_vars      = "V",
+      exposure       = "A",
+      outcome        = "Y_bin",
+      time_var       = "time",
+      models         = models,
+      mediation_type = "N",
+      mc_sample      = 500L,
+      R              = 1L,
+      quiet          = TRUE,
+      seed           = 42L
+    )
+  )
+
+  # The offending confounder is retained on the object ...
+  testthat::expect_true("L2" %in% fit$intermediate_confounders)
+  # ... and re-surfaced by print() in a short form.
+  out <- paste(capture.output(print(fit)), collapse = "\n")
+  testthat::expect_match(out, "Identifiability", fixed = TRUE)
+  testthat::expect_match(out, "not point-identified", ignore.case = TRUE)
+
+  # Interventional analyses do not carry the caveat.
+  fit_i <- suppressWarnings(
+    mediation(
+      data = nonsurvivaldata, id_var = "id", base_vars = "V", exposure = "A",
+      outcome = "Y_bin", time_var = "time", models = models,
+      mediation_type = "I", mc_sample = 500L, R = 1L, quiet = TRUE, seed = 42L
+    )
+  )
+  out_i <- paste(capture.output(print(fit_i)), collapse = "\n")
+  testthat::expect_false(grepl("Identifiability", out_i, fixed = TRUE))
+})
