@@ -19,7 +19,7 @@
 #' **Model specification**
 #' Each element of \code{models} is created by \code{\link{spec_model}} and must specify:
 #' (i) a formula, (ii) \code{mod_type} (\code{"exposure"}, \code{"covariate"},
-#' \code{"mediator"}, \code{"outcome"}, \code{"survival"}, or \code{"censoring"}), and
+#' \code{"mediator"}, \code{"outcome"}, \code{"survival"}, or \code{"censor"}), and
 #' (iii) \code{var_type} (\code{"binary"}, \code{"normal"}, \code{"categorical"}, or
 #' \code{"custom"}). At least one \code{"mediator"} model is required.
 #' Multiple mediator models are supported under \code{mediation_type = "I"}
@@ -180,6 +180,12 @@
   #'         the last time point, or the product-limit cumulative incidence
   #'         for survival outcomes. Printed next to the simulated
   #'         intervention means as an informal benchmark.
+  #'   \item \code{intermediate_confounders}: for \code{mediation_type = "N"},
+  #'         a character vector of covariate names whose model includes the
+  #'         exposure (exposure-affected/intermediate confounders that make
+  #'         the natural effects non-identifiable); empty when none. The
+  #'         \code{print} method re-surfaces a short identifiability caveat
+  #'         when this is non-empty.
   #' }
 #'
 #' @references
@@ -338,9 +344,13 @@ mediation <- function(data,
 
   # For mediation_type = "N", natural direct/indirect effects are not identifiable
   # when an intermediate (exposure-affected) confounder is present. Detect this by
-  # scanning covariate model RHS for the exposure variable.
+  # scanning covariate model RHS for the exposure variable. The offending
+  # confounder names are retained on the return object so print()/summary()
+  # can re-surface a short version of this caveat (it is easy to miss in the
+  # runtime warning stream).
+  intermediate_confounders <- character(0)
   if (identical(mediation_type, "N")) {
-    check_natural_identifiability(models, exposure)
+    intermediate_confounders <- check_natural_identifiability(models, exposure)
   }
 
   # Run original estimate
@@ -605,7 +615,8 @@ mediation <- function(data,
             fitted_models = fitted_mods,
             boot_estimates = boot_estimates,
             data_summary = data_summary,
-            observed = observed
+            observed = observed,
+            intermediate_confounders = intermediate_confounders
           )
   class(y) <- c("gformula", class(y))
   return(y)

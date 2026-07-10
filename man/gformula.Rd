@@ -159,7 +159,7 @@ and \code{ref_int} is set to \code{"natural"}.
 Each element of \code{models} is typically created by \code{\link{spec_model}}
  and must include: (i) the model formula/call, (ii) a \code{mod_type} indicating its role
 (\code{"exposure"}, \code{"covariate"}, \code{"outcome"}, \code{"survival"},
-or \code{"censoring"}), and (iii) a \code{var_type} specifying the
+or \code{"censor"}), and (iii) a \code{var_type} specifying the
 variable type used for simulation/prediction (\code{"binary"}, \code{"normal"},
 \code{"categorical"}, and \code{"custom"}). The list order must reflect the
 data-generating process (temporal ordering). The outcome model is detected internally

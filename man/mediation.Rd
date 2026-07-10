@@ -177,6 +177,12 @@ An object of class \code{"gformula"} with components:
         the last time point, or the product-limit cumulative incidence
         for survival outcomes. Printed next to the simulated
         intervention means as an informal benchmark.
+  \item \code{intermediate_confounders}: for \code{mediation_type = "N"},
+        a character vector of covariate names whose model includes the
+        exposure (exposure-affected/intermediate confounders that make
+        the natural effects non-identifiable); empty when none. The
+        \code{print} method re-surfaces a short identifiability caveat
+        when this is non-empty.
 }
 }
 \description{
@@ -197,7 +203,7 @@ are defined for binary exposures only.
 **Model specification**
 Each element of \code{models} is created by \code{\link{spec_model}} and must specify:
 (i) a formula, (ii) \code{mod_type} (\code{"exposure"}, \code{"covariate"},
-\code{"mediator"}, \code{"outcome"}, \code{"survival"}, or \code{"censoring"}), and
+\code{"mediator"}, \code{"outcome"}, \code{"survival"}, or \code{"censor"}), and
 (iii) \code{var_type} (\code{"binary"}, \code{"normal"}, \code{"categorical"}, or
 \code{"custom"}). At least one \code{"mediator"} model is required.
 Multiple mediator models are supported under \code{mediation_type = "I"}

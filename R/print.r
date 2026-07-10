@@ -211,6 +211,23 @@ print.gformula <- function(x,
                          ci_labels = if (is_mediation) "rd_rr" else "plain"))
   }
 
+  # -- Identifiability caveat (natural effects with intermediate confounding) --
+  # Re-surface the short version of the runtime warning emitted by
+  # check_natural_identifiability(): exposure-affected confounders make the
+  # natural direct/indirect effects non-identifiable, and this is easy to
+  # miss in the warning stream after a long run.
+  ic <- x$intermediate_confounders
+  if (is_mediation && identical(args$mediation_type, "N") &&
+      !is.null(ic) && length(ic) > 0) {
+    cat(sprintf(
+      paste0("\n  ! Identifiability: covariate model(s) for {%s} include the ",
+             "exposure '%s' (exposure-affected/intermediate confounder), so the\n",
+             "    natural direct/indirect effects are NOT point-identified here. ",
+             "Consider mediation_type = \"I\".\n",
+             "    (Avin, Shpitser & Pearl 2005; VanderWeele & Tchetgen Tchetgen 2017.)\n"),
+      paste(ic, collapse = ", "), args$exposure))
+  }
+
   # -- Bootstrap footnotes ----------------------------------------------------
   if (!is.null(args$R) && args$R > 1) {
     cat(sprintf("\n  95%% CIs: percentile (pct) and normal approximation (norm) from %d bootstrap replicates.\n",
