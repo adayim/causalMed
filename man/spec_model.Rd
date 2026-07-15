@@ -12,6 +12,7 @@ spec_model(
   mod_type = c("covariate", "exposure", "mediator", "outcome", "censor", "survival"),
   custom_fit = NULL,
   custom_sim = NULL,
+  truncate = TRUE,
   ...
 )
 }
@@ -34,9 +35,12 @@ the model and **before** simulating the response for this model (useful for dyna
 By default, values are simulated via:
 \itemize{
   \item \code{"binary"}: Bernoulli draws using the fitted mean.
-  \item \code{"normal"}: Gaussian draws using fitted mean.
+  \item \code{"normal"}: Gaussian draws using fitted mean, \strong{clipped to
+        the observed range} of the response (see \code{truncate}).
   \item \code{"categorical"}: Multinomial draws via \code{\link[nnet]{multinom}}.
-  \item \code{"custom"}: user-specified via \code{custom_fit} and/or \code{custom_sim}.
+  \item \code{"custom"}: user-specified via \code{custom_fit} and/or \code{custom_sim}
+        (numeric output is also clipped to the observed range unless
+        \code{truncate = FALSE}).
 }}
 
 \item{mod_type}{Character. The role of this model in the data-generating process:
@@ -54,6 +58,17 @@ This can be used to define the modeling fitting function other than \code{\link[
 accept exactly two arguments: the fitted model object and a \code{data.frame} of
 new data to predict on, and return a vector of simulated responses of matching length.
 If omitted and \code{var_type = "custom"}, normal draws are used by default.}
+
+\item{truncate}{Logical. If \code{TRUE} (default), simulated numeric values are
+clipped to the range of the response observed in the data — i.e. a
+\code{"normal"} covariate is drawn as a \emph{bounded} normal, and numeric
+output of \code{custom_sim} is clipped as well. This guards against
+implausible extrapolation when a fitted linear model is simulated far
+outside its support, and it is the historical behaviour of this package.
+Set \code{FALSE} to draw from the untruncated fitted distribution (matching
+the plain \code{"normal"} covariate type of \pkg{gfoRmula}) or to let a
+\code{custom_sim} function be authoritative over its own output range.
+Has no effect on \code{"binary"} or \code{"categorical"} responses.}
 
 \item{...}{Other parameters passed to the model fitting function, \code{\link[stats]{glm}},
 \code{\link[nnet]{multinom}} or \code{custom_fit}.}
@@ -91,7 +106,7 @@ subset = platnormm1 == 0
 )
 ## For Poisson regression
 predict_poisson <- function(fit, newdf) {
-  theta <- stats::predict(object = fitcov, type = "response", newdata = newdf)
+  theta <- stats::predict(object = fit, type = "response", newdata = newdf)
   prediction <- rpois(n = nrow(newdf), lambda = theta)
   return(prediction)
 }

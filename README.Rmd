@@ -56,15 +56,31 @@ devtools::install_github("adayim/causalMed")
     alongside the overall IDE/TE.
   - `mediation_type = "N"`: natural NDE/NIE (Zheng & van der Laan 2017) — conditional
     mediator distribution with exposure swapping; requires stronger assumptions
-    (single mediator only)
+    (single mediator only). Natural effects are **not identifiable** when a
+    confounder of the mediator–outcome relationship is itself affected by the
+    exposure; `mediation()` detects this, warns, and repeats the caveat in
+    `print()` — prefer `mediation_type = "I"` in that setting.
+- **Two estimators for natural effects**: the parametric g-formula plug-in
+  (`estimator = "gcomp"`, the default) or a **targeted maximum likelihood
+  estimator** (`estimator = "tmle"`, Zheng & van der Laan 2017 §4.3) — multiply
+  robust (consistent when only certain subsets of the nuisance models are
+  correct), with Wald confidence intervals from the efficient influence curve,
+  so no bootstrap is needed. Available for `mediation_type = "N"` only.
 - **Flexible model specification**: logistic regression (binary), linear regression
-  (normal), multinomial logistic (categorical), and custom simulation functions
+  (normal), multinomial logistic (categorical), and custom simulation functions.
+  Numeric draws are clipped to the observed range of the response by default;
+  use `spec_model(truncate = FALSE)` to draw from the untruncated fitted
+  distribution.
 - **Recode hooks** (`init_recode`, `in_recode`, `out_recode`) for lag creation,
   cumulative variables, and other within-loop transformations
 - **Bootstrap confidence intervals**: non-parametric bootstrap resampling individuals
   (preserving longitudinal structure), with percentile and normal-approximation CIs
 - **Parallel bootstrap**: plug in `future::plan(multisession)` on Windows or
   `future::plan(multicore)` on Unix to parallelise across bootstrap replicates
+- **Reproducibility**: `seed` fixes both the Monte Carlo simulation and the
+  bootstrap, and restores the caller's RNG state on exit. Pass `seed = NULL`
+  inside simulation loops that manage their own seeds — no `set.seed()` is then
+  called and each run draws independently.
 
 ## Usage
 
@@ -101,7 +117,7 @@ models_bin <- list(m_L1, m_L2, m_A, m_Y)
 # 1 / 0 = always treat / never treat
 ints <- list(natural = NULL, always_treat = 1, never_treat = 0)
 
-# ── 3. Run g-formula ────────────────────────────────────────────────────────
+# Run g-formula
 fit_bin <- gformula(
   data        = nonsurvivaldata,
   id_var      = "id",
@@ -121,6 +137,13 @@ fit_bin <- gformula(
 
 print(fit_bin)
 ```
+
+*A note on the ordering above:* for a compact example the confounder models
+are listed before the exposure and conditioned on the lagged exposure
+(`lag1_A`) — an `L → A` within-period ordering. The process documented in
+`?nonsurvivaldata` is `A → L` (current `A` in the `L` models), as the
+mediation example below uses; in your own analyses, match the list order and
+conditioning to your assumed data-generating process.
 
 ### Mediation analysis: interventional IDE/IIE (Lin et al. 2017)
 
@@ -214,6 +237,33 @@ fit_natural <- mediation(
 Natural effects condition the mediator model on the individual's own covariate history
 but evaluate it at the alternative exposure level (exposure swapping). They require
 stronger sequential no-unmeasured-confounding assumptions than interventional effects.
+In particular, natural direct and indirect effects are **not identifiable** when a
+mediator–outcome confounder is itself affected by prior exposure (Avin, Shpitser &
+Pearl 2005; VanderWeele & Tchetgen Tchetgen 2017). `mediation()` detects this
+pattern, warns at run time, and restates the caveat under the decomposition when
+you `print()` the result; use `mediation_type = "I"` in that setting.
+
+#### Targeted estimation (TMLE)
+
+For natural effects only, the plug-in simulation can be replaced by the targeted
+maximum likelihood estimator of Zheng & van der Laan (2017, §4.3):
+
+```{r tmle-example, eval = FALSE}
+fit_tmle <- mediation(
+  ...,                     # same arguments as above
+  mediation_type = "N",
+  estimator      = "tmle"  # multiply robust; EIC Wald CIs, no bootstrap
+)
+```
+
+It runs backward targeted regressions instead of forward simulation, so it is
+multiply robust (consistent when only certain subsets of the nuisance models are
+correct) and reports Wald CIs from the efficient influence curve — `R` and
+`mc_sample` are ignored. It requires an exposure model, a binary outcome, and
+lag-style recodes only (`recodes(lag_A = A)`; exposure lags must be
+first-order); derived recodes such as splines or
+cumulative counts need `estimator = "gcomp"`. Inspect any positivity warnings it
+reports before trusting the affected quantities.
 
 ### Enabling parallel bootstrap
 

@@ -135,6 +135,17 @@ If lag columns are already present in the data (pre-computed before calling `gfo
 
 ### Example 1 — Binary end-of-follow-up outcome
 
+> **Note on the ordering used in Examples 1–2.** For a compact illustration,
+> these total-effect examples list the confounder models first and condition
+> them on the *previous* period's exposure (`lag1_A`) — an `L → A`
+> within-period ordering. The data-generating process documented in
+> `?nonsurvivaldata` and `?survivaldata` is `A → L` (each confounder depends
+> on the *current* exposure), so a specification faithful to it would list
+> the exposure model first and put current `A` in the `L` models, as the
+> mediation examples later in this vignette do. In your own analyses, match
+> the list order and each model's conditioning to your assumed
+> data-generating process.
+
 ```{r gformula-binary}
 # ── 1. Specify models in temporal order: L1 → L2 → A → Y ──────────────────
 m_L1 <- spec_model(L1    ~ lag1_A + lag1_L1 + V + time,
@@ -247,8 +258,8 @@ distributions are all binary/logistic, every model uses `var_type = "binary"`:
 data("gvhd")
 
 # Baseline transforms: restricted cubic splines of age (agecurs1/2) and day
-# (daycurs1/2), plus agesq/daysq. See references/paper_example.R for the full
-# spline expressions (knots from the paper's Appendix).
+# (daycurs1/2), plus agesq/daysq. The full spline expressions use the knots
+# given in the Appendix of Keil et al. (2014).
 gvhd <- within(gvhd, {
   agesq <- age^2; daysq <- day^2
   agecurs1 <- (age > 17) * (age - 17)^3 -
@@ -501,6 +512,73 @@ The key identifiability difference between `"I"` and `"N"`:
 | Interpretation | Shift in mediator *population* distribution | Hypothetical individual-level swap |
 | Reference | Lin et al. (2017) | Zheng & van der Laan (2017) |
 
+### A targeted (TMLE) alternative for natural effects
+
+The default estimator (`estimator = "gcomp"`) is the parametric g-formula
+plug-in: it simulates the counterfactual functionals forward from the fitted
+models, so its validity rests on **all** component models being correctly
+specified, and confidence intervals require the bootstrap. For
+`mediation_type = "N"`, the same paper the plug-in implements (Zheng & van der
+Laan 2017, Section 4.3) also derives a **targeted maximum likelihood
+estimator**, available via `estimator = "tmle"`:
+
+- **Multiply robust**: the estimate is consistent when specific *subsets* of
+  the nuisance models are correct (their Theorem 1 gives three sufficient
+  combinations), not only when everything is.
+- **Analytic CIs**: 95% Wald intervals come from the efficient influence
+  curve, so no bootstrap is needed (`R` is ignored) and there is no Monte
+  Carlo simulation layer (`mc_sample` is ignored). A full fit typically takes
+  seconds.
+- **Requirements**: an exposure model (`mod_type = "exposure"`) is mandatory,
+  the outcome must be binary `{0, 1}` (endpoint or survival event indicator),
+  and `var_type = "custom"` / `spec_model(subset = )` models are not
+  supported. Like all of `mediation_type = "N"`, it is single-mediator only.
+- **Recode restriction**: the targeted engine evaluates only *lag-style* recodes
+  — `in_recode` entries must copy a single column (`recodes(lag_A = A)`), lags
+  of the exposure must copy the exposure itself (chained exposure lags such as
+  `recodes(lag2_A = lag_A)` are rejected), `init_recode` entries must be a
+  constant or a column name, and `out_recode` is
+  not supported. Derived recodes (splines, cumulative counts, carry-forward
+  flags) and deeper exposure history require `estimator = "gcomp"`. Violations
+  raise an error rather than
+  being silently ignored, so a distorted estimate cannot reach you unnoticed.
+
+```{r mediation-tmle}
+fit_tmle <- mediation(
+  data           = nonsurvivaldata,
+  id_var         = "id",
+  time_var       = "time",
+  base_vars      = "V",
+  exposure       = "A",
+  outcome        = "Y_bin",
+  models         = models_med,
+  init_recode    = init_med,
+  in_recode      = in_med,
+  mediation_type = "N",
+  estimator      = "tmle",   # <-- targeted estimator
+  quiet          = TRUE,
+  seed           = 2025
+)
+
+fit_tmle$estimate
+```
+
+**Read the warnings.** On this dataset the TMLE reports *practical positivity
+violations*: almost no subject in `nonsurvivaldata` remains untreated at
+every time point, so the data carry very little direct information about the
+"never treated" functional $\Phi_{00}$. The plug-in produces a seemingly
+precise answer there by extrapolating from its parametric models; the TMLE
+skips the affected targeting steps, warns, and returns an appropriately wide
+confidence interval. Neither estimator can conjure information the data do
+not contain — but the TMLE tells you when that is happening. When the two
+estimators disagree materially, the first things to inspect are these
+positivity warnings and the model specifications.
+
+The per-subject influence-curve values are returned in
+`fit_tmle$tmle_diag$eic` (one column per functional) for custom contrasts or
+diagnostics; `fit_tmle$tmle_diag$eic_mean` should be near zero for
+well-supported functionals.
+
 ---
 
 ## Bootstrap Confidence Intervals
@@ -616,11 +694,13 @@ The four built-in `var_type` values cover the most common cases:
 | `var_type` | Distribution |
 |---|---|
 | `"binary"` | Bernoulli (logistic regression) |
-| `"normal"` | Gaussian (linear regression) |
+| `"normal"` | Gaussian (linear regression), clipped to the observed range by default |
 | `"categorical"` | Multinomial (`nnet::multinom`) |
 | `"custom"` | User-supplied fit and simulation functions |
 
-For distributions not in this list — **bounded normal**, **truncated normal**, **zero-inflated normal**, **absorbing states** — use `var_type = "custom"` with the `custom_fit` and `custom_sim` arguments to `spec_model()`:
+**Simulated numeric values are clipped to the observed range of the response by default.** So `var_type = "normal"` already gives you a *bounded* normal — there is no need for a custom type to get one. This guards against implausible extrapolation from a fitted linear model; pass `spec_model(truncate = FALSE)` to draw from the untruncated fitted distribution instead (this also stops the clipping being applied to `custom_sim` output).
+
+For distributions still not covered — **truncated normal**, **zero-inflated normal**, **absorbing states** — use `var_type = "custom"` with the `custom_fit` and `custom_sim` arguments to `spec_model()`:
 
 ```{r custom-type, eval=FALSE}
 # Example: bounded normal covariate in [0, 1]

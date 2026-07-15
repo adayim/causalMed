@@ -79,6 +79,44 @@ risk_estimate_boot <- function(data_list, ref_int, intervention, return_data) {
   data.table::rbindlist(out, use.names = TRUE)
 }
 
+# Scalar Phi from one intervention result: the "phi_estimate" attribute when
+# .run_interventions attached one (n_vw-averaged interventions), the mean of
+# Pred_Y for a returned simulated dataset (return_data = TRUE), the mean of a
+# Pred_Y vector (legacy path), or the scalar itself.
+phi_scalar <- function(x) {
+  if (is.null(x)) return(NA_real_)
+  attr_phi <- attr(x, "phi_estimate", exact = TRUE)
+  if (!is.null(attr_phi)) return(as.numeric(attr_phi))
+  if (is.data.frame(x)) x <- x[["Pred_Y"]]
+  if (length(x) == 1L) return(as.numeric(x))
+  sum(x) / length(x)
+}
+
+# Proportion mediated (additive + multiplicative, in percent) from a named
+# list/vector of intervention Phi values and its risk_estimate_mediation()
+# table. Additive PM follows Yamamuro et al. (2021): (TE - IDE) / TE -- the
+# residual (TE - OE) is folded into the mediated portion, so for
+# mediation_type = "N" (zero residual) it reduces to the usual sum(IIE)/TE.
+# Multiplicative PM (Lin et al. 2017 Table 2, generalised to N mediators via
+# Yamamuro et al. 2021): RR_IDE * (prod RR_IIE_k - 1) / (RR_OE - 1) on the
+# interventional overall scale RR_OE = Phi11/Phi00 (under "N" that ratio is
+# the total-effect RR and the formula is reported as an analogue). NA where
+# the denominator is degenerate or any component RR is non-finite.
+pm_from_phi <- function(phi, risk) {
+  total  <- risk$RD[risk$Effect == "Total effect"]
+  direct <- risk$RD[risk$Effect == "Direct effect"]
+  rr_ide <- risk$RR[risk$Effect == "Direct effect"]
+  rr_iie <- risk$RR[grepl("^Indirect effect", risk$Effect)]
+  rr_oe  <- phi_scalar(phi[["Phi11"]]) / phi_scalar(phi[["Phi00"]])
+
+  add <- if (isTRUE(abs(total) < 1e-10)) NA_real_ else
+    (total - direct) / total * 100
+  mult <- if (isTRUE(abs(rr_oe - 1) < 1e-10) ||
+              !all(is.finite(c(rr_oe, rr_ide, rr_iie)))) NA_real_ else
+    rr_ide * (prod(rr_iie) - 1) / (rr_oe - 1) * 100
+  c(add = add, mult = mult)
+}
+
 # Calculate mediation effects from a named list of intervention Phi values.
 # Supports N >= 1 mediators (Yamamuro et al. 2021 multi-mediator extension).
 #
@@ -110,17 +148,8 @@ risk_estimate_boot <- function(data_list, ref_int, intervention, return_data) {
 # TE and no residual row is added (Zheng & van der Laan 2017).
 risk_estimate_mediation <- function(data_list, med_vars = NULL, return_data = FALSE) {
 
-  # Robust scalar extraction (handles vector Pred_Y when return_data legacy
-  # path is used, plus the attached "phi_estimate" attribute set by .run_interventions
-  # for n_vw-averaged interventions).
-  to_phi <- function(name) {
-    v <- data_list[[name]]
-    if (is.null(v)) return(NA_real_)
-    attr_phi <- attr(v, "phi_estimate", exact = TRUE)
-    if (!is.null(attr_phi)) return(as.numeric(attr_phi))
-    if (length(v) == 1L) return(as.numeric(v))
-    return(sum(v) / length(v))
-  }
+  # Robust scalar extraction (see phi_scalar() above).
+  to_phi <- function(name) phi_scalar(data_list[[name]])
 
   phi_00 <- to_phi("Phi00")
   phi_11 <- to_phi("Phi11")

@@ -30,7 +30,7 @@
                       n_vw = 1L,
                       return_fitted = FALSE,
                       return_data = FALSE,
-                      seed = 12345L) {
+                      seed = NULL) {
   if (length(mediation_type) > 1) {
     mediation_type <- mediation_type[1]
   } else if (!is.na(mediation_type) && !(mediation_type %in% c("N", "I"))) {
@@ -49,7 +49,6 @@
   df_mc    <- data.table::as.data.table(
     base_dat[sample(1:length(base_dat[[id_var]]), mc_sample, replace = TRUE), ]
   )
-  df_mc[, new_ID := seq_len(.N)]
 
   # Cache the time sequence once (used in each intervention and in pool collection)
   time_seq <- sort(unique(data[[time_var]]))
@@ -233,10 +232,10 @@
   }
 }
 
-# Fit every spec_model() in `models` on `data`, applying each model's own
-# fit-time recodes, and pre-extract the prediction components used by the
-# Monte Carlo simulation loop (sim_value / simulate_data). Extracted from
-# .run_interventions() so the fitting logic lives in one place.
+# Fit every spec_model() in `models` on `data` and pre-extract the
+# prediction components used by both the Monte Carlo engine (sim_value,
+# simulate_data) and the TMLE engine (density evaluation). Extracted from
+# .run_interventions() so the two estimators share one fitting path.
 fit_spec_models <- function(models, data) {
   lapply(models, function(mods) {
     rsp_vars <- all.vars(formula(mods$call)[[2]])
@@ -278,6 +277,9 @@ fit_spec_models <- function(models, data) {
       var_type   = mods$var_type,
       mod_type   = mods$mod_type,
       custom_sim = mods$custom_sim,
+      # NULL for model objects built before spec_model() gained `truncate`;
+      # sim_value() treats NULL as TRUE (the historical behaviour).
+      truncate   = mods$truncate,
       rsp_vars   = rsp_vars,
       val_ran    = val_ran
     )
@@ -455,6 +457,24 @@ simulate_intervention <- function(data,
     }
   }
   # loop ends here
+
+  # NA predicted outcomes silently poison the intervention mean (which is a
+  # plain sum/length, so a single NA makes the estimate NA). NAs get here from
+  # NA predictors -- e.g. a lag column never initialised by init_recode, or a
+  # recode that produced NA -- so surface the count rather than returning a
+  # silently NA (or silently partial) estimate.
+  n_na <- sum(is.na(data[["Pred_Y"]]))
+  if (n_na > 0L) {
+    causalmed_env$warning <- c(
+      causalmed_env$warning,
+      sprintf(paste0("Simulation produced %d NA predicted outcome(s) out of %d ",
+                     "(%.1f%%). This usually means a predictor was NA at some ",
+                     "time step -- check that every lagged/derived column used ",
+                     "in a model is initialised by init_recode and updated by ",
+                     "in_recode/out_recode."),
+              n_na, nrow(data), 100 * n_na / nrow(data))
+    )
+  }
 
   result <- if (return_data) {
     data

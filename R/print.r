@@ -110,9 +110,15 @@ print.gformula <- function(x,
                 format(ds$n_id, big.mark = ","),
                 format(ds$n_obs, big.mark = ",")))
 
+  is_tmle <- is_mediation && identical(args$estimator, "tmle")
+
   seed_str <- if (is.null(args$seed)) "none" else as.character(args$seed)
   boot_str <- if (args$R <= 1L) "none" else as.character(args$R)
-  cat(sprintf("  MC sample    : %d\n", args$mc_sample))
+  if (is_tmle) {
+    cat("  Estimator    : TMLE (targeted maximum likelihood; Zheng & van der Laan 2017)\n")
+  } else {
+    cat(sprintf("  MC sample    : %d\n", args$mc_sample))
+  }
   cat(sprintf("  Bootstrap R  : %s\n", boot_str))
   if (is_interv && !is.null(args$n_vw))
     cat(sprintf("  n_vw         : %d  (permutation draws averaged per cross-world intervention)\n",
@@ -139,6 +145,8 @@ print.gformula <- function(x,
         "  Under interventional effects, each intervention draws its mediators from independently-permuted pools (G):\n",
         "  Phi11 = E[Y(a=1, G1)]:  exposure=1, mediators ~ a=1 pool  [reference]\n",
         "  Phi10 = E[Y(a=1, G0)]:  exposure=1, mediators ~ a=0 pool  [cross-world]\n",
+        if (length(med_vars) > 1)
+          "  Phi1_k:  exposure=1, first k mediators ~ a=1 pool, rest ~ a=0 pool  [sequential]\n",
         "  Phi00 = E[Y(a=0, G0)]:  exposure=0, mediators ~ a=0 pool  [reference]\n",
         "  nat1/nat0 = E[Y(a=1)]/E[Y(a=0)]:  natural course (used for the total effect)\n"
       )
@@ -228,7 +236,11 @@ print.gformula <- function(x,
       paste(ic, collapse = ", "), args$exposure))
   }
 
-  # -- Bootstrap footnotes ----------------------------------------------------
+  # -- CI footnotes -----------------------------------------------------------
+  if (is_tmle) {
+    cat("\n  95% CIs (norm): Wald intervals from the efficient influence curve;\n")
+    cat("  multiply robust under the conditions of Zheng & van der Laan (2017, Thm 1).\n")
+  }
   if (!is.null(args$R) && args$R > 1) {
     cat(sprintf("\n  95%% CIs: percentile (pct) and normal approximation (norm) from %d bootstrap replicates.\n",
                 as.integer(args$R)))

@@ -20,7 +20,7 @@
   n_vw = 1L,
   return_fitted = FALSE,
   return_data = FALSE,
-  seed = 12345L
+  seed = NULL
 )
 }
 \arguments{
@@ -82,7 +82,15 @@ match the SAS mGFORMULA macro.}
 \item{return_data}{Logical. If \code{TRUE}, return the stacked simulated data
 (all interventions) including predicted outcomes; may be large. Default \code{FALSE}.}
 
-\item{seed}{Integer random seed for reproducibility. Default \code{12345}.}
+\item{seed}{Integer random seed for reproducibility. Default \code{12345}.
+The seed fixes the RNG stream used for the Monte Carlo simulation
+\emph{and} the bootstrap replicates, and the caller's global RNG state is
+saved and restored on exit, so a seeded call does not disturb the ambient
+random stream. Pass \code{NULL} to disable seeding entirely: no
+\code{set.seed()} is called, the Monte Carlo draws consume and advance the
+ambient RNG stream, and repeated calls therefore give \emph{different}
+results (reproducible only via an outer \code{set.seed()}). Use
+\code{seed = NULL} inside simulation loops that manage their own seeds.}
 }
 \description{
 This function will receive the parameters and fit model. After the model is fitted,

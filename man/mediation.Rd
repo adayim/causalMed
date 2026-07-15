@@ -18,6 +18,8 @@ mediation(
   mc_sample = nrow(data) * 100,
   mediation_type = c("I", "N"),
   n_vw = 2L,
+  estimator = c("gcomp", "tmle"),
+  tmle_weight_trunc = 0.995,
   return_fitted = FALSE,
   return_data = FALSE,
   R = 500,
@@ -70,7 +72,13 @@ randomized interventional analogues of the direct/indirect effects and
 remains identifiable. A warning is emitted at runtime if \code{"N"} is
 chosen and any covariate model includes the exposure on its right-hand
 side, which is a sufficient (though not necessary) signal of intermediate
-confounding.}
+confounding; the caveat is repeated by \code{print()}.
+\strong{Interpretation of \code{"I"}.} Randomized interventional indirect
+effects buy identifiability at a price: they do not satisfy a sharp
+mediational null criterion, so a non-zero IIE does not by itself prove
+that the mediator transmits the effect for any individual (Miles 2023).
+The choice between \code{"I"} and \code{"N"} is therefore a substantive
+one, not merely computational.}
 
 \item{n_vw}{Integer. Number of independent permutation draws averaged for
 each interventional cross-world intervention. The same averaging is applied
@@ -79,6 +87,39 @@ within every bootstrap replicate. Default \code{2L} to match the SAS
 averaging (faster, slightly noisier Monte Carlo). Has no effect when
 \code{mediation_type = "N"} (the natural-effect mediator swap is not
 permutation-based).}
+
+\item{estimator}{Character. \code{"gcomp"} (default) for the parametric
+g-formula plug-in (Monte Carlo simulation + bootstrap CIs), or
+\code{"tmle"} for the targeted maximum likelihood estimator of Zheng &
+van der Laan (2017, Section 4.3). \code{"tmle"} is available for
+\code{mediation_type = "N"} only (single mediator, binary \{0, 1\}
+outcome or survival event indicator; an exposure model is required and
+\code{var_type = "custom"} / \code{spec_model(subset = )} are not
+supported). \strong{Recode restriction:} the targeted engine evaluates
+only lag-style recodes, so \code{in_recode} entries must copy a single
+column (e.g. \code{recodes(lag_A = A)}), lags of the exposure must copy
+the exposure itself (chained exposure lags such as
+\code{recodes(lag2_A = lag_A)} are rejected; deeper exposure history
+requires \code{estimator = "gcomp"}), \code{init_recode} entries must
+be a constant or a single column name, and \code{out_recode} is not
+supported; derived recodes (splines, cumulative counts, carry-forward
+flags) require \code{estimator = "gcomp"}. Violations are rejected with
+an error rather than silently ignored. The TMLE uses backward iterated
+regressions with logistic
+fluctuations instead of forward simulation: it is multiply robust
+(consistent when specific subsets of the nuisance models are correct,
+not only when all are), reports Wald CIs from the efficient influence
+curve without bootstrapping (\code{R} is ignored), and has no Monte
+Carlo simulation error (\code{mc_sample} is ignored). Practical
+positivity violations (few subjects following an intervened regime) are
+handled by skipping the affected fluctuation steps and truncating
+extreme weights, with collected warnings — inspect these before trusting
+the affected functionals.}
+
+\item{tmle_weight_trunc}{Numeric in (0, 1]. Quantile at which each
+clever-covariate weight vector is truncated in the TMLE fluctuation
+steps (positivity protection). Default \code{0.995}; \code{1} disables
+truncation. Ignored for \code{estimator = "gcomp"}.}
 
 \item{return_fitted}{Logical. If \code{TRUE}, return full fitted model objects; otherwise,
 a light-weight summary (call and coefficients). Default \code{FALSE}.}
@@ -97,10 +138,15 @@ Unix-alikes to enable parallel bootstrap. Default \code{500}.}
 \item{seed}{Integer random seed for reproducibility. Default \code{12345L}.
 Setting \code{seed} fixes the RNG stream used for the original-data Monte
 Carlo simulation \emph{and} the bootstrap replicates (the latter via the
-\code{future_seed} interface of \pkg{future.apply}). Pass \code{NULL} to
-leave the global RNG state untouched. Users running multiple analyses in
-the same session should set distinct seeds to ensure independent bootstrap
-draws across analyses.}
+\code{future_seed} interface of \pkg{future.apply}); the caller's global
+RNG state is saved and restored on exit, so a seeded call does not disturb
+the ambient random stream. Pass \code{NULL} to disable seeding entirely:
+no \code{set.seed()} is called, the Monte Carlo draws consume and advance
+the ambient RNG stream, and repeated calls therefore give \emph{different}
+results (reproducible only via an outer \code{set.seed()}). Use
+\code{seed = NULL} inside simulation loops that manage their own seeds.
+Users running multiple seeded analyses in the same session should set
+distinct seeds to ensure independent bootstrap draws across analyses.}
 }
 \value{
 An object of class \code{"gformula"} with components:
@@ -141,7 +187,11 @@ An object of class \code{"gformula"} with components:
                  (= \eqn{(IIE + residual)/TE}; Yamamuro et al. 2021)
           \item \code{"Mediation Proportion (multiplicative)"}
                  = \eqn{RR_{IDE}\,(RR_{IIE}-1)/(RR_{OE}-1) \times 100\%}
-                 on the interventional overall scale (Lin et al. 2017, Table 2)
+                 on the interventional overall scale (Lin et al. 2017, Table 2).
+                 Under \code{mediation_type = "N"} the same formula is
+                 reported on the total-effect scale as an \emph{analogue};
+                 Zheng & van der Laan (2017) do not define a proportion
+                 mediated.
         }
         For multiple mediators each indirect effect is labelled
         \code{"Indirect effect (<mediator>)"}; the additive proportion is
@@ -177,6 +227,12 @@ An object of class \code{"gformula"} with components:
         the last time point, or the product-limit cumulative incidence
         for survival outcomes. Printed next to the simulated
         intervention means as an informal benchmark.
+  \item \code{tmle_diag}: for \code{estimator = "tmle"} only, a list with
+        the subject-level efficient-influence-curve matrix (\code{eic},
+        one column per functional), its column means (\code{eic_mean},
+        near zero for well-supported functionals at the targeted fit),
+        and the number of subjects (\code{n}). \code{NULL} for
+        \code{estimator = "gcomp"}.
   \item \code{intermediate_confounders}: for \code{mediation_type = "N"},
         a character vector of covariate names whose model includes the
         exposure (exposure-affected/intermediate confounders that make
@@ -305,4 +361,8 @@ type 2 diabetics. \emph{Statistical Methods in Medical Research}, 30(8),
 Zheng, W., & van der Laan, M. (2017).
 Longitudinal mediation analysis with time-varying mediators and exposures, with application to survival outcomes.
 \emph{Journal of Causal Inference}, 5(2). \doi{10.1515/jci-2016-0006}
+
+Miles, C. H. (2023). On the causal interpretation of randomised interventional
+indirect effects. \emph{Journal of the Royal Statistical Society: Series B},
+85(4), 1154–1172. \doi{10.1093/jrsssb/qkad066}
 }
