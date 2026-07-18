@@ -12,12 +12,19 @@ vignette: >
 ---
 
 <!-- This vignette is PRECOMPUTED. Do not edit the shipped .Rmd by hand; edit
-     03-causalMed-gformula.Rmd.orig and re-run vignettes/precompute.R. The
+     causalMed-03-gformula.Rmd.orig and re-run vignettes/precompute.R. The
      GvHD and bootstrap examples run for real there (minutes) so their output
      is captured, not copy-pasted, yet the shipped vignette builds instantly on
      CRAN/CI. -->
 
-
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse  = TRUE,
+  comment   = "#>",
+  fig.width = 7,
+  fig.height = 4
+)
+```
 
 ## Introduction
 
@@ -40,14 +47,12 @@ This vignette is the full total-effect story:
 
 The shared vocabulary — long-format data, `spec_model()`, the `var_type` /
 `mod_type` tables, and the `recodes()` lag hooks — is introduced in
-`vignette("causalMed-overview")` and not repeated here. For mediation
-(direct/indirect decomposition) see `vignette("causalMed-mediation")`.
+`vignette("causalMed-01-overview")` and not repeated here. For mediation
+(direct/indirect decomposition) see `vignette("causalMed-02-mediation")`.
 
-
-``` r
+```{r load}
 library(causalMed)
 library(data.table)
-#> Warning: package 'data.table' was built under R version 4.5.3
 ```
 
 ---
@@ -62,8 +67,7 @@ current `A` in each confounder model. In your own analyses, always match the
 list order and each model's conditioning to *your* assumed data-generating
 process.
 
-
-``` r
+```{r gformula-binary}
 data("nonsurvivaldata")
 
 # Lag bookkeeping (see the overview vignette for the recode hooks)
@@ -106,24 +110,12 @@ fit_bin <- gformula(
 )
 ```
 
-
-``` r
+```{r gformula-binary-results}
 # Risk (mean outcome) under each strategy
 fit_bin$effect_size
-#>    Intervention        Est
-#>          <fctr>      <num>
-#> 1:      natural 0.14127646
-#> 2: always_treat 0.15108576
-#> 3:  never_treat 0.08564992
 
 # Contrasts vs the reference (natural course)
 fit_bin$estimate
-#>              Intervention  Risk_type     Estimate
-#>                    <char>     <char>        <num>
-#> 1: always_treat - natural Difference  0.009809296
-#> 2: always_treat / natural      Ratio  1.069433333
-#> 3:  never_treat - natural Difference -0.055626547
-#> 4:  never_treat / natural      Ratio  0.606257502
 ```
 
 The `effect_size` table gives the estimated mean outcome under each
@@ -141,8 +133,7 @@ risks of the event by the end of follow-up. The data must contain one row per
 subject per period **at risk** — once the event occurs, no later rows for that
 subject may be present (see `?survivaldata`).
 
-
-``` r
+```{r gformula-survival}
 data("survivaldata")
 
 m_A2 <- spec_model(A ~ V + lag1_A + lag1_L + time,
@@ -172,18 +163,7 @@ fit_surv <- gformula(
 )
 
 fit_surv$effect_size   # Cumulative incidence by strategy
-#>    Intervention       Est
-#>          <fctr>     <num>
-#> 1:      natural 0.9346531
-#> 2:        never 0.8372602
-#> 3:       always 0.9752552
 fit_surv$estimate      # Risk contrasts
-#>        Intervention  Risk_type    Estimate
-#>              <char>     <char>       <num>
-#> 1:  never - natural Difference -0.09739292
-#> 2:  never / natural      Ratio  0.89579779
-#> 3: always - natural Difference  0.04060216
-#> 4: always / natural      Ratio  1.04344089
 ```
 
 ---
@@ -201,8 +181,7 @@ simulated *later* — here `L1`, which responds to `A` — still hold the previo
 period's values. A rule for an exposure decided at the start of each period
 therefore conditions on the previous period's covariates:
 
-
-``` r
+```{r gformula-dynamic}
 fit_dyn <- gformula(
   data        = nonsurvivaldata,
   id_var      = "id",
@@ -224,15 +203,7 @@ fit_dyn <- gformula(
 )
 
 fit_dyn$effect_size
-#>            Intervention       Est
-#>                  <fctr>     <num>
-#> 1:              natural 0.1412765
-#> 2: treat_if_prev_L1_pos 0.1293880
 fit_dyn$estimate
-#>                      Intervention  Risk_type    Estimate
-#>                            <char>     <char>       <num>
-#> 1: treat_if_prev_L1_pos - natural Difference -0.01188842
-#> 2: treat_if_prev_L1_pos / natural      Ratio  0.91584993
 ```
 
 Compound rules are fine too — any expression over in-scope columns works, e.g.
@@ -269,8 +240,7 @@ baseline transforms — restricted cubic splines of age (`agecurs1`/`agecurs2`,
 knots 17, 25.4, 30, 41.4) and of day (`daycurs1`/`daycurs2`, knots 83.6, 401.4,
 947, 1862.2), plus `agesq`/`daysq`:
 
-
-``` r
+```{r gvhd-data}
 data("gvhd")
 
 gvhd <- within(gvhd, {
@@ -294,8 +264,7 @@ its model is fitted and simulated only among those not yet in it
 (`subset = ...m1 == 0`); the death hazard interacts the day spline with `gvhd`
 so the direct effect can vary over time:
 
-
-``` r
+```{r gvhd-models}
 models_gvhd <- list(
   spec_model(relapse ~ all + cmv + male + age + gvhdm1 + daysgvhd + platnormm1 +
                daysnoplatnorm + agecurs1 + agecurs2 + day + daysq + wait,
@@ -323,8 +292,7 @@ the day counters and enforces the absorbing carry-forward at the end of each
 day. The day spline is recomputed each step because the models reference it
 from day one:
 
-
-``` r
+```{r gvhd-recodes}
 init_recode <- recodes(
   daysq    = day^2,
   daycurs1 = (day > 83.6)   * ((day - 83.6)   / 83.6)^3 +
@@ -360,8 +328,7 @@ out_recode <- recodes(
   gvhd     = ifelse(gvhdm1 == 1,     1, gvhd))
 ```
 
-
-``` r
+```{r gvhd-fit, message=FALSE, warning=FALSE}
 fit_gvhd <- gformula(gvhd,
   id_var    = "id", time_var = "day", exposure = "gvhd",
   base_vars = c("age", "agesq", "agecurs1", "agecurs2", "male", "cmv", "all", "wait"),
@@ -371,15 +338,7 @@ fit_gvhd <- gformula(gvhd,
   mc_sample = 20000, R = 1, quiet = TRUE, seed = 20260703)
 
 fit_gvhd$effect_size
-#>    Intervention       Est
-#>          <fctr>     <num>
-#> 1:      natural 0.6117630
-#> 2:        never 0.5877012
 fit_gvhd$estimate
-#>       Intervention  Risk_type    Estimate
-#>             <char>     <char>       <num>
-#> 1: never - natural Difference -0.02406177
-#> 2: never / natural      Ratio  0.96066816
 ```
 
 Preventing GvHD is estimated to lower the 5-year risk of death by a couple of
@@ -397,8 +356,7 @@ Set `R > 1` to obtain percentile and normal-approximation confidence
 intervals. The bootstrap resamples whole subjects (all time points together),
 preserving the longitudinal correlation structure.
 
-
-``` r
+```{r bootstrap, message=FALSE, warning=FALSE}
 fit_boot <- gformula(
   data        = nonsurvivaldata,
   id_var      = "id",
@@ -418,38 +376,18 @@ fit_boot <- gformula(
 
 # effect_size now includes Sd, perct_lcl/ucl, norm_lcl/ucl
 fit_boot$effect_size
-#>    Intervention       Est          Sd perct_lcl perct_ucl  norm_lcl  norm_ucl
-#>          <fctr>     <num>       <num>     <num>     <num>     <num>     <num>
-#> 1:      natural 0.1412765 0.006496919 0.1291990 0.1545634 0.1285427 0.1540102
-#> 2:       always 0.1510858 0.007331636 0.1375332 0.1664306 0.1367160 0.1654555
 fit_boot$estimate
-#>        Intervention  Risk_type    Estimate         Sd   perct_lcl  perct_ucl
-#>              <char>     <char>       <num>      <num>       <num>      <num>
-#> 1: always - natural Difference 0.009809296 0.00241638 0.005206897 0.01471026
-#> 2: always / natural      Ratio 1.069433333 0.01687404 1.038802128 1.10266501
-#>       norm_lcl   norm_ucl
-#>          <num>      <num>
-#> 1: 0.005073278 0.01454531
-#> 2: 1.036360814 1.10250585
 
 # the individual per-replicate draws are retained in boot_estimates
 # ($interventions and $contrasts), for custom intervals or diagnostics
 head(fit_boot$boot_estimates$interventions)
-#>    replicate Intervention       Est
-#>        <int>       <fctr>     <num>
-#> 1:         1      natural 0.1349245
-#> 2:         1       always 0.1442259
-#> 3:         2      natural 0.1458343
-#> 4:         2       always 0.1533338
-#> 5:         3      natural 0.1380202
-#> 6:         3       always 0.1503631
 ```
 
 Like the GvHD example, the bootstrap here runs for real at precompute time; on
 CRAN and CI the shipped vignette carries this captured output without re-running
 200 replicates. Enable parallel bootstrap by registering a `future` plan first
 — `library(future); plan(multisession)` — before the call; see
-`vignette("causalMed-overview")` for the parallel details.
+`vignette("causalMed-01-overview")` for the parallel details.
 
 ---
 
@@ -460,8 +398,7 @@ CRAN and CI the shipped vignette carries this captured output without re-running
 Set `return_fitted = TRUE` to access the full fitted model objects and their
 coefficients:
 
-
-``` r
+```{r fitted-models}
 fit_full <- gformula(
   data        = nonsurvivaldata,
   id_var      = "id",
@@ -481,12 +418,9 @@ fit_full <- gformula(
 
 # Names correspond to the response variable of each model
 names(fit_full$fitted_models)
-#> [1] "A"     "L1"    "L2"    "Y_bin"
 
 # Access a specific model's coefficients
 coef(fit_full$fitted_models$A)
-#> (Intercept)           V      lag1_A     lag1_L1     lag1_L2        time 
-#>  0.82203265  0.82909389  0.17682472  0.19891771  0.24379756  0.03807842
 ```
 
 ### Retrieving the simulated data
@@ -494,8 +428,7 @@ coef(fit_full$fitted_models$A)
 Set `return_data = TRUE` to retrieve the full Monte Carlo dataset (can be
 large):
 
-
-``` r
+```{r return-data, eval=FALSE}
 fit_data <- gformula(..., return_data = TRUE)
 
 # Simulated trajectories with predicted outcomes, one row per MC subject per time

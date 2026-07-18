@@ -2,6 +2,8 @@
 <!-- badges: start -->
 
 [![R-CMD-check](https://github.com/adayim/causalMed/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/adayim/causalMed/actions/workflows/R-CMD-check.yaml)
+[![Codecov test
+coverage](https://codecov.io/gh/adayim/causalMed/graph/badge.svg)](https://app.codecov.io/gh/adayim/causalMed)
 <!-- badges: end -->
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
@@ -78,10 +80,6 @@ devtools::install_github("adayim/causalMed")
 - **Parallel bootstrap**: plug in `future::plan(multisession)` on
   Windows or `future::plan(multicore)` on Unix to parallelise across
   bootstrap replicates
-- **Reproducibility**: `seed` fixes both the Monte Carlo simulation and
-  the bootstrap, and restores the caller’s RNG state on exit. Pass
-  `seed = NULL` inside simulation loops that manage their own seeds — no
-  `set.seed()` is then called and each run draws independently.
 
 ## Usage
 

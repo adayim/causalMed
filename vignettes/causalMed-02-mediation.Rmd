@@ -41,8 +41,8 @@ regression-based mediation fails. This vignette is the full mediation story:
    estimator.
 
 The shared vocabulary (long-format data, `spec_model()`, the `recodes()` lag
-hooks) is introduced in `vignette("causalMed-overview")`; total-effect
-estimation with `gformula()` is in `vignette("causalMed-gformula")`.
+hooks) is introduced in `vignette("causalMed-01-overview")`; total-effect
+estimation with `gformula()` is in `vignette("causalMed-03-gformula")`.
 
 ```{r load}
 library(causalMed)
@@ -145,7 +145,7 @@ optional censoring) through the same interface — the outcome model's
 `mod_type` is the only difference. This vignette's worked examples use a
 survival outcome, the setting the mediational g-formula was developed for
 (Lin et al. 2017); a compact binary-outcome example is the mediation quick
-start in `vignette("causalMed-overview")`.
+start in `vignette("causalMed-01-overview")`.
 
 ---
 
@@ -499,7 +499,7 @@ Rows excluded by `subset` keep their current value at that step, so the
 ships the `gvhd` dataset (see `?gvhd`) used in that paper, and a complete
 total-effect g-formula analysis on it — three absorbing states, a censoring
 model, and restricted cubic splines — is walked through in
-`vignette("causalMed-gformula")` (Keil et al. 2014 describe the analysis in
+`vignette("causalMed-03-gformula")` (Keil et al. 2014 describe the analysis in
 full, including the spline knots).
 
 ---
@@ -509,7 +509,7 @@ full, including the spline knots).
 As elsewhere in the package, set `R > 1` for subject-level bootstrap CIs and
 optionally register a parallel plan first (the general bootstrap mechanics —
 percentile versus normal intervals, parallel plans — are covered in
-`vignette("causalMed-gformula")`):
+`vignette("causalMed-03-gformula")`):
 
 ```{r boot, eval=FALSE}
 library(future)

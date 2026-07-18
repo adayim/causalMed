@@ -45,9 +45,9 @@ function. The full contents live in their own vignettes:
 
 | Vignette | Contents |
 |---|---|
-| `vignette("02-causalMed-mediation")` | Mediation: estimands, reading the decomposition, multiple mediators, censoring, natural effects, and the targeted (TMLE) estimator. |
-| `vignette("03-causalMed-gformula")` | Total effects: binary and survival outcomes, dynamic interventions, a published replication (Keil et al. 2014), bootstrap CIs, results handling, custom distributions. |
-| `vignette("04-causalMed-vs-gfoRmula")` | How the total-effect engine compares with the CRAN reference implementation `gfoRmula`. |
+| `vignette("causalMed-02-mediation")` | Mediation: estimands, reading the decomposition, multiple mediators, censoring, natural effects, and the targeted (TMLE) estimator. |
+| `vignette("causalMed-03-gformula")` | Total effects: binary and survival outcomes, dynamic interventions, a published replication (Keil et al. 2014), bootstrap CIs, results handling, custom distributions. |
+| `vignette("causalMed-04-vs-gfoRmula")` | How the total-effect engine compares with the CRAN reference implementation `gfoRmula`. |
 
 ```{r load}
 library(causalMed)
@@ -274,7 +274,7 @@ That is the whole workflow: models, interventions, one call. Survival
 outcomes, dynamic (rule-based) interventions, the Keil et al. (2014) GvHD
 replication, bootstrap confidence intervals, extracting fitted models and
 simulated data, and custom covariate distributions are all in
-`vignette("causalMed-gformula")`.
+`vignette("causalMed-03-gformula")`.
 
 ---
 
@@ -331,7 +331,7 @@ identified when a confounder responds to the exposure (as `L1`/`L2` do here).
 
 What the decomposition rows mean, the choice between the two estimands,
 survival outcomes, multiple mediators, censoring, and the TMLE are all in
-`vignette("causalMed-mediation")`.
+`vignette("causalMed-02-mediation")`.
 
 ---
 
