@@ -226,9 +226,9 @@ fit_med$estimate
 
 The `estimate` table returns the indirect effect, direct effect, total effect,
 and proportion mediated on both the risk-difference and risk-ratio scales. See
-`vignette("causalMed-overview")` for a full worked example and
-`vignette("mediation-survival")` for mediation with survival outcomes,
-multiple mediators, and censoring.
+`vignette("causalMed-mediation")` for the full mediation story — the estimands,
+reading the decomposition, survival outcomes, multiple mediators, censoring,
+natural effects, and the targeted (TMLE) estimator.
 
 ---
 

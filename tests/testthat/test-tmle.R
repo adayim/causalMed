@@ -7,7 +7,9 @@ gen_tmle_testdata <- function(n, seed = 1L) {
   set.seed(seed)
   expit <- plogis
   V <- rbinom(n, 1, 0.5)
-  A_prev <- rep(0, n); M_prev <- rep(0, n); L_prev <- rep(0, n)
+  A_prev <- rep(0, n)
+  M_prev <- rep(0, n)
+  L_prev <- rep(0, n)
   out <- vector("list", 3L)
   for (t in 1:3) {
     A <- rbinom(n, 1, expit(0.2 * V + 0.3 * L_prev - 0.1 * A_prev))
@@ -18,7 +20,9 @@ gen_tmle_testdata <- function(n, seed = 1L) {
     out[[t]] <- data.frame(id = seq_len(n), time = t, V = V,
                            A = A, M = M, L = L, Y = Y,
                            lag_A = A_prev, lag_M = M_prev, lag_L = L_prev)
-    A_prev <- A; M_prev <- M; L_prev <- L
+    A_prev <- A
+    M_prev <- M
+    L_prev <- L
   }
   do.call(rbind, out)
 }
@@ -115,14 +119,16 @@ testthat::test_that("tmle input validation errors are informative", {
   args <- tmle_test_args(d)
 
   # interventional path has no TMLE
-  a1 <- args; a1$mediation_type <- "I"
+  a1 <- args
+  a1$mediation_type <- "I"
   testthat::expect_error(
     do.call(mediation, c(a1, list(estimator = "tmle"))),
     "only available for mediation_type = 'N'"
   )
 
   # exposure model required
-  a2 <- args; a2$models <- args$models[-1]
+  a2 <- args
+  a2$models <- args$models[-1]
   testthat::expect_error(
     suppressWarnings(do.call(mediation, c(a2, list(estimator = "tmle")))),
     "requires an exposure model"
@@ -295,9 +301,13 @@ testthat::test_that("tmle cross-checks the medltmle survival + censoring + inter
   expit <- stats::plogis
   gen <- function(n, seed) {
     set.seed(seed)
-    W1 <- rbinom(n, 1, 0.4); W2 <- rbinom(n, 1, 0.6)
-    alive <- rep(TRUE, n); incare <- rep(TRUE, n)
-    A_prev <- rep(0, n); LA_prev <- rep(0, n); LZ_prev <- rep(0, n)
+    W1 <- rbinom(n, 1, 0.4)
+    W2 <- rbinom(n, 1, 0.6)
+    alive <- rep(TRUE, n)
+    incare <- rep(TRUE, n)
+    A_prev <- rep(0, n)
+    LA_prev <- rep(0, n)
+    LZ_prev <- rep(0, n)
     rows <- vector("list", 2L)
     for (t in 1:2) {
       lagA  <- if (t == 1) rep(0, n) else A_prev
@@ -310,7 +320,8 @@ testthat::test_that("tmle cross-checks the medltmle survival + censoring + inter
       unc  <- rbinom(n, 1, punc)
       pa   <- if (t == 1) expit(-0.1 + 0.7 * W1 + 1.2 * W2)
               else        expit(-0.1 + 1.2 * W2 + 0.7 * lagLZ - 0.1 * lagA)
-      A    <- rbinom(n, 1, pa); incare <- incare & (unc == 1)
+      A    <- rbinom(n, 1, pa)
+      incare <- incare & (unc == 1)
       pla  <- if (t == 1) expit(-0.8 + 0.1 * W1 + 0.3 * W2 + A)
               else        expit(-0.8 + 0.1 * lagLZ + 0.3 * lagLA + A)
       LA   <- rbinom(n, 1, pla)
@@ -321,11 +332,17 @@ testthat::test_that("tmle cross-checks the medltmle survival + censoring + inter
       py   <- if (t == 1) expit(-6 + 1.5 * W2 + LA + 0.2 * LZ - 0.3 * A - 0.3 * Z - 0.2 * A * Z)
               else        expit(-6 + 1.5 * W2 + LA + 0.2 * LZ - 0.3 * A - 0.3 * Z - 0.2 * A * Z - 0.1 * lagLA)
       Y    <- rbinom(n, 1, py)
-      LA[!incare] <- 0; Z[!incare] <- 0; LZ[!incare] <- 0; Y[!incare] <- 0; A[!incare] <- 0
+      LA[!incare] <- 0
+      Z[!incare] <- 0
+      LZ[!incare] <- 0
+      Y[!incare] <- 0
+      A[!incare] <- 0
       rows[[t]] <- data.frame(id = seq_len(n), time = t, W1 = W1, W2 = W2,
                               C = 1L - unc, A = A, LA = LA, Z = Z, LZ = LZ, Y = Y,
                               lag_A = lagA, lag_LA = lagLA, lag_LZ = lagLZ, atrisk = atrisk)
-      A_prev <- A; LA_prev <- LA; LZ_prev <- LZ
+      A_prev <- A
+      LA_prev <- LA
+      LZ_prev <- LZ
       alive  <- alive & (Y == 0 | !incare)
     }
     out <- rbind(rows[[1]][rows[[1]]$atrisk, ], rows[[2]][rows[[2]]$atrisk, ])

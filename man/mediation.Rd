@@ -275,7 +275,8 @@ precedes the mediator, and warns if these are violated.
 
 For non-standard covariate distributions (bounded, zero-inflated, truncated), use
 \code{var_type = "custom"} with \code{custom_fit} and \code{custom_sim} arguments to
-\code{\link{spec_model}}. See the vignette section on custom covariate types.
+\code{\link{spec_model}}. See the custom covariate distributions section of
+\code{vignette("causalMed-gformula")}.
 
 **Mediator pool (interventional effects)**
 For \code{mediation_type = "I"}, a natural-course pass under each treatment

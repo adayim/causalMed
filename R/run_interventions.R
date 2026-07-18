@@ -363,11 +363,7 @@ simulate_intervention <- function(data,
   # Get the position of the censor
   cen_flag  <- sapply(models, function(mods) mods$mod_type == "censor")
   surv_flag <- sapply(models, function(mods) mods$mod_type == "survival")
-  if (any(cen_flag) | any(surv_flag)) {
-    is_survival <- TRUE
-  } else {
-    is_survival <- FALSE
-  }
+  is_survival <- any(cen_flag) || any(surv_flag)
 
   if (any(cen_flag))
     cen_flag <- which(cen_flag)

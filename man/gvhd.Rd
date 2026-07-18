@@ -59,7 +59,7 @@ one-day lags (\code{Xm1}) summarize the history entering each model.
 A worked total-effect analysis on this dataset (counterfactual mortality risk
 had GvHD never occurred versus the natural course), mirroring the model
 specifications in Appendix 2 of Keil et al. (2014), is walked through in
-\code{vignette("causalMed-overview")}.
+\code{vignette("causalMed-gformula")}.
 }
 \references{
 Keil, A. P., Edwards, J. K., Richardson, D. B., Naimi, A. I., &

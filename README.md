@@ -101,17 +101,18 @@ in_rc   <- recodes(lag1_A  = A,   # At each subsequent step, copy current values
                    lag1_L1 = L1,
                    lag1_L2 = L2)
 
-# Specify models in temporal order: L1 → L2 → A → Y
-m_L1 <- spec_model(L1    ~ lag1_A + lag1_L1 + V + time,
-                   var_type = "normal",  mod_type = "covariate")
-m_L2 <- spec_model(L2    ~ lag1_A + lag1_L2 + V + time,
-                   var_type = "binary",  mod_type = "covariate")
-m_A  <- spec_model(A     ~ lag1_A + L1 + L2 + V + time,
+# Specify models in temporal order: A → L1 → L2 → Y (exposure first,
+# current A in the confounder models — matching the documented DGP)
+m_A  <- spec_model(A     ~ V + lag1_A + lag1_L1 + lag1_L2 + time,
                    var_type = "binary",  mod_type = "exposure")
-m_Y  <- spec_model(Y_bin ~ A + L1 + L2,
+m_L1 <- spec_model(L1    ~ V + A + lag1_L1 + time,
+                   var_type = "normal",  mod_type = "covariate")
+m_L2 <- spec_model(L2    ~ V + A + lag1_L2 + time,
+                   var_type = "binary",  mod_type = "covariate")
+m_Y  <- spec_model(Y_bin ~ V + A + L1 + L2,
                    var_type = "binary",  mod_type = "outcome")
 
-models_bin <- list(m_L1, m_L2, m_A, m_Y)
+models_bin <- list(m_A, m_L1, m_L2, m_Y)
 
 # Define intervention strategies
 # NULL  = natural course (draw exposure from its fitted model)
@@ -159,36 +160,32 @@ print(fit_bin)
 #> --- Mean outcome by intervention --- 
 #>    Intervention    Est     Sd 2.5%(pct) 97.5%(pct) 2.5%(norm) 97.5%(norm)
 #>          <fctr>  <num>  <num>     <num>      <num>      <num>       <num>
-#> 1:      natural 0.1405 0.0067    0.1296     0.1547     0.1275      0.1536
-#> 2: always_treat 0.1508 0.0074    0.1380     0.1652     0.1362      0.1654
-#> 3:  never_treat 0.0867 0.0139    0.0617     0.1137     0.0596      0.1139
+#> 1:      natural 0.1413 0.0066    0.1297     0.1548     0.1282      0.1543
+#> 2: always_treat 0.1511 0.0075    0.1380     0.1659     0.1365      0.1657
+#> 3:  never_treat 0.0856 0.0136    0.0611     0.1145     0.0590      0.1123
 #>   Observed (nonparametric) mean of Y_bin at t = 4 (end of follow-up): 0.1407
 #>   (informal model check: compare with the natural-course intervention)
 #> 
 #> --- Contrasts vs. reference intervention --- 
 #>              Intervention  Risk_type Estimate     Sd 2.5%(pct) 97.5%(pct)
 #>                    <char>     <char>    <num>  <num>     <num>      <num>
-#> 1: always_treat - natural Difference   0.0103 0.0024    0.0054     0.0146
-#> 2: always_treat / natural      Ratio   1.0731 0.0170    1.0395     1.1024
-#> 3:  never_treat - natural Difference  -0.0538 0.0132   -0.0780    -0.0258
-#> 4:  never_treat / natural      Ratio   0.6171 0.0929    0.4514     0.8109
+#> 1: always_treat - natural Difference   0.0098 0.0024    0.0054     0.0142
+#> 2: always_treat / natural      Ratio   1.0694 0.0165    1.0394     1.1004
+#> 3:  never_treat - natural Difference  -0.0556 0.0130   -0.0768    -0.0266
+#> 4:  never_treat / natural      Ratio   0.6063 0.0910    0.4530     0.8081
 #>    2.5%(norm) 97.5%(norm)
 #>         <num>       <num>
-#> 1:     0.0055      0.0150
-#> 2:     1.0398      1.1065
-#> 3:    -0.0797     -0.0279
-#> 4:     0.4350      0.7992
+#> 1:     0.0052      0.0145
+#> 2:     1.0370      1.1018
+#> 3:    -0.0811     -0.0302
+#> 4:     0.4279      0.7846
 #> 
 #>   95% CIs: percentile (pct) and normal approximation (norm) from 100 bootstrap replicates.
 ```
 
-*A note on the ordering above:* for a compact example the confounder
-models are listed before the exposure and conditioned on the lagged
-exposure (`lag1_A`) — an `L → A` within-period ordering. The process
-documented in `?nonsurvivaldata` is `A → L` (current `A` in the `L`
-models), as the mediation example below uses; in your own analyses,
-match the list order and conditioning to your assumed data-generating
-process.
+The list order must match your assumed data-generating process — here
+the exposure is decided first within each period and the confounders
+respond to it, as documented in `?nonsurvivaldata`.
 
 ### Mediation analysis: interventional IDE/IIE (Lin et al. 2017)
 

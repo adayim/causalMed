@@ -61,17 +61,29 @@ testthat::test_that("seed = NULL does not leave the global RNG state determinist
   # The core of the bug: from two DIFFERENT pre-call RNG states, the post-call
   # state used to be identical, so a user's own rnorm()/rbinom() after the call
   # repeated across loop iterations.
-  set.seed(111); invisible(run_med(d, NULL)); post1 <- .Random.seed
-  set.seed(222); invisible(run_med(d, NULL)); post2 <- .Random.seed
+  set.seed(111)
+  invisible(run_med(d, NULL))
+  post1 <- .Random.seed
+  set.seed(222)
+  invisible(run_med(d, NULL))
+  post2 <- .Random.seed
   testthat::expect_false(identical(post1, post2))
 
   # The user-visible symptom, stated directly.
-  set.seed(111); invisible(run_med(d, NULL)); x1 <- runif(5)
-  set.seed(222); invisible(run_med(d, NULL)); x2 <- runif(5)
+  set.seed(111)
+  invisible(run_med(d, NULL))
+  x1 <- runif(5)
+  set.seed(222)
+  invisible(run_med(d, NULL))
+  x2 <- runif(5)
   testthat::expect_false(isTRUE(all.equal(x1, x2)))
 
-  set.seed(111); invisible(run_gform(d, NULL)); g1 <- .Random.seed
-  set.seed(222); invisible(run_gform(d, NULL)); g2 <- .Random.seed
+  set.seed(111)
+  invisible(run_gform(d, NULL))
+  g1 <- .Random.seed
+  set.seed(222)
+  invisible(run_gform(d, NULL))
+  g2 <- .Random.seed
   testthat::expect_false(identical(g1, g2))
 })
 
@@ -83,16 +95,21 @@ testthat::test_that("an integer seed reproduces exactly and restores the caller'
   testthat::expect_equal(run_gform(d, 42L), run_gform(d, 42L))
 
   # A seeded call must not disturb the ambient stream (save/restore on exit).
-  set.seed(777); before <- .Random.seed
+  set.seed(777)
+  before <- .Random.seed
   invisible(run_med(d, 42L))
   testthat::expect_identical(.Random.seed, before)
 
-  set.seed(777); before_g <- .Random.seed
+  set.seed(777)
+  before_g <- .Random.seed
   invisible(run_gform(d, 42L))
   testthat::expect_identical(.Random.seed, before_g)
 
   # ... so draws taken after a seeded call continue the caller's own stream.
-  set.seed(777); y1 <- runif(3)
-  set.seed(777); invisible(run_med(d, 42L)); y2 <- runif(3)
+  set.seed(777)
+  y1 <- runif(3)
+  set.seed(777)
+  invisible(run_med(d, 42L))
+  y2 <- runif(3)
   testthat::expect_equal(y1, y2)
 })

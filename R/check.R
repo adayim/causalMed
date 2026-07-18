@@ -72,11 +72,7 @@ check_error <- function(data,
     stop("Only one survival model is allowed.", domain = "causalMed")
   }
 
-  if (any(cen_flag) | any(surv_flag)) {
-    is_survival <- TRUE
-  }else{
-    is_survival <- FALSE
-  }
+  is_survival <- any(cen_flag) || any(surv_flag)
 
   if (is_survival) {
     y <- as.numeric(na.omit(data[[outcome]]))
