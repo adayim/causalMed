@@ -201,3 +201,110 @@ testthat::test_that("observed_benchmark matches survival::survfit KM under censo
   naive <- sum(per_id$status) / nrow(per_id)
   testthat::expect_gt(abs(ob$value - naive), 0.01)
 })
+
+
+testthat::test_that("spec_model(truncate=) controls range clipping of normal draws", {
+  # Review finding 3.3: "normal" draws are clipped to the observed range by
+  # default (i.e. a bounded normal, unlike gfoRmula's plain normal).
+  # truncate = FALSE must restore the untruncated Gaussian draw.
+  set.seed(4)
+  n <- 1500
+  d <- data.frame(id = rep(seq_len(n), each = 2), time = rep(0:1, n))
+  d$V <- rnorm(nrow(d))
+  d$L <- rnorm(nrow(d), 0.5 * d$V, 1)
+  d$A <- rbinom(nrow(d), 1, plogis(0.3 * d$L))
+  d$Y <- rbinom(nrow(d), 1, plogis(-1 + 0.5 * d$A + 0.3 * d$L))
+  obs_range <- range(d$L)
+
+  sim_L_range <- function(truncate) {
+    fit <- suppressWarnings(gformula(
+      data = d, id_var = "id", base_vars = "V", exposure = "A",
+      time_var = "time",
+      models = list(
+        spec_model(L ~ V + time, var_type = "normal", mod_type = "covariate",
+                   truncate = truncate),
+        spec_model(A ~ L + V + time, var_type = "binary", mod_type = "exposure"),
+        spec_model(Y ~ A + L + V, var_type = "binary", mod_type = "outcome")
+      ),
+      intervention = list(always = 1),
+      mc_sample = 20000, R = 1, quiet = TRUE, seed = 3, return_data = TRUE
+    ))
+    range(fit$sim_data$L)
+  }
+
+  r_on  <- sim_L_range(TRUE)
+  r_off <- sim_L_range(FALSE)
+
+  # Default clips into the observed support ...
+  testthat::expect_gte(r_on[1], obs_range[1] - 1e-9)
+  testthat::expect_lte(r_on[2], obs_range[2] + 1e-9)
+  # ... while truncate = FALSE is allowed to leave it.
+  testthat::expect_true(r_off[1] < obs_range[1] || r_off[2] > obs_range[2])
+
+  # Back-compat: the flag defaults to TRUE (historical behaviour).
+  testthat::expect_true(
+    isTRUE(spec_model(L ~ V, var_type = "normal", mod_type = "covariate")$truncate)
+  )
+  testthat::expect_error(
+    spec_model(L ~ V, var_type = "normal", mod_type = "covariate", truncate = NA),
+    "single TRUE or FALSE"
+  )
+})
+
+
+testthat::test_that("print/summary work when mediation_type is left at its default (review 2026-07-15 finding 2)", {
+  # all.args is captured before match.arg(), so without the write-back a
+  # defaulted call stored c("I", "N") and print() errored on the length-2
+  # condition ("the condition has length > 1").
+  data("nonsurvivaldata", package = "causalMed")
+
+  m_med <- spec_model(M     ~ V + A + time, var_type = "normal", mod_type = "mediator")
+  m_Y   <- spec_model(Y_bin ~ V + A + M,    var_type = "binary", mod_type = "outcome")
+
+  fit <- suppressWarnings(mediation(
+    data = nonsurvivaldata, id_var = "id", base_vars = "V",
+    exposure = "A", outcome = "Y_bin", time_var = "time",
+    models = list(m_med, m_Y),
+    # mediation_type deliberately omitted -> default "I"
+    mc_sample = 2000, R = 1, quiet = TRUE, seed = 1
+  ))
+
+  testthat::expect_identical(fit$all.args$mediation_type, "I")
+  testthat::expect_output(print(fit), "Interventional effects")
+  testthat::expect_no_error(utils::capture.output(summary(fit)))
+})
+
+
+testthat::test_that("a numeric ref_int is resolved to its name (no self-contrast row)", {
+  # Review finding G-1: risk_estimate_point() drops the reference via
+  # setdiff(names(intervention), ref_int); a numeric index never matches a
+  # name, so the reference used to be contrasted against itself (RD 0, RR 1).
+  data("nonsurvivaldata", package = "causalMed")
+
+  models <- list(
+    spec_model(A     ~ V,         var_type = "binary", mod_type = "exposure"),
+    spec_model(Y_bin ~ A + V,     var_type = "binary", mod_type = "outcome")
+  )
+  ints <- list(never = 0, always = 1)
+
+  fit_num <- suppressWarnings(gformula(
+    data = nonsurvivaldata, id_var = "id", base_vars = "V", exposure = "A",
+    time_var = "time", models = models, intervention = ints, ref_int = 1,
+    mc_sample = 2000, R = 1, quiet = TRUE, seed = 9
+  ))
+
+  # ref_int = 1 means "never": only the "always" contrast should be reported.
+  testthat::expect_equal(fit_num$all.args$ref_int, "never")
+  testthat::expect_false(any(grepl("never - never|never / never",
+                                   fit_num$estimate$Intervention)))
+  testthat::expect_setequal(fit_num$estimate$Intervention,
+                            c("always - never", "always / never"))
+
+  # ... and it must agree with passing the reference by name.
+  fit_chr <- suppressWarnings(gformula(
+    data = nonsurvivaldata, id_var = "id", base_vars = "V", exposure = "A",
+    time_var = "time", models = models, intervention = ints, ref_int = "never",
+    mc_sample = 2000, R = 1, quiet = TRUE, seed = 9
+  ))
+  testthat::expect_equal(fit_num$estimate$Estimate, fit_chr$estimate$Estimate)
+})

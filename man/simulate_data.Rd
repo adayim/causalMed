@@ -20,11 +20,7 @@ simulate_data(
 
 \item{intervention}{One of:
 \itemize{
-  \item \code{NULL} — natural-course draw of the exposure (gformula) or
-        Phi10 cross-world intervention (mediation, when \code{mediation_type} is
-        non-\code{NA}). The legacy NULL = Phi10 path is kept for
-        backwards compatibility but \code{mediation()} now constructs
-        \code{causalMed_intervention} objects internally.
+  \item \code{NULL} — natural-course draw of the exposure (gformula).
   \item Numeric scalar/vector or \code{causalMed_dynint} — static or
         dynamic exposure rule for \code{gformula()}.
   \item \code{causalMed_intervention} — structured mediation intervention carrying a

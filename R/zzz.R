@@ -16,8 +16,6 @@ utils::globalVariables(c(
   "Sc",
   "Sd",
   "Sd_RR",
-  "new_ID",
-  "new_id",
   "norm_lcl",
   "norm_lcl_RR",
   "norm_ucl",
@@ -28,5 +26,5 @@ utils::globalVariables(c(
   "perct_ucl_RR"
 ))
 
-#' @importFrom stats coef delete.response family formula model.matrix na.omit predict quantile rbinom rnorm sd setNames sigma terms
+#' @importFrom stats ave coef delete.response dnorm family formula model.matrix na.omit plogis predict qlogis quantile quasibinomial rbinom reformulate rnorm sd setNames sigma terms
 NULL

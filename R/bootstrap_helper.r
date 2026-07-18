@@ -5,6 +5,7 @@
 #' @inheritParams gformula
 #' @param future_seed Logical or integer. Seed is passed to future_lapply.
 #' @importFrom future.apply future_lapply
+#' @importFrom future nbrOfWorkers
 #' @importFrom progressr handler_progress handlers progressor
 #' @keywords internal
 #'
@@ -42,7 +43,19 @@ bootstrap_helper <- function(data,
     p <- progressr::progressor(steps = R)
   }
 
+  # Pin each worker to one data.table thread (~20% faster: W workers x ~cores/2
+  # OpenMP threads each would oversubscribe the machine). Must be set inside the
+  # worker, and only when parallel -- sequentially the "worker" is the caller's
+  # own session. 
+  is_parallel <- tryCatch(future::nbrOfWorkers() > 1L, error = function(e) FALSE)
+
   boot_res <- future.apply::future_lapply(1:R, function(i) {
+    if (is_parallel) {
+      old_dt <- data.table::getDTthreads()
+      data.table::setDTthreads(1L)
+      on.exit(data.table::setDTthreads(old_dt), add = TRUE)
+    }
+
     # Resample at the individual level (not row level) to preserve
     # within-individual longitudinal structure, matching gfoRmula.
     unique_ids <- unique(data[[id_var]])
@@ -51,8 +64,11 @@ bootstrap_helper <- function(data,
                                      new_id = seq_along(boot_ids))
     data.table::setnames(id_map, "orig_id", id_var)
     boot_data <- merge(id_map, data, by = id_var, allow.cartesian = TRUE)
-    boot_data[, (id_var) := new_id]
-    boot_data[, new_id := NULL]
+    # Overwrite the id with the dense bootstrap index, then drop the helper
+    # column. set() (not :=) keeps `new_id` a plain string, so it needs no
+    # utils::globalVariables() entry.
+    data.table::set(boot_data, j = id_var, value = boot_data[["new_id"]])
+    data.table::set(boot_data, j = "new_id", value = NULL)
 
     res <- .run_interventions(data = boot_data,
                      id_var = id_var,

@@ -12,3 +12,6 @@
 ^Meta$
 ^references$
 ^LICENSE$
+^vignettes/.*\.Rmd\.orig$
+^vignettes/precompute\.R$
+^codecov\.yml$

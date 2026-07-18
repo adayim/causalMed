@@ -2,8 +2,9 @@
 #' Random data simulation from predicted value.
 #'
 #' @description
-#'  Internal use only, predict response and simulate random data. The simulated
-#'  value will be restricted within the observed value range for numeric values.
+#'  Internal use only, predict response and simulate random data. For numeric
+#'  values the simulated value is restricted to the observed value range unless
+#'  the model was created with \code{spec_model(truncate = FALSE)}.
 #'
 #' @param model fitted objects defined in the `spec_model`.
 #' @param newdt a data frame in which to look for variables with which to predict.
@@ -15,12 +16,16 @@
 sim_value <- function(model, newdt) {
   var_type <- model$var_type
 
+  # Clip simulated numeric values to the observed range of the response unless
+  # the model was created with spec_model(truncate = FALSE). NULL means the
+  # model object predates the `truncate` argument: keep the historical default.
+  do_trunc <- is.null(model$truncate) || isTRUE(model$truncate)
+
   # Custom simulation function takes priority
   if (!is.null(model$custom_sim)) {
     out <- model$custom_sim(model$fitted, newdt)
-    if (is.numeric(model$val_ran)) {
-      out <- pmax(out, model$val_ran[1L])
-      out <- pmin(out, model$val_ran[2L])
+    if (do_trunc && is.numeric(model$val_ran)) {
+      out <- pmin(pmax(out, model$val_ran[1L]), model$val_ran[2L])
     }
     return(out)
   }
@@ -48,15 +53,27 @@ sim_value <- function(model, newdt) {
     return(rbinom(nrow(newdt), 1L, pred))
   } else {
     # Continuous/normal: lp + N(0, sigma) avoids a full predict() call.
-    # model$sigma is the residual SD pre-extracted after fitting.
+    # model$sigma is the residual SD pre-extracted after fitting; it is NULL
+    # when sigma() failed on the fitted object (e.g. a custom_fit class with
+    # no sigma method and no custom_sim), where `NULL < eps` would give the
+    # opaque "argument is of length zero" error.
+    if (is.null(model$sigma)) {
+      stop("No residual SD could be extracted from the fitted model for '",
+           model$rsp_vars, "' (sigma() failed), so normal-type simulation ",
+           "is not possible. Supply a custom_sim function in spec_model().",
+           call. = FALSE)
+    }
     if (model$sigma < .Machine$double.eps) {
-      warning("Zero residual variance in model for '",
-              all.vars(formula(model$fitted)[[2]]),
-              "'. Simulated values will equal the predicted mean.")
+      causalmed_env$warning <- c(
+        causalmed_env$warning,
+        sprintf("Zero residual variance in model for '%s'. Simulated values will equal the predicted mean.",
+                model$rsp_vars)
+      )
     }
     out <- lp + rnorm(nrow(newdt), 0, model$sigma)
-    out <- pmax(out, model$val_ran[1L])
-    out <- pmin(out, model$val_ran[2L])
+    if (do_trunc) {
+      out <- pmin(pmax(out, model$val_ran[1L]), model$val_ran[2L])
+    }
     return(out)
   }
 }

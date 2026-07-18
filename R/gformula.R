@@ -35,7 +35,7 @@
 #' Each element of \code{models} is typically created by \code{\link{spec_model}}
 #'  and must include: (i) the model formula/call, (ii) a \code{mod_type} indicating its role
 #' (\code{"exposure"}, \code{"covariate"}, \code{"outcome"}, \code{"survival"},
-#' or \code{"censoring"}), and (iii) a \code{var_type} specifying the
+#' or \code{"censor"}), and (iii) a \code{var_type} specifying the
 #' variable type used for simulation/prediction (\code{"binary"}, \code{"normal"},
 #' \code{"categorical"}, and \code{"custom"}). The list order must reflect the
 #' data-generating process (temporal ordering). The outcome model is detected internally
@@ -96,6 +96,14 @@
 #'   Unix-alikes to enable parallel bootstrap. Default \code{500}.
 #' @param quiet Logical. If \code{TRUE}, suppress progress messages/bars. Default \code{FALSE}.
 #' @param seed Integer random seed for reproducibility. Default \code{12345}.
+#'   The seed fixes the RNG stream used for the Monte Carlo simulation
+#'   \emph{and} the bootstrap replicates, and the caller's global RNG state is
+#'   saved and restored on exit, so a seeded call does not disturb the ambient
+#'   random stream. Pass \code{NULL} to disable seeding entirely: no
+#'   \code{set.seed()} is called, the Monte Carlo draws consume and advance the
+#'   ambient RNG stream, and repeated calls therefore give \emph{different}
+#'   results (reproducible only via an outer \code{set.seed()}). Use
+#'   \code{seed = NULL} inside simulation loops that manage their own seeds.
 #'
 #' @return
 #' An object of class \code{"gformula"} with components:
@@ -253,6 +261,15 @@ gformula <- function(data,
         intervention <- c(list(natural = NULL), intervention)
         ref_int <- "natural"
       }
+    } else if (is.numeric(ref_int) && ref_int >= 1) {
+      # Resolve a positional reference to its name. Downstream,
+      # risk_estimate_point()/risk_estimate_boot() drop the reference with
+      # setdiff(names(intervention), ref_int) -- a numeric index never matches
+      # a name, so leaving it numeric would emit a spurious self-contrast row
+      # (reference vs. itself: RD 0, RR 1). Safe here because the `natural`
+      # prepend above only happens on the ref_int == 0 branch, so indices are
+      # still those of the user's list.
+      ref_int <- names(intervention)[ref_int]
     }
     # Record the resolved reference so print() shows the name actually used
     # (e.g. "natural") rather than the raw 0 placeholder.
@@ -275,8 +292,13 @@ gformula <- function(data,
   data_summary <- summarize_input_data(data, id_var, time_var)
   observed     <- observed_benchmark(data, outcome_var, time_var, is_survival)
 
-  # Run original estimate
+  # Run original estimate.
+  # NOTE: get_args_for() DROPS NULL-valued arguments, so `seed = NULL` would
+  # never reach .run_interventions() and its default would silently take over.
+  # Force the element through explicitly; `arg_est["seed"] <- list(seed)` keeps
+  # a NULL element (plain `$seed <- NULL` would delete it again).
   arg_est <- get_args_for(.run_interventions)
+  arg_est["seed"] <- list(seed)
   arg_est$return_fitted <- TRUE
   est_ori <- do.call(.run_interventions, arg_est)
 
@@ -372,32 +394,9 @@ gformula <- function(data,
     risk_est <- NULL
   }
 
-  # Extract fitted model information
-  resp_vars_list <- sapply(est_ori$fitted.models, function(x) {
-    x$rsp_vars
-  })
-
-  if (return_fitted) {
-    fitted_mods <- lapply(est_ori$fitted.models, function(x) {
-      structure(x$fitted,
-                recodes = x$recodes,
-                subset = x$subset,
-                var_type = x$var_type,
-                mod_type = x$mod_type)
-    })
-  } else {
-    fitted_mods <- lapply(est_ori$fitted.models, function(x) {
-      r <- list(call = x$fitted$call,
-                coeff = summary(x$fitted)$coefficients)
-
-      structure(r,
-                recodes = x$recodes,
-                subset = x$subset,
-                var_type = x$var_type,
-                mod_type = x$mod_type)
-    })
-  }
-  names(fitted_mods) <- resp_vars_list
+  # Extract fitted model information (attribute-wrapped so print/summary can
+  # label each model; shared with mediation()).
+  fitted_mods <- wrap_fitted_models(est_ori$fitted.models, return_fitted)
 
   # Return data
   if(return_data){

@@ -72,11 +72,7 @@ check_error <- function(data,
     stop("Only one survival model is allowed.", domain = "causalMed")
   }
 
-  if (any(cen_flag) | any(surv_flag)) {
-    is_survival <- TRUE
-  }else{
-    is_survival <- FALSE
-  }
+  is_survival <- any(cen_flag) || any(surv_flag)
 
   if (is_survival) {
     y <- as.numeric(na.omit(data[[outcome]]))
@@ -258,11 +254,15 @@ check_mediation_order <- function(models) {
 #'
 #' @param models List of model specifications from \code{\link{spec_model}}.
 #' @param exposure Character scalar. Name of the exposure variable.
-#' @return Invisibly returns \code{NULL}.
+#' @return Invisibly returns a character vector of the covariate (response)
+#'   names whose model includes the exposure on the right-hand side (the
+#'   exposure-affected/intermediate confounders); empty if none. The caller
+#'   can persist this so downstream methods (e.g. \code{print.gformula}) can
+#'   re-surface the identifiability caveat.
 #' @keywords internal
 check_natural_identifiability <- function(models, exposure) {
   cov_idx <- which(sapply(models, function(m) m$mod_type == "covariate"))
-  if (length(cov_idx) == 0) return(invisible(NULL))
+  if (length(cov_idx) == 0) return(invisible(character(0)))
 
   hit <- character(0)
   for (i in cov_idx) {
@@ -290,7 +290,7 @@ check_natural_identifiability <- function(models, exposure) {
     ), call. = FALSE, domain = "causalMed")
   }
 
-  invisible(NULL)
+  invisible(hit)
 }
 
 

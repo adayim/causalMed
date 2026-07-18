@@ -12,7 +12,11 @@ check_natural_identifiability(models, exposure)
 \item{exposure}{Character scalar. Name of the exposure variable.}
 }
 \value{
-Invisibly returns \code{NULL}.
+Invisibly returns a character vector of the covariate (response)
+  names whose model includes the exposure on the right-hand side (the
+  exposure-affected/intermediate confounders); empty if none. The caller
+  can persist this so downstream methods (e.g. \code{print.gformula}) can
+  re-surface the identifiability caveat.
 }
 \description{
 For \code{mediation_type = "N"}, natural direct and indirect effects are not

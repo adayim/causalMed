@@ -131,6 +131,31 @@ emit_warnings <- function() {
 
 
 
+# Wrap fitted models for the return object of gformula()/mediation(): the
+# full model objects when return_fitted = TRUE, otherwise a compact list
+# (call + coefficient table). Either way, each element carries the
+# recodes/subset/var_type/mod_type attributes that print.gformula(models =
+# TRUE) and summary.gformula() use to label the models, and the list is named
+# by each model's response variable. Every return path must use this wrapper
+# so those labels stay available.
+wrap_fitted_models <- function(fitted_models, return_fitted) {
+  out <- lapply(fitted_models, function(x) {
+    r <- if (return_fitted) {
+      x$fitted
+    } else {
+      list(call  = x$fitted$call,
+           coeff = summary(x$fitted)$coefficients)
+    }
+    structure(r,
+              recodes  = x$recodes,
+              subset   = x$subset,
+              var_type = x$var_type,
+              mod_type = x$mod_type)
+  })
+  names(out) <- vapply(fitted_models, function(x) x$rsp_vars, character(1))
+  out
+}
+
 # Summarize the input data for display by print.gformula():
 # number of individuals, observations, and time points.
 summarize_input_data <- function(data, id_var, time_var) {

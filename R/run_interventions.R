@@ -30,57 +30,14 @@
                       n_vw = 1L,
                       return_fitted = FALSE,
                       return_data = FALSE,
-                      seed = 12345L) {
+                      seed = NULL) {
   if (length(mediation_type) > 1) {
     mediation_type <- mediation_type[1]
   } else if (!is.na(mediation_type) && !(mediation_type %in% c("N", "I"))) {
     stop("'mediation_type' must be NA, \"N\", or \"I\"")
   }
 
-  fit_mods <- lapply(models, function(mods) {
-    rsp_vars <- all.vars(formula(mods$call)[[2]])
-
-    # Observed values range
-    if (is.numeric(data[[rsp_vars]])) {
-      val_ran <- range(na.omit(data[[rsp_vars]]))
-    } else {
-      val_ran <- unique(na.omit(data[[rsp_vars]]))
-    }
-
-    # Recode data before fitting this model. `recode` is a causalMed_recodes
-    # list of expressions, so it must go through apply_recodes() (the same
-    # path used at simulation time). Applied to a copy so per-model recodes
-    # do not leak across models or back to the caller's data.
-    if (!is.null(mods$recode)) {
-      data <- apply_recodes(data.table::copy(data), mods$recode)
-    }
-
-    mods$call$data <- substitute(data, env = parent.frame())
-
-    fitmodel <- run_withwarning_collect(
-      eval(mods$call),
-      msg = sprintf("Outcome model: %s", rsp_vars)
-    )
-
-    # Pre-extract prediction components so the hot-path simulation loop can
-    # skip predict() overhead (model.frame construction + na.action).
-    # model.matrix(Xterms, newdt) %*% beta is a direct BLAS call.
-    list(
-      fitted     = fitmodel,
-      Xterms     = delete.response(terms(fitmodel)),
-      beta       = coef(fitmodel),
-      linkinv    = if (inherits(fitmodel, "glm")) family(fitmodel)$linkinv
-                   else identity,
-      sigma      = tryCatch(sigma(fitmodel), error = function(e) NULL),
-      recodes    = mods$recode,
-      subset     = mods$subset,
-      var_type   = mods$var_type,
-      mod_type   = mods$mod_type,
-      custom_sim = mods$custom_sim,
-      rsp_vars   = rsp_vars,
-      val_ran    = val_ran
-    )
-  })
+  fit_mods <- fit_spec_models(models, data)
 
   # only call set.seed() when a seed is explicitly supplied.
   # Omitting the seed inside bootstrap replicates lets each replicate draw
@@ -92,7 +49,6 @@
   df_mc    <- data.table::as.data.table(
     base_dat[sample(1:length(base_dat[[id_var]]), mc_sample, replace = TRUE), ]
   )
-  df_mc[, new_ID := seq_len(.N)]
 
   # Cache the time sequence once (used in each intervention and in pool collection)
   time_seq <- sort(unique(data[[time_var]]))
@@ -276,6 +232,60 @@
   }
 }
 
+# Fit every spec_model() in `models` on `data` and pre-extract the
+# prediction components used by both the Monte Carlo engine (sim_value,
+# simulate_data) and the TMLE engine (density evaluation). Extracted from
+# .run_interventions() so the two estimators share one fitting path.
+fit_spec_models <- function(models, data) {
+  lapply(models, function(mods) {
+    rsp_vars <- all.vars(formula(mods$call)[[2]])
+
+    # Observed values range
+    if (is.numeric(data[[rsp_vars]])) {
+      val_ran <- range(na.omit(data[[rsp_vars]]))
+    } else {
+      val_ran <- unique(na.omit(data[[rsp_vars]]))
+    }
+
+    # Recode data before fitting this model. `recode` is a causalMed_recodes
+    # list of expressions, so it must go through apply_recodes() (the same
+    # path used at simulation time). Applied to a copy so per-model recodes
+    # do not leak across models or back to the caller's data.
+    if (!is.null(mods$recode)) {
+      data <- apply_recodes(data.table::copy(data), mods$recode)
+    }
+
+    mods$call$data <- substitute(data, env = parent.frame())
+
+    fitmodel <- run_withwarning_collect(
+      eval(mods$call),
+      msg = sprintf("Outcome model: %s", rsp_vars)
+    )
+
+    # Pre-extract prediction components so the hot-path simulation loop can
+    # skip predict() overhead (model.frame construction + na.action).
+    # model.matrix(Xterms, newdt) %*% beta is a direct BLAS call.
+    list(
+      fitted     = fitmodel,
+      Xterms     = delete.response(terms(fitmodel)),
+      beta       = coef(fitmodel),
+      linkinv    = if (inherits(fitmodel, "glm")) family(fitmodel)$linkinv
+                   else identity,
+      sigma      = tryCatch(sigma(fitmodel), error = function(e) NULL),
+      recodes    = mods$recode,
+      subset     = mods$subset,
+      var_type   = mods$var_type,
+      mod_type   = mods$mod_type,
+      custom_sim = mods$custom_sim,
+      # NULL for model objects built before spec_model() gained `truncate`;
+      # sim_value() treats NULL as TRUE (the historical behaviour).
+      truncate   = mods$truncate,
+      rsp_vars   = rsp_vars,
+      val_ran    = val_ran
+    )
+  })
+}
+
 #' Monte Carlo simulation
 #'
 #' @description
@@ -353,11 +363,7 @@ simulate_intervention <- function(data,
   # Get the position of the censor
   cen_flag  <- sapply(models, function(mods) mods$mod_type == "censor")
   surv_flag <- sapply(models, function(mods) mods$mod_type == "survival")
-  if (any(cen_flag) | any(surv_flag)) {
-    is_survival <- TRUE
-  } else {
-    is_survival <- FALSE
-  }
+  is_survival <- any(cen_flag) || any(surv_flag)
 
   if (any(cen_flag))
     cen_flag <- which(cen_flag)
@@ -447,6 +453,24 @@ simulate_intervention <- function(data,
     }
   }
   # loop ends here
+
+  # NA predicted outcomes silently poison the intervention mean (which is a
+  # plain sum/length, so a single NA makes the estimate NA). NAs get here from
+  # NA predictors -- e.g. a lag column never initialised by init_recode, or a
+  # recode that produced NA -- so surface the count rather than returning a
+  # silently NA (or silently partial) estimate.
+  n_na <- sum(is.na(data[["Pred_Y"]]))
+  if (n_na > 0L) {
+    causalmed_env$warning <- c(
+      causalmed_env$warning,
+      sprintf(paste0("Simulation produced %d NA predicted outcome(s) out of %d ",
+                     "(%.1f%%). This usually means a predictor was NA at some ",
+                     "time step -- check that every lagged/derived column used ",
+                     "in a model is initialised by init_recode and updated by ",
+                     "in_recode/out_recode."),
+              n_na, nrow(data), 100 * n_na / nrow(data))
+    )
+  }
 
   result <- if (return_data) {
     data

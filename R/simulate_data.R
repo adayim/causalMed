@@ -7,11 +7,7 @@
 #' @param models Model list passed from \code{\link{gformula}} or \code{\link{mediation}}.
 #' @param intervention One of:
 #'   \itemize{
-#'     \item \code{NULL} — natural-course draw of the exposure (gformula) or
-#'           Phi10 cross-world intervention (mediation, when \code{mediation_type} is
-#'           non-\code{NA}). The legacy NULL = Phi10 path is kept for
-#'           backwards compatibility but \code{mediation()} now constructs
-#'           \code{causalMed_intervention} objects internally.
+#'     \item \code{NULL} — natural-course draw of the exposure (gformula).
 #'     \item Numeric scalar/vector or \code{causalMed_dynint} — static or
 #'           dynamic exposure rule for \code{gformula()}.
 #'     \item \code{causalMed_intervention} — structured mediation intervention carrying a
@@ -46,9 +42,8 @@ simulate_data <- function(data,
     stop("'mediation_type' must be NA, \"N\", or \"I\"")
   }
 
-  is_intervention_spec     <- inherits(intervention, "causalMed_intervention")
-  is_phi10   <- !is.na(mediation_type) && is.null(intervention)
-  is_dynamic <- inherits(intervention, "causalMed_dynint")
+  is_intervention_spec <- inherits(intervention, "causalMed_intervention")
+  is_dynamic           <- inherits(intervention, "causalMed_dynint")
 
   # Ensure a valid data.table self-reference before any set() / := calls.
   data.table::setDT(data)
@@ -58,9 +53,6 @@ simulate_data <- function(data,
     set(data, j = exposure, value = intervention$treatment)
   } else if (!is.null(intervention) && !is_dynamic) {
     set(data, j = exposure, value = intervention)
-  } else if (is_phi10) {
-    # Legacy Phi10 path (no intervention_spec passed): fix exposure to 1.
-    set(data, j = exposure, value = 1L)
   }
 
   # Per-mediator metadata for an intervention-driven simulation. For "N" interventions, the
@@ -90,9 +82,8 @@ simulate_data <- function(data,
 
     # Skip the exposure model when treatment is already fixed:
     #   (a) static / dynamic intervention (gformula path),
-    #   (b) intervention_spec path (mediation),
-    #   (c) legacy Phi10 path.
-    if (resp_var == exposure && (!is.null(intervention) || is_phi10)) {
+    #   (b) intervention_spec path (mediation).
+    if (resp_var == exposure && !is.null(intervention)) {
       if (is_dynamic) {
         # copy() so we don't modify the caller's data.table in-place;
         # copy() returns a fresh data.table with selfref = 1.
@@ -108,10 +99,9 @@ simulate_data <- function(data,
     if (sum(cond) != 0L) {
 
       # ── Mediator handling under a cross-world override ──────────────────────
-      # Three triggers for cross-world handling:
-      #   (1) intervention_spec with this mediator in mediator_overrides,
-      #   (2) legacy single-mediator Phi10 path (is_phi10),
-      # Otherwise the mediator is simulated normally from its fitted model.
+      # Triggered when the intervention_spec lists this mediator in
+      # mediator_overrides. Otherwise the mediator is simulated normally from
+      # its fitted model.
       mediator_override_value <- if (is_intervention_spec && mod_type == "mediator" &&
                                      resp_var %in% names(med_overrides)) {
         med_overrides[[resp_var]]
@@ -120,15 +110,15 @@ simulate_data <- function(data,
       }
       has_med_override <- !is.null(mediator_override_value)
 
-      if (mod_type == "mediator" && (has_med_override || is_phi10)) {
+      if (mod_type == "mediator" && has_med_override) {
         if (mediation_type == "N") {
-          # Natural effects (Zheng et al., 2012, Eq. 5): evaluate the
+          # Natural effects (Zheng & van der Laan 2017): evaluate the
           # mediator model on the intervention's own covariate history but with the
-          # exposure swapped to the cross-world value.
-          swap_val <- if (has_med_override) mediator_override_value else 0L
-          interv_swap <- parse(text = paste0(exposure, " = ", swap_val))
-          med_value <- sim_value(model = model,
-                                 newdt = within(data[cond], eval(interv_swap)))
+          # exposure swapped to the cross-world value. data[cond] returns a
+          # fresh subset copy, safe to modify in place.
+          swap_dt <- data[cond]
+          set(swap_dt, j = exposure, value = mediator_override_value)
+          med_value <- sim_value(model = model, newdt = swap_dt)
           data[cond, (resp_var) := med_value]
 
         } else {
@@ -144,10 +134,9 @@ simulate_data <- function(data,
             # Fallback (no pool collected, e.g., reference intervention had no
             # mediator model): draw from the mediator model at the
             # cross-world exposure and permute within this time step.
-            swap_val <- if (has_med_override) mediator_override_value else 0L
-            interv_swap <- parse(text = paste0(exposure, " = ", swap_val))
-            med_value <- sim_value(model = model,
-                                   newdt = within(data[cond], eval(interv_swap)))
+            swap_dt <- data[cond]
+            set(swap_dt, j = exposure, value = mediator_override_value)
+            med_value <- sim_value(model = model, newdt = swap_dt)
             data[cond, (resp_var) := sample(med_value, length(med_value), replace = FALSE)]
           }
         }

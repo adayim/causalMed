@@ -48,8 +48,8 @@
 #' @details
 #' A worked total-effect analysis on this dataset (counterfactual mortality risk
 #' had GvHD never occurred versus the natural course), mirroring the model
-#' specifications in Appendix 2 of Keil et al. (2014), is provided in
-#' \code{references/paper_example.R} in the package source repository.
+#' specifications in Appendix 2 of Keil et al. (2014), is walked through in
+#' \code{vignette("causalMed-03-gformula")}.
 #'
 #' @references Keil, A. P., Edwards, J. K., Richardson, D. B., Naimi, A. I., &
 #'   Cole, S. R. (2014). The parametric g-formula for time-to-event data:

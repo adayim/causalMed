@@ -1,12 +1,12 @@
 ---
-title: "Mediation Analysis for Survival Outcomes"
+title: "Causal Mediation Analysis with causalMed"
 output:
   rmarkdown::html_vignette:
     toc: true
     toc_depth: 3
     highlight: null
 vignette: >
-  %\VignetteIndexEntry{Mediation Analysis for Survival Outcomes}
+  %\VignetteIndexEntry{Causal Mediation Analysis with causalMed}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -22,20 +22,27 @@ knitr::opts_chunk$set(
 
 ## Introduction
 
-The mediational g-formula of Lin et al. (2017) was developed for **survival
-outcomes** with time-varying exposures, mediators, and confounders. This
-vignette walks through that setting:
+`mediation()` decomposes the total effect of a time-varying exposure into a
+**direct** component (not through the mediator) and an **indirect** component
+(through the mediator), for time-varying mediators and confounders — including
+confounders affected by prior exposure, the setting where standard
+regression-based mediation fails. This vignette is the full mediation story:
 
-1. a single-mediator interventional analysis on a survival outcome,
-2. how to read every row of the output,
-3. the `n_vw` permutation-averaging parameter,
-4. multiple mediators — replicating the Yamamuro et al. (2021) simulation
-   setting, with estimates checked against documented true values,
-5. censoring, and
-6. restricting models with `subset` (absorbing states).
+1. the two estimands — interventional and natural effects — and how to choose,
+2. requirements and defaults,
+3. a worked single-mediator analysis on a survival outcome, reading every row
+   of the output, and the `n_vw` permutation-averaging parameter,
+4. multiple mediators — replicating the Yamamuro et al. (2021) simulation,
+   with estimates checked against documented true values,
+5. censoring,
+6. restricting models with `subset` (absorbing states),
+7. bootstrap confidence intervals, and
+8. natural effects, intermediate confounding, and the targeted (TMLE)
+   estimator.
 
-For an introduction to the package (model specification, recode hooks,
-`gformula()` for total effects) see `vignette("causalMed-overview")`.
+The shared vocabulary (long-format data, `spec_model()`, the `recodes()` lag
+hooks) is introduced in `vignette("causalMed-01-overview")`; total-effect
+estimation with `gformula()` is in `vignette("causalMed-03-gformula")`.
 
 ```{r load}
 library(causalMed)
@@ -44,15 +51,113 @@ library(data.table)
 
 ---
 
-## Survival Data Requirements
+## The two estimands
+
+For **natural** effects (`mediation_type = "N"`) the decomposition is exact:
+
+$$\underbrace{E[Y_{1,M(1)}] - E[Y_{0,M(0)}]}_{\text{Total effect}} =
+  \underbrace{E[Y_{1,M(0)}] - E[Y_{0,M(0)}]}_{\text{Direct effect}} +
+  \underbrace{E[Y_{1,M(1)}] - E[Y_{1,M(0)}]}_{\text{Indirect effect}}$$
+
+where $Y_{a, M(a^*)}$ is the potential outcome under exposure $a$ with the
+mediator at its natural value under $a^*$. The mediator is drawn from its
+**conditional** distribution: at each time step it is predicted from the
+individual's own covariate history, with the exposure argument in the mediator
+model swapped to the other level.
+
+For **interventional** effects (`mediation_type = "I"`, the default) the
+mediator is instead set to a *stochastic* draw $G_{a^*}$ from its marginal
+distribution under $a^*$ (drawn independently across mediators). The direct
+and indirect effects are defined relative to these draws and sum to the
+**interventional overall effect** $E[Y_{1,G_1}] - E[Y_{0,G_0}]$, which
+generally differs from the natural total effect $E[Y_1] - E[Y_0]$.
+`mediation()` therefore reports the total effect from a separate
+natural-course pass and adds a row `TE - (Direct + Indirect)` — the
+mediated-interaction residual ($TE$ minus the overall effect). For natural
+effects that residual is exactly zero and the row is omitted.
+
+The key differences:
+
+| | Interventional (`"I"`) | Natural (`"N"`) |
+|--|----------------------|-----------------|
+| Mediator drawn from | Marginal distribution (permutation) | Conditional distribution (individual history) |
+| Cross-world independence required | No | Yes |
+| Identified with exposure-affected confounders | Yes | **No** |
+| Interpretation | Shift in mediator *population* distribution | Hypothetical individual-level swap |
+| Reference | Lin et al. (2017) | Zheng & van der Laan (2017) |
+
+The identifiability row is the practical decision point: natural effects are
+**not point-identified** when a confounder of the mediator–outcome
+relationship is itself affected by the exposure (an *intermediate
+confounder*). `mediation()` detects that structure — the exposure on the
+right-hand side of a covariate model — and warns; the interventional effects
+remain identifiable there, which is why they are the default. The natural
+effects section below shows the warning in action.
+
+## Requirements and defaults
+
+**Binary exposure.** The exposure variable must be coded as `0`
+(reference/untreated) and `1` (active/treated). Both Lin et al. (2017) and
+Zheng & van der Laan (2017) are defined for binary exposures; `mediation()`
+stops with an informative error if other values are found.
+
+**One or more mediators.** At least one `mod_type = "mediator"` model is
+required. Multiple mediators are supported for `mediation_type = "I"`
+(Yamamuro et al. 2021) — list them in temporal order; `mediation_type = "N"`
+is single-mediator only.
+
+**Temporal ordering.** The list order determines the simulation sequence. Two
+orderings are common:
+
+- `A → L → M → S` — confounders at time *t* are not affected by the mediator
+  at time *t* (mediator conditions on L; outcome conditions on A, M, L).
+- `A → M → L → S` — confounders at time *t* are affected by both exposure and
+  mediator (Lin et al. 2017 DAG). This is the setting where standard
+  regression fails.
+
+The function checks that exposure precedes the mediator and that the mediator
+precedes the outcome, and warns if either is violated.
+
+**Joint mediator trajectory (interventional effects).** For
+`mediation_type = "I"`, a natural-course Monte Carlo cohort is simulated under
+each treatment level $a^*$ and every individual's full mediator trajectory
+$M(1{:}T)$ is stored as a row of a pool matrix. Each intervention that fixes a
+mediator to its $a^*$ value — **including the reference interventions**
+$\Phi_{00} = E[Y_{0,G_0}]$ and $\Phi_{11} = E[Y_{1,G_1}]$, not only the
+cross-world $\Phi_{10}$ — row-permutes the relevant pool once and assigns
+subject $i$ the *entire* trajectory of one randomly chosen pool individual
+(each mediator permuted independently). This is the joint-trajectory algorithm
+described by Yamamuro et al. (2021, Figure 3 step 3) and implemented by the
+SAS `mGFORMULA` macro (Lin et al. 2017 eAppendix); it samples the marginal
+mediator distribution targeted by Lin et al. (2017, Eq. 4) and VanderWeele &
+Tchetgen Tchetgen (2017). The pool is not survival-weighted; the full
+reference cohort is used at every time step (matching both reference SAS
+implementations).
+
+**Warning summary.** Warnings from model fitting (e.g., convergence,
+near-separation) are held and printed as a deduplicated summary at function
+exit. Repeated warnings (e.g., across 500 bootstrap replicates) are shown once
+with a count.
+
+**Outcome types.** `mediation()` handles binary end-of-follow-up outcomes
+(`mod_type = "outcome"`) and survival outcomes (`mod_type = "survival"`, with
+optional censoring) through the same interface — the outcome model's
+`mod_type` is the only difference. This vignette's worked examples use a
+survival outcome, the setting the mediational g-formula was developed for
+(Lin et al. 2017); a compact binary-outcome example is the mediation quick
+start in `vignette("causalMed-01-overview")`.
+
+---
+
+## Survival data
 
 With a survival outcome, `mediation()` (and `gformula()`) model the
 **discrete-time hazard**: at each time point, a binary model with
 `mod_type = "survival"` estimates the probability of the event among those
 still at risk. The simulation accumulates these hazards into a cumulative
 incidence, $1 - \prod_t (1 - h_t)$, so all reported quantities — the
-per-intervention estimates and the effect decomposition — are **risks of the event by the end
-of follow-up**.
+per-intervention estimates and the effect decomposition — are **risks of the
+event by the end of follow-up**.
 
 The data must be in long format with one row per subject per period **at
 risk**: once the event occurs, no later rows for that subject may be present.
@@ -390,18 +495,21 @@ out_recode = recodes(gvhd = ifelse(gvhdm1 == 1, 1, gvhd))
 ```
 
 Rows excluded by `subset` keep their current value at that step, so the
-`out_recode` carry-forward completes the absorbing behaviour. The package ships
-the `gvhd` dataset (see `?gvhd`) used in that paper, and a complete total-effect
-g-formula analysis on it — three absorbing states, a censoring model, and
-restricted cubic splines — is given in `references/paper_example.R` and walked
-through in `vignette("causalMed-overview")`.
+`out_recode` carry-forward completes the absorbing behaviour. The package
+ships the `gvhd` dataset (see `?gvhd`) used in that paper, and a complete
+total-effect g-formula analysis on it — three absorbing states, a censoring
+model, and restricted cubic splines — is walked through in
+`vignette("causalMed-03-gformula")` (Keil et al. 2014 describe the analysis in
+full, including the spline knots).
 
 ---
 
 ## Bootstrap Confidence Intervals
 
 As elsewhere in the package, set `R > 1` for subject-level bootstrap CIs and
-optionally register a parallel plan first:
+optionally register a parallel plan first (the general bootstrap mechanics —
+percentile versus normal intervals, parallel plans — are covered in
+`vignette("causalMed-03-gformula")`):
 
 ```{r boot, eval=FALSE}
 library(future)
@@ -440,8 +548,9 @@ fit_ci$boot_estimates$effects
 `mediation_type = "N"` (Zheng & van der Laan 2017) is also defined for
 survival outcomes. However, in this dataset the confounder `L` is affected by
 the current exposure — an *intermediate confounder* — and natural direct and
-indirect effects are **not identifiable** in that setting. `mediation()`
-detects the exposure on the right-hand side of a covariate model and warns:
+indirect effects are **not identifiable** in that setting (see the estimands
+section above). `mediation()` detects the exposure on the right-hand side of
+a covariate model and warns:
 
 ```{r natural, warning=TRUE}
 fit_nat <- mediation(
@@ -465,6 +574,91 @@ fit_nat <- mediation(
 The interventional effects (`"I"`) remain identifiable under intermediate
 confounding and are the recommended estimand here — which is why they are
 the package default.
+
+### A targeted (TMLE) estimator for natural effects
+
+When the natural-effects estimand *is* appropriate for your data, the plug-in
+simulation is not the only estimator: `estimator = "tmle"` implements the
+targeted maximum likelihood estimator from the same reference (Zheng & van der
+Laan 2017, Section 4.3), including right-censored survival outcomes. Instead
+of simulating forward, it runs backward iterated regressions with targeted
+fluctuation steps, weighting by inverse treatment *and* censoring
+probabilities. It is multiply robust (consistent when certain subsets of the
+nuisance models are correct) and reports Wald CIs from the efficient
+influence curve, so no bootstrap is required (`R` and `mc_sample` are
+ignored).
+
+Reusing the censored dataset and model list from the censoring section (which
+already includes the required exposure model):
+
+```{r tmle-survival}
+fit_tmle_s <- mediation(
+  data           = dat_c,
+  id_var         = "id",
+  time_var       = "time",
+  base_vars      = "V",
+  exposure       = "A",
+  outcome        = "Y",
+  models         = models_cens,
+  init_recode    = init_s,
+  in_recode      = in_s,
+  mediation_type = "N",
+  estimator      = "tmle",
+  quiet          = TRUE,
+  seed           = 2026
+)
+
+fit_tmle_s$estimate
+```
+
+Note the **recode restriction**: the targeted engine evaluates only lag-style
+recodes, so `in_recode` entries must copy a single column (as `init_s`/`in_s` do
+here), lags of the exposure must copy the exposure itself (chained lags like
+`lag2_A = lag_A` are rejected), `init_recode` entries must be a constant or a
+column name, and
+`out_recode` is not supported. Derived recodes — splines, cumulative counts,
+carry-forward flags, such as the absorbing-state pattern shown earlier — and
+deeper exposure history require
+`estimator = "gcomp"`. Violations raise an error rather than being silently
+dropped, so a distorted TMLE cannot reach you unnoticed.
+
+Two caveats, stated plainly:
+
+- **The identification warning still applies.** The TMLE changes the
+  *estimator*, not the estimand: if an intermediate confounder makes natural
+  effects unidentifiable (as in this dataset, where `L` depends on current
+  `A`), no estimator can fix that. The same warning is emitted at run time
+  and re-surfaced as a short caveat under the decomposition when you
+  `print()` the result (the offending confounders are also stored in
+  `fit$intermediate_confounders`), and the interventional path remains the
+  recommended analysis here.
+- **Positivity warnings deserve attention.** If few subjects follow an
+  intervened regime (e.g., never treated at every time point), the affected
+  targeting steps are skipped with a collected warning and the corresponding
+  functional leans on model extrapolation — exactly as the plug-in does, but
+  with the sparse support made visible instead of silent. Neither estimator
+  can conjure information the data do not contain; the TMLE tells you when
+  that is happening, where the plug-in produces a seemingly precise answer by
+  extrapolating from its parametric models. When the two estimators disagree
+  materially, the first things to inspect are these positivity warnings and
+  the model specifications. Relatedly, the
+  influence-curve Wald CIs can be somewhat anti-conservative for functionals
+  under positivity strain: in our replication of the reference paper's
+  heavily censored simulation, coverage for the never-treat functionals was
+  about 87% (rather than 95%) even at n = 4000, while the treated
+  functionals covered at nominal rates. Interpret CIs for sparsely supported
+  regimes with corresponding caution.
+
+The per-subject influence-curve values are returned in
+`fit_tmle_s$tmle_diag$eic` (one column per functional) for custom contrasts
+or diagnostics; `fit_tmle_s$tmle_diag$eic_mean` should be near zero for
+well-supported functionals.
+
+In simulations replicating the survival design of Zheng & van der Laan
+(2017, Section 5), this implementation reproduces the published true value
+of the cross-world functional and shows the expected bias reduction from
+targeting, with the caveat that its GLM-based sequential regressions are
+coarser than the Super Learner fits used in the paper.
 
 ---
 

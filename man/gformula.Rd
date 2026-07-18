@@ -88,7 +88,15 @@ Unix-alikes to enable parallel bootstrap. Default \code{500}.}
 
 \item{quiet}{Logical. If \code{TRUE}, suppress progress messages/bars. Default \code{FALSE}.}
 
-\item{seed}{Integer random seed for reproducibility. Default \code{12345}.}
+\item{seed}{Integer random seed for reproducibility. Default \code{12345}.
+The seed fixes the RNG stream used for the Monte Carlo simulation
+\emph{and} the bootstrap replicates, and the caller's global RNG state is
+saved and restored on exit, so a seeded call does not disturb the ambient
+random stream. Pass \code{NULL} to disable seeding entirely: no
+\code{set.seed()} is called, the Monte Carlo draws consume and advance the
+ambient RNG stream, and repeated calls therefore give \emph{different}
+results (reproducible only via an outer \code{set.seed()}). Use
+\code{seed = NULL} inside simulation loops that manage their own seeds.}
 }
 \value{
 An object of class \code{"gformula"} with components:
@@ -159,7 +167,7 @@ and \code{ref_int} is set to \code{"natural"}.
 Each element of \code{models} is typically created by \code{\link{spec_model}}
  and must include: (i) the model formula/call, (ii) a \code{mod_type} indicating its role
 (\code{"exposure"}, \code{"covariate"}, \code{"outcome"}, \code{"survival"},
-or \code{"censoring"}), and (iii) a \code{var_type} specifying the
+or \code{"censor"}), and (iii) a \code{var_type} specifying the
 variable type used for simulation/prediction (\code{"binary"}, \code{"normal"},
 \code{"categorical"}, and \code{"custom"}). The list order must reflect the
 data-generating process (temporal ordering). The outcome model is detected internally

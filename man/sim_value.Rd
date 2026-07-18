@@ -15,7 +15,8 @@ sim_value(model, newdt)
 A simulated random vector using the predicted value from model and newdt.
 }
 \description{
-Internal use only, predict response and simulate random data. The simulated
- value will be restricted within the observed value range for numeric values.
+Internal use only, predict response and simulate random data. For numeric
+ values the simulated value is restricted to the observed value range unless
+ the model was created with \code{spec_model(truncate = FALSE)}.
 }
 \keyword{internal}
