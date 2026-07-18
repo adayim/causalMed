@@ -32,12 +32,7 @@ simulate_data(
 
   One of:
 
-  - `NULL` — natural-course draw of the exposure (gformula) or Phi10
-    cross-world intervention (mediation, when `mediation_type` is
-    non-`NA`). The legacy NULL = Phi10 path is kept for backwards
-    compatibility but
-    [`mediation()`](https://adayim.github.io/causalMed/reference/mediation.md)
-    now constructs `causalMed_intervention` objects internally.
+  - `NULL` — natural-course draw of the exposure (gformula).
 
   - Numeric scalar/vector or `causalMed_dynint` — static or dynamic
     exposure rule for

@@ -19,7 +19,7 @@ to follow-up."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.5</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -30,9 +30,10 @@ to follow-up."></head><body>
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causalMed-overview.html">Getting Started with causalMed</a></li>
-    <li><a class="dropdown-item" href="../articles/causalMed-vs-gfoRmula.html">causalMed and gfoRmula: A Comparative Overview</a></li>
-    <li><a class="dropdown-item" href="../articles/mediation-survival.html">Mediation Analysis for Survival Outcomes</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causalMed-01-overview.html">Getting Started with causalMed</a></li>
+    <li><a class="dropdown-item" href="../articles/causalMed-02-mediation.html">Causal Mediation Analysis with causalMed</a></li>
+    <li><a class="dropdown-item" href="../articles/causalMed-03-gformula.html">Estimating Total Effects with the Parametric G-formula</a></li>
+    <li><a class="dropdown-item" href="../articles/causalMed-04-vs-gfoRmula.html">causalMed and gfoRmula: A Comparative Overview</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -148,8 +149,8 @@ one-day lags (<code>Xm1</code>) summarize the history entering each model.</p>
 
 <p>A worked total-effect analysis on this dataset (counterfactual mortality risk
 had GvHD never occurred versus the natural course), mirroring the model
-specifications in Appendix 2 of Keil et al. (2014), is provided in
-<code>references/paper_example.R</code> in the package source repository.</p>
+specifications in Appendix 2 of Keil et al. (2014), is walked through in
+<code><a href="../articles/causalMed-03-gformula.html">vignette("causalMed-03-gformula")</a></code>.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
@@ -168,7 +169,7 @@ specifications in Appendix 2 of Keil et al. (2014), is provided in
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>

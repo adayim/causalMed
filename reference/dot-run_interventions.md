@@ -23,7 +23,7 @@ intervention.
   n_vw = 1L,
   return_fitted = FALSE,
   return_data = FALSE,
-  seed = 12345L
+  seed = NULL
 )
 ```
 
@@ -136,4 +136,13 @@ intervention.
 
 - seed:
 
-  Integer random seed for reproducibility. Default `12345`.
+  Integer random seed for reproducibility. Default `12345`. The seed
+  fixes the RNG stream used for the Monte Carlo simulation *and* the
+  bootstrap replicates, and the caller's global RNG state is saved and
+  restored on exit, so a seeded call does not disturb the ambient random
+  stream. Pass `NULL` to disable seeding entirely: no
+  [`set.seed()`](https://rdrr.io/r/base/Random.html) is called, the
+  Monte Carlo draws consume and advance the ambient RNG stream, and
+  repeated calls therefore give *different* results (reproducible only
+  via an outer [`set.seed()`](https://rdrr.io/r/base/Random.html)). Use
+  `seed = NULL` inside simulation loops that manage their own seeds.

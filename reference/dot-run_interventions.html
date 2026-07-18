@@ -9,7 +9,7 @@ random samples will be drawn from the data and apply the intervention."></head><
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.5</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -20,9 +20,10 @@ random samples will be drawn from the data and apply the intervention."></head><
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causalMed-overview.html">Getting Started with causalMed</a></li>
-    <li><a class="dropdown-item" href="../articles/causalMed-vs-gfoRmula.html">causalMed and gfoRmula: A Comparative Overview</a></li>
-    <li><a class="dropdown-item" href="../articles/mediation-survival.html">Mediation Analysis for Survival Outcomes</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causalMed-01-overview.html">Getting Started with causalMed</a></li>
+    <li><a class="dropdown-item" href="../articles/causalMed-02-mediation.html">Causal Mediation Analysis with causalMed</a></li>
+    <li><a class="dropdown-item" href="../articles/causalMed-03-gformula.html">Estimating Total Effects with the Parametric G-formula</a></li>
+    <li><a class="dropdown-item" href="../articles/causalMed-04-vs-gfoRmula.html">causalMed and gfoRmula: A Comparative Overview</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -63,7 +64,7 @@ random samples will be drawn from the data and apply the intervention.</p>
 <span>  n_vw <span class="op">=</span> <span class="fl">1L</span>,</span>
 <span>  return_fitted <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  return_data <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  seed <span class="op">=</span> <span class="fl">12345L</span></span>
+<span>  seed <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -157,7 +158,15 @@ match the SAS mGFORMULA macro.</p></dd>
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
-<dd><p>Integer random seed for reproducibility. Default <code>12345</code>.</p></dd>
+<dd><p>Integer random seed for reproducibility. Default <code>12345</code>.
+The seed fixes the RNG stream used for the Monte Carlo simulation
+<em>and</em> the bootstrap replicates, and the caller's global RNG state is
+saved and restored on exit, so a seeded call does not disturb the ambient
+random stream. Pass <code>NULL</code> to disable seeding entirely: no
+<code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> is called, the Monte Carlo draws consume and advance the
+ambient RNG stream, and repeated calls therefore give <em>different</em>
+results (reproducible only via an outer <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code>). Use
+<code>seed = NULL</code> inside simulation loops that manage their own seeds.</p></dd>
 
 </dl></div>
 
@@ -170,7 +179,7 @@ match the SAS mGFORMULA macro.</p></dd>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>

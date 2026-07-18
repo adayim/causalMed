@@ -13,7 +13,7 @@ A data.frame summarizing the estimates will be returned.'></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.5</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -24,9 +24,10 @@ A data.frame summarizing the estimates will be returned.'></head><body>
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causalMed-overview.html">Getting Started with causalMed</a></li>
-    <li><a class="dropdown-item" href="../articles/causalMed-vs-gfoRmula.html">causalMed and gfoRmula: A Comparative Overview</a></li>
-    <li><a class="dropdown-item" href="../articles/mediation-survival.html">Mediation Analysis for Survival Outcomes</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causalMed-01-overview.html">Getting Started with causalMed</a></li>
+    <li><a class="dropdown-item" href="../articles/causalMed-02-mediation.html">Causal Mediation Analysis with causalMed</a></li>
+    <li><a class="dropdown-item" href="../articles/causalMed-03-gformula.html">Estimating Total Effects with the Parametric G-formula</a></li>
+    <li><a class="dropdown-item" href="../articles/causalMed-04-vs-gfoRmula.html">causalMed and gfoRmula: A Comparative Overview</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -67,6 +68,8 @@ A <code>data.frame</code> summarizing the estimates will be returned.</p>
 <span>  mc_sample <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">data</span><span class="op">)</span> <span class="op">*</span> <span class="fl">100</span>,</span>
 <span>  mediation_type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I"</span>, <span class="st">"N"</span><span class="op">)</span>,</span>
 <span>  n_vw <span class="op">=</span> <span class="fl">2L</span>,</span>
+<span>  estimator <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"gcomp"</span>, <span class="st">"tmle"</span><span class="op">)</span>,</span>
+<span>  tmle_weight_trunc <span class="op">=</span> <span class="fl">0.995</span>,</span>
 <span>  return_fitted <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  return_data <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  R <span class="op">=</span> <span class="fl">500</span>,</span>
@@ -146,7 +149,13 @@ randomized interventional analogues of the direct/indirect effects and
 remains identifiable. A warning is emitted at runtime if <code>"N"</code> is
 chosen and any covariate model includes the exposure on its right-hand
 side, which is a sufficient (though not necessary) signal of intermediate
-confounding.</p></dd>
+confounding; the caveat is repeated by <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code>.
+<strong>Interpretation of <code>"I"</code>.</strong> Randomized interventional indirect
+effects buy identifiability at a price: they do not satisfy a sharp
+mediational null criterion, so a non-zero IIE does not by itself prove
+that the mediator transmits the effect for any individual (Miles 2023).
+The choice between <code>"I"</code> and <code>"N"</code> is therefore a substantive
+one, not merely computational.</p></dd>
 
 
 <dt id="arg-n-vw">n_vw<a class="anchor" aria-label="anchor" href="#arg-n-vw"></a></dt>
@@ -157,6 +166,43 @@ within every bootstrap replicate. Default <code>2L</code> to match the SAS
 averaging (faster, slightly noisier Monte Carlo). Has no effect when
 <code>mediation_type = "N"</code> (the natural-effect mediator swap is not
 permutation-based).</p></dd>
+
+
+<dt id="arg-estimator">estimator<a class="anchor" aria-label="anchor" href="#arg-estimator"></a></dt>
+<dd><p>Character. <code>"gcomp"</code> (default) for the parametric
+g-formula plug-in (Monte Carlo simulation + bootstrap CIs), or
+<code>"tmle"</code> for the targeted maximum likelihood estimator of Zheng &amp;
+van der Laan (2017, Section 4.3). <code>"tmle"</code> is available for
+<code>mediation_type = "N"</code> only (single mediator, binary {0, 1}
+outcome or survival event indicator; an exposure model is required and
+<code>var_type = "custom"</code> / <code>spec_model(subset = )</code> are not
+supported). <strong>Recode restriction:</strong> the targeted engine evaluates
+only lag-style recodes, so <code>in_recode</code> entries must copy a single
+column (e.g. <code>recodes(lag_A = A)</code>), lags of the exposure must copy
+the exposure itself (chained exposure lags such as
+<code>recodes(lag2_A = lag_A)</code> are rejected; deeper exposure history
+requires <code>estimator = "gcomp"</code>), <code>init_recode</code> entries must
+be a constant or a single column name, and <code>out_recode</code> is not
+supported; derived recodes (splines, cumulative counts, carry-forward
+flags) require <code>estimator = "gcomp"</code>. Violations are rejected with
+an error rather than silently ignored. The TMLE uses backward iterated
+regressions with logistic
+fluctuations instead of forward simulation: it is multiply robust
+(consistent when specific subsets of the nuisance models are correct,
+not only when all are), reports Wald CIs from the efficient influence
+curve without bootstrapping (<code>R</code> is ignored), and has no Monte
+Carlo simulation error (<code>mc_sample</code> is ignored). Practical
+positivity violations (few subjects following an intervened regime) are
+handled by skipping the affected fluctuation steps and truncating
+extreme weights, with collected warnings — inspect these before trusting
+the affected functionals.</p></dd>
+
+
+<dt id="arg-tmle-weight-trunc">tmle_weight_trunc<a class="anchor" aria-label="anchor" href="#arg-tmle-weight-trunc"></a></dt>
+<dd><p>Numeric in (0, 1]. Quantile at which each
+clever-covariate weight vector is truncated in the TMLE fluctuation
+steps (positivity protection). Default <code>0.995</code>; <code>1</code> disables
+truncation. Ignored for <code>estimator = "gcomp"</code>.</p></dd>
 
 
 <dt id="arg-return-fitted">return_fitted<a class="anchor" aria-label="anchor" href="#arg-return-fitted"></a></dt>
@@ -185,10 +231,15 @@ Unix-alikes to enable parallel bootstrap. Default <code>500</code>.</p></dd>
 <dd><p>Integer random seed for reproducibility. Default <code>12345L</code>.
 Setting <code>seed</code> fixes the RNG stream used for the original-data Monte
 Carlo simulation <em>and</em> the bootstrap replicates (the latter via the
-<code>future_seed</code> interface of <span class="pkg">future.apply</span>). Pass <code>NULL</code> to
-leave the global RNG state untouched. Users running multiple analyses in
-the same session should set distinct seeds to ensure independent bootstrap
-draws across analyses.</p></dd>
+<code>future_seed</code> interface of <span class="pkg">future.apply</span>); the caller's global
+RNG state is saved and restored on exit, so a seeded call does not disturb
+the ambient random stream. Pass <code>NULL</code> to disable seeding entirely:
+no <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> is called, the Monte Carlo draws consume and advance
+the ambient RNG stream, and repeated calls therefore give <em>different</em>
+results (reproducible only via an outer <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code>). Use
+<code>seed = NULL</code> inside simulation loops that manage their own seeds.
+Users running multiple seeded analyses in the same session should set
+distinct seeds to ensure independent bootstrap draws across analyses.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -227,7 +278,11 @@ draws across analyses.</p></dd>
                  (= \((IIE + residual)/TE\); Yamamuro et al. 2021)</p></li>
 <li><p><code>"Mediation Proportion (multiplicative)"</code>
                  = \(RR_{IDE}\,(RR_{IIE}-1)/(RR_{OE}-1) \times 100\%\)
-                 on the interventional overall scale (Lin et al. 2017, Table 2)</p></li>
+                 on the interventional overall scale (Lin et al. 2017, Table 2).
+                 Under <code>mediation_type = "N"</code> the same formula is
+                 reported on the total-effect scale as an <em>analogue</em>;
+                 Zheng &amp; van der Laan (2017) do not define a proportion
+                 mediated.</p></li>
 </ul><p>For multiple mediators each indirect effect is labelled
         <code>"Indirect effect (&lt;mediator&gt;)"</code>; the additive proportion is
         \((TE - IDE)/TE\) and the multiplicative is
@@ -262,6 +317,18 @@ draws across analyses.</p></dd>
         the last time point, or the product-limit cumulative incidence
         for survival outcomes. Printed next to the simulated
         intervention means as an informal benchmark.</p></li>
+<li><p><code>tmle_diag</code>: for <code>estimator = "tmle"</code> only, a list with
+        the subject-level efficient-influence-curve matrix (<code>eic</code>,
+        one column per functional), its column means (<code>eic_mean</code>,
+        near zero for well-supported functionals at the targeted fit),
+        and the number of subjects (<code>n</code>). <code>NULL</code> for
+        <code>estimator = "gcomp"</code>.</p></li>
+<li><p><code>intermediate_confounders</code>: for <code>mediation_type = "N"</code>,
+        a character vector of covariate names whose model includes the
+        exposure (exposure-affected/intermediate confounders that make
+        the natural effects non-identifiable); empty when none. The
+        <code>print</code> method re-surfaces a short identifiability caveat
+        when this is non-empty.</p></li>
 </ul></div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -274,7 +341,7 @@ are defined for binary exposures only.</p>
 <p>**Model specification**
 Each element of <code>models</code> is created by <code><a href="spec_model.html">spec_model</a></code> and must specify:
 (i) a formula, (ii) <code>mod_type</code> (<code>"exposure"</code>, <code>"covariate"</code>,
-<code>"mediator"</code>, <code>"outcome"</code>, <code>"survival"</code>, or <code>"censoring"</code>), and
+<code>"mediator"</code>, <code>"outcome"</code>, <code>"survival"</code>, or <code>"censor"</code>), and
 (iii) <code>var_type</code> (<code>"binary"</code>, <code>"normal"</code>, <code>"categorical"</code>, or
 <code>"custom"</code>). At least one <code>"mediator"</code> model is required.
 Multiple mediator models are supported under <code>mediation_type = "I"</code>
@@ -288,7 +355,8 @@ mediator). The function checks that the mediator precedes the outcome and that e
 precedes the mediator, and warns if these are violated.</p>
 <p>For non-standard covariate distributions (bounded, zero-inflated, truncated), use
 <code>var_type = "custom"</code> with <code>custom_fit</code> and <code>custom_sim</code> arguments to
-<code><a href="spec_model.html">spec_model</a></code>. See the vignette section on custom covariate types.</p>
+<code><a href="spec_model.html">spec_model</a></code>. See the custom covariate distributions section of
+<code><a href="../articles/causalMed-03-gformula.html">vignette("causalMed-03-gformula")</a></code>.</p>
 <p>**Mediator pool (interventional effects)**
 For <code>mediation_type = "I"</code>, a natural-course pass under each treatment
 level \(a^*\) stores every simulated individual's full mediator trajectory
@@ -334,6 +402,9 @@ type 2 diabetics. <em>Statistical Methods in Medical Research</em>, 30(8),
 <p>Zheng, W., &amp; van der Laan, M. (2017).
 Longitudinal mediation analysis with time-varying mediators and exposures, with application to survival outcomes.
 <em>Journal of Causal Inference</em>, 5(2). <a href="https://doi.org/10.1515/jci-2016-0006" class="external-link">doi:10.1515/jci-2016-0006</a></p>
+<p>Miles, C. H. (2023). On the causal interpretation of randomised interventional
+indirect effects. <em>Journal of the Royal Statistical Society: Series B</em>,
+85(4), 1154–1172. <a href="https://doi.org/10.1093/jrsssb/qkad066" class="external-link">doi:10.1093/jrsssb/qkad066</a></p>
     </div>
 
     <div class="section level2">
@@ -379,7 +450,7 @@ Longitudinal mediation analysis with time-varying mediators and exposures, with 
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>

@@ -1,0 +1,520 @@
+# Estimating Total Effects with the Parametric G-formula
+
+## Introduction
+
+[`gformula()`](https://adayim.github.io/causalMed/reference/gformula.md)
+estimates the counterfactual mean outcome had everyone followed a given
+exposure strategy — the **total effect** of the strategy — using the
+standard parametric g-formula (Westreich et al. 2012; McGrath et
+al. 2020): fit a parametric model for every time-varying variable, then
+Monte Carlo simulate each subject forward in time under the intervention
+of interest.
+
+This vignette is the full total-effect story:
+
+1.  a binary end-of-follow-up outcome,
+2.  a survival (time-to-event) outcome,
+3.  dynamic (rule-based) interventions,
+4.  a published replication — the GvHD analysis of Keil et al. (2014),
+    which combines absorbing states, censoring, and spline recodes,
+5.  bootstrap confidence intervals and parallel execution,
+6.  extracting fitted models and simulated data, and
+7.  custom covariate distributions.
+
+The shared vocabulary — long-format data,
+[`spec_model()`](https://adayim.github.io/causalMed/reference/spec_model.md),
+the `var_type` / `mod_type` tables, and the
+[`recodes()`](https://adayim.github.io/causalMed/reference/recodes.md)
+lag hooks — is introduced in
+[`vignette("causalMed-01-overview")`](https://adayim.github.io/causalMed/articles/causalMed-01-overview.md)
+and not repeated here. For mediation (direct/indirect decomposition) see
+[`vignette("causalMed-02-mediation")`](https://adayim.github.io/causalMed/articles/causalMed-02-mediation.md).
+
+``` r
+
+library(causalMed)
+library(data.table)
+#> Warning: package 'data.table' was built under R version 4.5.3
+```
+
+------------------------------------------------------------------------
+
+## Example 1 — Binary end-of-follow-up outcome
+
+`nonsurvivaldata` (see the overview vignette and
+[`?nonsurvivaldata`](https://adayim.github.io/causalMed/reference/nonsurvivaldata.md))
+follows 1 000 subjects over five time points; within each period the
+data-generating ordering is **A → L**: the exposure is decided first and
+the confounders respond to it. The model list mirrors that ordering —
+exposure model first, current `A` in each confounder model. In your own
+analyses, always match the list order and each model’s conditioning to
+*your* assumed data-generating process.
+
+``` r
+
+data("nonsurvivaldata")
+
+# Lag bookkeeping (see the overview vignette for the recode hooks)
+init_rc <- recodes(lag1_A = 0, lag1_L1 = 0, lag1_L2 = 0)
+in_rc   <- recodes(lag1_A = A, lag1_L1 = L1, lag1_L2 = L2)
+
+# ── 1. Models in temporal order: A → L1 → L2 → Y ──────────────────────────
+m_A  <- spec_model(A     ~ V + lag1_A + lag1_L1 + lag1_L2 + time,
+                   var_type = "binary",  mod_type = "exposure")
+m_L1 <- spec_model(L1    ~ V + A + lag1_L1 + time,
+                   var_type = "normal",  mod_type = "covariate")
+m_L2 <- spec_model(L2    ~ V + A + lag1_L2 + time,
+                   var_type = "binary",  mod_type = "covariate")
+m_Y  <- spec_model(Y_bin ~ V + A + L1 + L2,
+                   var_type = "binary",  mod_type = "outcome")
+
+models_bin <- list(m_A, m_L1, m_L2, m_Y)
+
+# ── 2. Intervention strategies ─────────────────────────────────────────────
+# NULL  = natural course (draw exposure from its fitted model)
+# 1 / 0 = always treat / never treat
+ints <- list(natural = NULL, always_treat = 1, never_treat = 0)
+
+# ── 3. Run the g-formula ───────────────────────────────────────────────────
+fit_bin <- gformula(
+  data        = nonsurvivaldata,
+  id_var      = "id",
+  time_var    = "time",
+  base_vars   = "V",
+  exposure    = "A",
+  models      = models_bin,
+  intervention = ints,
+  ref_int     = "natural",
+  init_recode = init_rc,
+  in_recode   = in_rc,
+  mc_sample   = 10000,
+  R           = 1,        # set R > 1 for bootstrap CIs (see below)
+  quiet       = TRUE,
+  seed        = 2025
+)
+```
+
+``` r
+
+# Risk (mean outcome) under each strategy
+fit_bin$effect_size
+#>    Intervention        Est
+#>          <fctr>      <num>
+#> 1:      natural 0.14127646
+#> 2: always_treat 0.15108576
+#> 3:  never_treat 0.08564992
+
+# Contrasts vs the reference (natural course)
+fit_bin$estimate
+#>              Intervention  Risk_type     Estimate
+#>                    <char>     <char>        <num>
+#> 1: always_treat - natural Difference  0.009809296
+#> 2: always_treat / natural      Ratio  1.069433333
+#> 3:  never_treat - natural Difference -0.055626547
+#> 4:  never_treat / natural      Ratio  0.606257502
+```
+
+The `effect_size` table gives the estimated mean outcome under each
+intervention. The `estimate` table gives contrasts (risk difference and
+risk ratio) against the reference intervention.
+
+------------------------------------------------------------------------
+
+## Example 2 — Survival (time-to-event) outcome
+
+For survival outcomes use `mod_type = "survival"`. The model estimates
+the discrete-time hazard at each time point; the package accumulates
+these into a cumulative incidence, $`1 - \prod_t (1 - h_t)`$, so the
+reported quantities are risks of the event by the end of follow-up. The
+data must contain one row per subject per period **at risk** — once the
+event occurs, no later rows for that subject may be present (see
+[`?survivaldata`](https://adayim.github.io/causalMed/reference/survivaldata.md)).
+
+``` r
+
+data("survivaldata")
+
+m_A2 <- spec_model(A ~ V + lag1_A + lag1_L + time,
+                   var_type = "binary", mod_type = "exposure")
+m_L  <- spec_model(L ~ V + A + lag1_L + time,
+                   var_type = "normal", mod_type = "covariate")
+m_Y2 <- spec_model(Y ~ V + A + L + time,
+                   var_type = "binary", mod_type = "survival")  # <-- survival
+
+models_surv <- list(m_A2, m_L, m_Y2)
+
+fit_surv <- gformula(
+  data        = survivaldata,
+  id_var      = "id",
+  base_vars   = "V",
+  exposure    = "A",
+  time_var    = "time",
+  models      = models_surv,
+  intervention = list(natural = NULL, never = 0, always = 1),
+  ref_int     = "natural",
+  init_recode = recodes(lag1_L = 0, lag1_A = 0),
+  in_recode   = recodes(lag1_L = L, lag1_A = A),
+  mc_sample   = 10000,
+  R           = 1,
+  quiet       = TRUE,
+  seed        = 2025
+)
+
+fit_surv$effect_size   # Cumulative incidence by strategy
+#>    Intervention       Est
+#>          <fctr>     <num>
+#> 1:      natural 0.9346531
+#> 2:        never 0.8372602
+#> 3:       always 0.9752552
+fit_surv$estimate      # Risk contrasts
+#>        Intervention  Risk_type    Estimate
+#>              <char>     <char>       <num>
+#> 1:  never - natural Difference -0.09739292
+#> 2:  never / natural      Ratio  0.89579779
+#> 3: always - natural Difference  0.04060216
+#> 4: always / natural      Ratio  1.04344089
+```
+
+------------------------------------------------------------------------
+
+## Dynamic (threshold) interventions
+
+A **dynamic intervention** assigns exposure by a rule evaluated on each
+subject’s simulated values. Wrap the rule in
+[`dyn_int()`](https://adayim.github.io/causalMed/reference/dyn_int.md);
+the expression is evaluated inside the simulated dataset at every time
+step.
+
+One scoping rule to keep in mind: the rule runs at the exposure model’s
+position in the model list. Variables simulated *earlier* in the list
+(and the exposure’s own natural-course draw) hold their current-period
+values; variables simulated *later* — here `L1`, which responds to `A` —
+still hold the previous period’s values. A rule for an exposure decided
+at the start of each period therefore conditions on the previous
+period’s covariates:
+
+``` r
+
+fit_dyn <- gformula(
+  data        = nonsurvivaldata,
+  id_var      = "id",
+  time_var    = "time",
+  base_vars   = "V",
+  exposure    = "A",
+  models      = models_bin,
+  intervention = list(
+    natural = NULL,
+    treat_if_prev_L1_pos = dyn_int(as.numeric(lag1_L1 > 0))
+  ),
+  ref_int     = "natural",
+  init_recode = init_rc,
+  in_recode   = in_rc,
+  mc_sample   = 10000,
+  R           = 1,
+  quiet       = TRUE,
+  seed        = 2025
+)
+
+fit_dyn$effect_size
+#>            Intervention       Est
+#>                  <fctr>     <num>
+#> 1:              natural 0.1412765
+#> 2: treat_if_prev_L1_pos 0.1293880
+fit_dyn$estimate
+#>                      Intervention  Risk_type    Estimate
+#>                            <char>     <char>       <num>
+#> 1: treat_if_prev_L1_pos - natural Difference -0.01188842
+#> 2: treat_if_prev_L1_pos / natural      Ratio  0.91584993
+```
+
+Compound rules are fine too — any expression over in-scope columns
+works, e.g. `dyn_int(as.numeric(A > 0 & lag1_L1 > median(lag1_L1)))`,
+where `A` is the natural-course draw the rule can override.
+
+------------------------------------------------------------------------
+
+## A published example — preventing GvHD (Keil et al. 2014)
+
+The toy examples above isolate one feature at a time. A realistic
+analysis usually combines several. The package ships `gvhd`, the
+person-day bone-marrow transplant data used in the parametric g-formula
+illustration of Keil et al. (2014), and the code below reproduces that
+analysis: the counterfactual risk of death by day 1825 had
+graft-versus-host disease (GvHD) **never** occurred, versus the natural
+course.
+
+This single example exercises features the toy examples do not:
+
+- **five models** in temporal order — relapse → platelet recovery → GvHD
+  (exposure) → censoring → death (survival hazard); the covariates here
+  are measured *before* the day’s exposure, so they precede it in the
+  list — the paper’s ordering, unlike the A-first examples above;
+- **absorbing states** via `subset =` (each state is modelled only among
+  those not yet in it) plus an `out_recode` carry-forward that locks the
+  state at 1 afterwards;
+- a **censoring model** (`mod_type = "censor"`);
+- **restricted cubic splines** of age and day, and day counters, built
+  through the three recode hooks working together;
+- real daily-scale survival data (137 subjects, 1 825 days).
+
+The models follow Appendix 2 of the paper (see
+[`?gvhd`](https://adayim.github.io/causalMed/reference/gvhd.md)). First,
+the time-fixed baseline transforms — restricted cubic splines of age
+(`agecurs1`/`agecurs2`, knots 17, 25.4, 30, 41.4) and of day
+(`daycurs1`/`daycurs2`, knots 83.6, 401.4, 947, 1862.2), plus
+`agesq`/`daysq`:
+
+``` r
+
+data("gvhd")
+
+gvhd <- within(gvhd, {
+  agesq    <- age^2
+  agecurs1 <- (age > 17.0) * (age - 17.0)^3 -
+              ((age > 30.0) * (age - 30.0)^3) * (41.4 - 17.0) / (41.4 - 30.0)
+  agecurs2 <- (age > 25.4) * (age - 25.4)^3 -
+              ((age > 41.4) * (age - 41.4)^3) * (41.4 - 25.4) / (41.4 - 30.0)
+  daysq    <- day^2
+  daycurs1 <- (day > 83.6)   * ((day - 83.6)   / 83.6)^3 +
+              (day > 1862.2) * ((day - 1862.2) / 83.6)^3 * (947.0 - 83.6) -
+              (day > 947.0)  * ((day - 947.0)  / 83.6)^3 * (1862.2 - 83.6) / (1862.2 - 947.0)
+  daycurs2 <- (day > 401.4)  * ((day - 401.4)  / 83.6)^3 +
+              (day > 1862.2) * ((day - 1862.2) / 83.6)^3 * (947.0 - 401.4) -
+              (day > 947.0)  * ((day - 947.0)  / 83.6)^3 * (1862.2 - 401.4) / (1862.2 - 947.0)
+})
+```
+
+The five models, in temporal order. Each time-varying state is
+absorbing, so its model is fitted and simulated only among those not yet
+in it (`subset = ...m1 == 0`); the death hazard interacts the day spline
+with `gvhd` so the direct effect can vary over time:
+
+``` r
+
+models_gvhd <- list(
+  spec_model(relapse ~ all + cmv + male + age + gvhdm1 + daysgvhd + platnormm1 +
+               daysnoplatnorm + agecurs1 + agecurs2 + day + daysq + wait,
+             var_type = "binary", mod_type = "covariate", subset = relapsem1 == 0),
+  spec_model(platnorm ~ all + cmv + male + age + agecurs1 + agecurs2 + gvhdm1 +
+               daysgvhd + daysnorelapse + wait,
+             var_type = "binary", mod_type = "covariate", subset = platnormm1 == 0),
+  spec_model(gvhd ~ all + cmv + male + age + platnormm1 + daysnoplatnorm +
+               relapsem1 + daysnorelapse + agecurs1 + agecurs2 + day + daysq + wait,
+             var_type = "binary", mod_type = "exposure", subset = gvhdm1 == 0),
+  spec_model(censlost ~ all + cmv + male + age + daysgvhd + daysnoplatnorm +
+               daysnorelapse + agesq + day + daycurs1 + daycurs2 + wait,
+             var_type = "binary", mod_type = "censor"),
+  spec_model(d ~ all + cmv + male + age + gvhd + platnorm + daysnoplatnorm +
+               relapse + daysnorelapse + agesq + wait +
+               day * gvhd + daycurs1 * gvhd + daycurs2 * gvhd,
+             var_type = "binary", mod_type = "survival")
+)
+```
+
+The three recode hooks cooperate: `init_recode` seeds day 1 (states at
+0, counters at 0, functions of day computed), `in_recode` refreshes the
+functions of day and the one-day lags at the start of each day, and
+`out_recode` advances the day counters and enforces the absorbing
+carry-forward at the end of each day. The day spline is recomputed each
+step because the models reference it from day one:
+
+``` r
+
+init_recode <- recodes(
+  daysq    = day^2,
+  daycurs1 = (day > 83.6)   * ((day - 83.6)   / 83.6)^3 +
+             (day > 1862.2) * ((day - 1862.2) / 83.6)^3 * (947.0 - 83.6) -
+             (day > 947.0)  * ((day - 947.0)  / 83.6)^3 * (1862.2 - 83.6) / (1862.2 - 947.0),
+  daycurs2 = (day > 401.4)  * ((day - 401.4)  / 83.6)^3 +
+             (day > 1862.2) * ((day - 1862.2) / 83.6)^3 * (947.0 - 401.4) -
+             (day > 947.0)  * ((day - 947.0)  / 83.6)^3 * (1862.2 - 401.4) / (1862.2 - 947.0),
+  relapse = 0, gvhd = 0, platnorm = 0, gvhdm1 = 0, relapsem1 = 0, platnormm1 = 0,
+  daysnorelapse = 0, daysnoplatnorm = 0, daysnogvhd = 0,
+  daysrelapse = 0, daysplatnorm = 0, daysgvhd = 0)
+
+in_recode <- recodes(
+  daysq    = day^2,
+  daycurs1 = (day > 83.6)   * ((day - 83.6)   / 83.6)^3 +
+             (day > 1862.2) * ((day - 1862.2) / 83.6)^3 * (947.0 - 83.6) -
+             (day > 947.0)  * ((day - 947.0)  / 83.6)^3 * (1862.2 - 83.6) / (1862.2 - 947.0),
+  daycurs2 = (day > 401.4)  * ((day - 401.4)  / 83.6)^3 +
+             (day > 1862.2) * ((day - 1862.2) / 83.6)^3 * (947.0 - 401.4) -
+             (day > 947.0)  * ((day - 947.0)  / 83.6)^3 * (1862.2 - 401.4) / (1862.2 - 947.0),
+  platnormm1 = platnorm, relapsem1 = relapse, gvhdm1 = gvhd)
+
+out_recode <- recodes(
+  daysnorelapse  = ifelse(relapse == 0,  daysnorelapse + 1,  daysnorelapse),
+  daysrelapse    = ifelse(relapse == 1,  daysrelapse + 1,    daysrelapse),
+  daysnoplatnorm = ifelse(platnorm == 0, daysnoplatnorm + 1, daysnoplatnorm),
+  daysplatnorm   = ifelse(platnorm == 1, daysplatnorm + 1,   daysplatnorm),
+  daysnogvhd     = ifelse(gvhd == 0,     daysnogvhd + 1,     daysnogvhd),
+  daysgvhd       = ifelse(gvhd == 1,     daysgvhd + 1,       daysgvhd),
+  # absorbing carry-forward: once a state was 1 yesterday, keep it at 1
+  platnorm = ifelse(platnormm1 == 1, 1, platnorm),
+  relapse  = ifelse(relapsem1 == 1,  1, relapse),
+  gvhd     = ifelse(gvhdm1 == 1,     1, gvhd))
+```
+
+``` r
+
+fit_gvhd <- gformula(gvhd,
+  id_var    = "id", time_var = "day", exposure = "gvhd",
+  base_vars = c("age", "agesq", "agecurs1", "agecurs2", "male", "cmv", "all", "wait"),
+  models    = models_gvhd,
+  intervention = list(never = 0),     # a natural-course reference is added automatically
+  init_recode = init_recode, in_recode = in_recode, out_recode = out_recode,
+  mc_sample = 20000, R = 1, quiet = TRUE, seed = 20260703)
+
+fit_gvhd$effect_size
+#>    Intervention       Est
+#>          <fctr>     <num>
+#> 1:      natural 0.6117630
+#> 2:        never 0.5877012
+fit_gvhd$estimate
+#>       Intervention  Risk_type    Estimate
+#>             <char>     <char>       <num>
+#> 1: never - natural Difference -0.02406177
+#> 2: never / natural      Ratio  0.96066816
+```
+
+Preventing GvHD is estimated to lower the 5-year risk of death by a
+couple of percentage points. With 1 825 daily time steps this Monte
+Carlo loop takes a few minutes, which is why this vignette is
+**precomputed** — the code above ran once when the vignette was
+assembled (see `vignettes/precompute.R`), so its output is real but the
+shipped vignette still builds instantly. Set `R > 1` there for bootstrap
+confidence intervals (much slower again on this dataset).
+
+------------------------------------------------------------------------
+
+## Bootstrap Confidence Intervals
+
+Set `R > 1` to obtain percentile and normal-approximation confidence
+intervals. The bootstrap resamples whole subjects (all time points
+together), preserving the longitudinal correlation structure.
+
+``` r
+
+fit_boot <- gformula(
+  data        = nonsurvivaldata,
+  id_var      = "id",
+  time_var    = "time",
+  base_vars   = "V",
+  exposure    = "A",
+  models      = models_bin,
+  intervention = list(natural = NULL, always = 1),
+  ref_int     = "natural",
+  init_recode = init_rc,
+  in_recode   = in_rc,
+  mc_sample   = 10000,
+  R           = 200,       # 200 bootstrap replicates
+  quiet       = TRUE,
+  seed        = 2025
+)
+
+# effect_size now includes Sd, perct_lcl/ucl, norm_lcl/ucl
+fit_boot$effect_size
+#>    Intervention       Est          Sd perct_lcl perct_ucl  norm_lcl  norm_ucl
+#>          <fctr>     <num>       <num>     <num>     <num>     <num>     <num>
+#> 1:      natural 0.1412765 0.006496919 0.1291990 0.1545634 0.1285427 0.1540102
+#> 2:       always 0.1510858 0.007331636 0.1375332 0.1664306 0.1367160 0.1654555
+fit_boot$estimate
+#>        Intervention  Risk_type    Estimate         Sd   perct_lcl  perct_ucl
+#>              <char>     <char>       <num>      <num>       <num>      <num>
+#> 1: always - natural Difference 0.009809296 0.00241638 0.005206897 0.01471026
+#> 2: always / natural      Ratio 1.069433333 0.01687404 1.038802128 1.10266501
+#>       norm_lcl   norm_ucl
+#>          <num>      <num>
+#> 1: 0.005073278 0.01454531
+#> 2: 1.036360814 1.10250585
+
+# the individual per-replicate draws are retained in boot_estimates
+# ($interventions and $contrasts), for custom intervals or diagnostics
+head(fit_boot$boot_estimates$interventions)
+#>    replicate Intervention       Est
+#>        <int>       <fctr>     <num>
+#> 1:         1      natural 0.1349245
+#> 2:         1       always 0.1442259
+#> 3:         2      natural 0.1458343
+#> 4:         2       always 0.1533338
+#> 5:         3      natural 0.1380202
+#> 6:         3       always 0.1503631
+```
+
+Like the GvHD example, the bootstrap here runs for real at precompute
+time; on CRAN and CI the shipped vignette carries this captured output
+without re-running 200 replicates. Enable parallel bootstrap by
+registering a `future` plan first —
+[`library(future); plan(multisession)`](https://future.futureverse.org)
+— before the call; see
+[`vignette("causalMed-01-overview")`](https://adayim.github.io/causalMed/articles/causalMed-01-overview.md)
+for the parallel details.
+
+------------------------------------------------------------------------
+
+## Working with Results
+
+### Extracting fitted models
+
+Set `return_fitted = TRUE` to access the full fitted model objects and
+their coefficients:
+
+``` r
+
+fit_full <- gformula(
+  data        = nonsurvivaldata,
+  id_var      = "id",
+  time_var    = "time",
+  base_vars   = "V",
+  exposure    = "A",
+  models      = models_bin,
+  intervention = list(natural = NULL, always = 1),
+  init_recode = init_rc,
+  in_recode   = in_rc,
+  mc_sample   = 5000,
+  R           = 1,
+  return_fitted = TRUE,
+  quiet       = TRUE,
+  seed        = 2025
+)
+
+# Names correspond to the response variable of each model
+names(fit_full$fitted_models)
+#> [1] "A"     "L1"    "L2"    "Y_bin"
+
+# Access a specific model's coefficients
+coef(fit_full$fitted_models$A)
+#> (Intercept)           V      lag1_A     lag1_L1     lag1_L2        time 
+#>  0.82203265  0.82909389  0.17682472  0.19891771  0.24379756  0.03807842
+```
+
+### Retrieving the simulated data
+
+Set `return_data = TRUE` to retrieve the full Monte Carlo dataset (can
+be large):
+
+``` r
+
+fit_data <- gformula(..., return_data = TRUE)
+
+# Simulated trajectories with predicted outcomes, one row per MC subject per time
+head(fit_data$sim_data)
+```
+
+------------------------------------------------------------------------
+
+## References
+
+- Westreich, D., Cole, S. R., Young, J. G., et al. (2012). The
+  parametric g-formula to estimate the effect of highly active
+  antiretroviral therapy on incident AIDS or death. *Statistics in
+  Medicine*, 31, 2000–2009.
+- Keil, A. P., Edwards, J. K., Richardson, D. B., Naimi, A. I., &
+  Cole, S. R. (2014). The parametric g-formula for time-to-event data:
+  intuition and a worked example. *Epidemiology*, 25(6), 889–897.
+- McGrath, S., Lin, V., Zhang, Z., et al. (2020). gfoRmula: An R package
+  for estimating the effects of sustained treatment strategies via the
+  parametric g-formula. *Patterns*, 1, 100008.
+- Robins, J. M. (1986). A new approach to causal inference in mortality
+  studies with a sustained exposure period. *Mathematical Modelling*,
+  7(9–12), 1393–1512.

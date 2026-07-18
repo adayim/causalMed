@@ -146,7 +146,16 @@ gformula(
 
 - seed:
 
-  Integer random seed for reproducibility. Default `12345`.
+  Integer random seed for reproducibility. Default `12345`. The seed
+  fixes the RNG stream used for the Monte Carlo simulation *and* the
+  bootstrap replicates, and the caller's global RNG state is saved and
+  restored on exit, so a seeded call does not disturb the ambient random
+  stream. Pass `NULL` to disable seeding entirely: no
+  [`set.seed()`](https://rdrr.io/r/base/Random.html) is called, the
+  Monte Carlo draws consume and advance the ambient RNG stream, and
+  repeated calls therefore give *different* results (reproducible only
+  via an outer [`set.seed()`](https://rdrr.io/r/base/Random.html)). Use
+  `seed = NULL` inside simulation loops that manage their own seeds.
 
 ## Value
 
@@ -223,7 +232,7 @@ created by
 [`spec_model`](https://adayim.github.io/causalMed/reference/spec_model.md)
 and must include: (i) the model formula/call, (ii) a `mod_type`
 indicating its role (`"exposure"`, `"covariate"`, `"outcome"`,
-`"survival"`, or `"censoring"`), and (iii) a `var_type` specifying the
+`"survival"`, or `"censor"`), and (iii) a `var_type` specifying the
 variable type used for simulation/prediction (`"binary"`, `"normal"`,
 `"categorical"`, and `"custom"`). The list order must reflect the
 data-generating process (temporal ordering). The outcome model is

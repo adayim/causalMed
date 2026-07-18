@@ -1,10 +1,11 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://adayim.github.io/causalMed/404.html</loc></url>
 <url><loc>https://adayim.github.io/causalMed/LICENSE-text.html</loc></url>
-<url><loc>https://adayim.github.io/causalMed/articles/causalMed-overview.html</loc></url>
-<url><loc>https://adayim.github.io/causalMed/articles/causalMed-vs-gfoRmula.html</loc></url>
+<url><loc>https://adayim.github.io/causalMed/articles/causalMed-01-overview.html</loc></url>
+<url><loc>https://adayim.github.io/causalMed/articles/causalMed-02-mediation.html</loc></url>
+<url><loc>https://adayim.github.io/causalMed/articles/causalMed-03-gformula.html</loc></url>
+<url><loc>https://adayim.github.io/causalMed/articles/causalMed-04-vs-gfoRmula.html</loc></url>
 <url><loc>https://adayim.github.io/causalMed/articles/index.html</loc></url>
-<url><loc>https://adayim.github.io/causalMed/articles/mediation-survival.html</loc></url>
 <url><loc>https://adayim.github.io/causalMed/authors.html</loc></url>
 <url><loc>https://adayim.github.io/causalMed/index.html</loc></url>
 <url><loc>https://adayim.github.io/causalMed/reference/bootstrap_helper.html</loc></url>

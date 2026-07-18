@@ -1,8 +1,8 @@
 # Random data simulation from predicted value.
 
-Internal use only, predict response and simulate random data. The
-simulated value will be restricted within the observed value range for
-numeric values.
+Internal use only, predict response and simulate random data. For
+numeric values the simulated value is restricted to the observed value
+range unless the model was created with `spec_model(truncate = FALSE)`.
 
 ## Usage
 

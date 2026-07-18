@@ -23,6 +23,8 @@ mediation(
   mc_sample = nrow(data) * 100,
   mediation_type = c("I", "N"),
   n_vw = 2L,
+  estimator = c("gcomp", "tmle"),
+  tmle_weight_trunc = 0.995,
   return_fitted = FALSE,
   return_data = FALSE,
   R = 500,
@@ -111,7 +113,14 @@ mediation(
   identifiable. A warning is emitted at runtime if `"N"` is chosen and
   any covariate model includes the exposure on its right-hand side,
   which is a sufficient (though not necessary) signal of intermediate
-  confounding.
+  confounding; the caveat is repeated by
+  [`print()`](https://rdrr.io/r/base/print.html). **Interpretation of
+  `"I"`.** Randomized interventional indirect effects buy
+  identifiability at a price: they do not satisfy a sharp mediational
+  null criterion, so a non-zero IIE does not by itself prove that the
+  mediator transmits the effect for any individual (Miles 2023). The
+  choice between `"I"` and `"N"` is therefore a substantive one, not
+  merely computational.
 
 - n_vw:
 
@@ -122,6 +131,41 @@ mediation(
   (faster, slightly noisier Monte Carlo). Has no effect when
   `mediation_type = "N"` (the natural-effect mediator swap is not
   permutation-based).
+
+- estimator:
+
+  Character. `"gcomp"` (default) for the parametric g-formula plug-in
+  (Monte Carlo simulation + bootstrap CIs), or `"tmle"` for the targeted
+  maximum likelihood estimator of Zheng & van der Laan (2017, Section
+  4.3). `"tmle"` is available for `mediation_type = "N"` only (single
+  mediator, binary {0, 1} outcome or survival event indicator; an
+  exposure model is required and `var_type = "custom"` /
+  `spec_model(subset = )` are not supported). **Recode restriction:**
+  the targeted engine evaluates only lag-style recodes, so `in_recode`
+  entries must copy a single column (e.g. `recodes(lag_A = A)`), lags of
+  the exposure must copy the exposure itself (chained exposure lags such
+  as `recodes(lag2_A = lag_A)` are rejected; deeper exposure history
+  requires `estimator = "gcomp"`), `init_recode` entries must be a
+  constant or a single column name, and `out_recode` is not supported;
+  derived recodes (splines, cumulative counts, carry-forward flags)
+  require `estimator = "gcomp"`. Violations are rejected with an error
+  rather than silently ignored. The TMLE uses backward iterated
+  regressions with logistic fluctuations instead of forward simulation:
+  it is multiply robust (consistent when specific subsets of the
+  nuisance models are correct, not only when all are), reports Wald CIs
+  from the efficient influence curve without bootstrapping (`R` is
+  ignored), and has no Monte Carlo simulation error (`mc_sample` is
+  ignored). Practical positivity violations (few subjects following an
+  intervened regime) are handled by skipping the affected fluctuation
+  steps and truncating extreme weights, with collected warnings —
+  inspect these before trusting the affected functionals.
+
+- tmle_weight_trunc:
+
+  Numeric in (0, 1\]. Quantile at which each clever-covariate weight
+  vector is truncated in the TMLE fluctuation steps (positivity
+  protection). Default `0.995`; `1` disables truncation. Ignored for
+  `estimator = "gcomp"`.
 
 - return_fitted:
 
@@ -152,10 +196,16 @@ mediation(
   Integer random seed for reproducibility. Default `12345L`. Setting
   `seed` fixes the RNG stream used for the original-data Monte Carlo
   simulation *and* the bootstrap replicates (the latter via the
-  `future_seed` interface of future.apply). Pass `NULL` to leave the
-  global RNG state untouched. Users running multiple analyses in the
-  same session should set distinct seeds to ensure independent bootstrap
-  draws across analyses.
+  `future_seed` interface of future.apply); the caller's global RNG
+  state is saved and restored on exit, so a seeded call does not disturb
+  the ambient random stream. Pass `NULL` to disable seeding entirely: no
+  [`set.seed()`](https://rdrr.io/r/base/Random.html) is called, the
+  Monte Carlo draws consume and advance the ambient RNG stream, and
+  repeated calls therefore give *different* results (reproducible only
+  via an outer [`set.seed()`](https://rdrr.io/r/base/Random.html)). Use
+  `seed = NULL` inside simulation loops that manage their own seeds.
+  Users running multiple seeded analyses in the same session should set
+  distinct seeds to ensure independent bootstrap draws across analyses.
 
 ## Value
 
@@ -202,7 +252,10 @@ An object of class `"gformula"` with components:
 
   - `"Mediation Proportion (multiplicative)"` =
     \\RR\_{IDE}\\(RR\_{IIE}-1)/(RR\_{OE}-1) \times 100\\\\ on the
-    interventional overall scale (Lin et al. 2017, Table 2)
+    interventional overall scale (Lin et al. 2017, Table 2). Under
+    `mediation_type = "N"` the same formula is reported on the
+    total-effect scale as an *analogue*; Zheng & van der Laan (2017) do
+    not define a proportion mediated.
 
   For multiple mediators each indirect effect is labelled
   `"Indirect effect (<mediator>)"`; the additive proportion is \\(TE -
@@ -240,6 +293,18 @@ An object of class `"gformula"` with components:
   Printed next to the simulated intervention means as an informal
   benchmark.
 
+- `tmle_diag`: for `estimator = "tmle"` only, a list with the
+  subject-level efficient-influence-curve matrix (`eic`, one column per
+  functional), its column means (`eic_mean`, near zero for
+  well-supported functionals at the targeted fit), and the number of
+  subjects (`n`). `NULL` for `estimator = "gcomp"`.
+
+- `intermediate_confounders`: for `mediation_type = "N"`, a character
+  vector of covariate names whose model includes the exposure
+  (exposure-affected/intermediate confounders that make the natural
+  effects non-identifiable); empty when none. The `print` method
+  re-surfaces a short identifiability caveat when this is non-empty.
+
 ## Details
 
 \*\*Data requirements\*\* The input dataset must be in longitudinal
@@ -254,13 +319,12 @@ exposures only.
 \*\*Model specification\*\* Each element of `models` is created by
 [`spec_model`](https://adayim.github.io/causalMed/reference/spec_model.md)
 and must specify: (i) a formula, (ii) `mod_type` (`"exposure"`,
-`"covariate"`, `"mediator"`, `"outcome"`, `"survival"`, or
-`"censoring"`), and (iii) `var_type` (`"binary"`, `"normal"`,
-`"categorical"`, or `"custom"`). At least one `"mediator"` model is
-required. Multiple mediator models are supported under
-`mediation_type = "I"` (Yamamuro et al. 2021); list them in temporal
-order. Multi-mediator analyses are not supported under
-`mediation_type = "N"`.
+`"covariate"`, `"mediator"`, `"outcome"`, `"survival"`, or `"censor"`),
+and (iii) `var_type` (`"binary"`, `"normal"`, `"categorical"`, or
+`"custom"`). At least one `"mediator"` model is required. Multiple
+mediator models are supported under `mediation_type = "I"` (Yamamuro et
+al. 2021); list them in temporal order. Multi-mediator analyses are not
+supported under `mediation_type = "N"`.
 
 The list order determines the simulation sequence at each time step and
 must match your assumed data-generating process. A common ordering is
@@ -274,7 +338,8 @@ For non-standard covariate distributions (bounded, zero-inflated,
 truncated), use `var_type = "custom"` with `custom_fit` and `custom_sim`
 arguments to
 [`spec_model`](https://adayim.github.io/causalMed/reference/spec_model.md).
-See the vignette section on custom covariate types.
+See the custom covariate distributions section of
+[`vignette("causalMed-03-gformula")`](https://adayim.github.io/causalMed/articles/causalMed-03-gformula.md).
 
 \*\*Mediator pool (interventional effects)\*\* For
 `mediation_type = "I"`, a natural-course pass under each treatment level
@@ -338,6 +403,11 @@ Zheng, W., & van der Laan, M. (2017). Longitudinal mediation analysis
 with time-varying mediators and exposures, with application to survival
 outcomes. *Journal of Causal Inference*, 5(2).
 [doi:10.1515/jci-2016-0006](https://doi.org/10.1515/jci-2016-0006)
+
+Miles, C. H. (2023). On the causal interpretation of randomised
+interventional indirect effects. *Journal of the Royal Statistical
+Society: Series B*, 85(4), 1154–1172.
+[doi:10.1093/jrsssb/qkad066](https://doi.org/10.1093/jrsssb/qkad066)
 
 ## Examples
 

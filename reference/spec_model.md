@@ -18,6 +18,7 @@ spec_model(
   mod_type = c("covariate", "exposure", "mediator", "outcome", "censor", "survival"),
   custom_fit = NULL,
   custom_sim = NULL,
+  truncate = TRUE,
   ...
 )
 ```
@@ -55,12 +56,15 @@ spec_model(
 
   - `"binary"`: Bernoulli draws using the fitted mean.
 
-  - `"normal"`: Gaussian draws using fitted mean.
+  - `"normal"`: Gaussian draws using fitted mean, **clipped to the
+    observed range** of the response (see `truncate`).
 
   - `"categorical"`: Multinomial draws via
     [`multinom`](https://rdrr.io/pkg/nnet/man/multinom.html).
 
-  - `"custom"`: user-specified via `custom_fit` and/or `custom_sim`.
+  - `"custom"`: user-specified via `custom_fit` and/or `custom_sim`
+    (numeric output is also clipped to the observed range unless
+    `truncate = FALSE`).
 
 - mod_type:
 
@@ -87,6 +91,19 @@ spec_model(
   new data to predict on, and return a vector of simulated responses of
   matching length. If omitted and `var_type = "custom"`, normal draws
   are used by default.
+
+- truncate:
+
+  Logical. If `TRUE` (default), simulated numeric values are clipped to
+  the range of the response observed in the data — i.e. a `"normal"`
+  covariate is drawn as a *bounded* normal, and numeric output of
+  `custom_sim` is clipped as well. This guards against implausible
+  extrapolation when a fitted linear model is simulated far outside its
+  support, and it is the historical behaviour of this package. Set
+  `FALSE` to draw from the untruncated fitted distribution (matching the
+  plain `"normal"` covariate type of gfoRmula) or to let a `custom_sim`
+  function be authoritative over its own output range. Has no effect on
+  `"binary"` or `"categorical"` responses.
 
 - ...:
 
@@ -148,7 +165,7 @@ subset = platnormm1 == 0
 )
 ## For Poisson regression
 predict_poisson <- function(fit, newdf) {
-  theta <- stats::predict(object = fitcov, type = "response", newdata = newdf)
+  theta <- stats::predict(object = fit, type = "response", newdata = newdf)
   prediction <- rpois(n = nrow(newdf), lambda = theta)
   return(prediction)
 }

@@ -117,8 +117,9 @@ summarize the history entering each model.
 
 A worked total-effect analysis on this dataset (counterfactual mortality
 risk had GvHD never occurred versus the natural course), mirroring the
-model specifications in Appendix 2 of Keil et al. (2014), is provided in
-`references/paper_example.R` in the package source repository.
+model specifications in Appendix 2 of Keil et al. (2014), is walked
+through in
+[`vignette("causalMed-03-gformula")`](https://adayim.github.io/causalMed/articles/causalMed-03-gformula.md).
 
 ## References
 

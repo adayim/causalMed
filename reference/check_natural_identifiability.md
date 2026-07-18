@@ -27,4 +27,8 @@ check_natural_identifiability(models, exposure)
 
 ## Value
 
-Invisibly returns `NULL`.
+Invisibly returns a character vector of the covariate (response) names
+whose model includes the exposure on the right-hand side (the
+exposure-affected/intermediate confounders); empty if none. The caller
+can persist this so downstream methods (e.g. `print.gformula`) can
+re-surface the identifiability caveat.
