@@ -319,6 +319,7 @@ check_var_in <- function(vars, data) {
 #' @param param_name The name of the parameter (for error messages).
 #' @param param_value The object passed by the user.
 #' @return TRUE if valid, stops execution otherwise.
+#' @keywords internal
 check_recode_param <- function(param_name, param_value) {
 
   if (is.null(param_value)) return(TRUE)
