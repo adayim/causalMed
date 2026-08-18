@@ -53,14 +53,17 @@ element is one of:
         \code{list(natural = NULL, threshold = dyn_int(as.numeric(A > 0)))}.
 }
 If \code{intervention} is \code{NULL}, only the natural course is
-evaluated. If a \code{natural} intervention is not provided, it is added
-automatically and \code{ref_int} is set to \code{"natural"}.}
+evaluated. A \code{natural} element is also added automatically when
+\code{ref_int} asks for the natural course and the list contains no
+\code{NULL} element; see \code{ref_int} and Details.}
 
 \item{ref_int}{Reference intervention for contrasts. Either an integer index
 (\code{0} = natural course; \code{1}, \code{2}, … = elements of
 \code{intervention}) or a character name matching an element (e.g.,
-\code{"always"}). If no \code{natural} intervention is provided, it is added and
-\code{ref_int} is set to \code{"natural"}. Default: \code{0}.}
+\code{"always"}). \code{0} and \code{"natural"} both resolve to the
+\code{NULL} element of \code{intervention} if there is one, and otherwise
+add a \code{natural} element — which requires an exposure model in
+\code{models}. See Details. Default: \code{0}.}
 
 \item{init_recode}{Optional expression/function applied once at time 0 before the Monte Carlo loop
 (e.g., initializing baseline-derived variables). Should be defined with \code{\link{recodes}}. See Details.}
@@ -110,8 +113,14 @@ An object of class \code{"gformula"} with components:
   \item \code{estimate}: if multiple interventions are provided, a \code{data.table}
         of contrasts vs. \code{ref_int} (columns typically include \code{Intervention},
         \code{Risk_type}, \code{Estimate}, and (if \code{R > 1}) CI columns).
-  \item \code{sim_data}: if \code{return_data = TRUE}, the stacked simulated
-        Monte Carlo dataset across interventions (can be large).
+  \item \code{sim_data}: if \code{return_data = TRUE}, the simulated Monte
+        Carlo dataset stacked across interventions with an
+        \code{Intervention} column (can be large). It is the
+        \strong{end-of-follow-up snapshot} — one row per Monte Carlo subject
+        per intervention, holding each variable at its final simulated time
+        step alongside the accumulated \code{Pred_Y} — not a
+        row-per-time-point panel: the simulation overwrites each variable in
+        place as it steps through time.
   \item \code{fitted_models}: a named list of fitted models.
         If \code{return_fitted = TRUE}, returns full model objects plus attributes
         (\code{recodes}, \code{subset}, \code{var_type}, \code{mod_type});
@@ -159,9 +168,22 @@ and normal-approximation confidence intervals are computed from bootstrap resamp
 Provide a named list \code{intervention} with exposure values per time
 (e.g., \code{list(natural = NULL, always = c(1,1,1), never = c(0,0,0))}).
 If \code{intervention} is \code{NULL}, the function evaluates the natural course only.
-If at least one element is \code{NULL} and \code{ref_int == 0}, that element is used
-as the reference ("natural"). Otherwise, a \code{natural} intervention is added automatically,
-and \code{ref_int} is set to \code{"natural"}.
+
+The reference is resolved before simulation, so that \code{ref_int} always
+names an intervention that exists:
+\itemize{
+  \item \code{ref_int = 0} and \code{ref_int = "natural"} both ask for the
+        natural course. The \code{NULL} element of \code{intervention} is
+        used if one was supplied — whatever it is named — and otherwise a
+        \code{natural} element is added to the list.
+  \item An integer position, or a name matching an element, uses that
+        intervention as the reference; no natural course is added.
+}
+Because the default is \code{ref_int = 0}, a list holding only static or
+dynamic interventions still gains a natural course. The natural course draws
+the exposure from its fitted model, so \code{models} must then include a
+\code{mod_type = "exposure"} model; supplying one is required unless
+\code{ref_int} names one of the interventions you provided.
 
 **Model specification**
 Each element of \code{models} is typically created by \code{\link{spec_model}}
@@ -186,6 +208,13 @@ For survival-type applications, remove rows after the event of interest (or incl
 and model censoring appropriately). The function may record warnings internally and
 print them on exit. Results depend on correct temporal ordering, model specification,
 positivity, and no unmeasured confounding assumptions customary for g-formula.
+
+If a fitted model turns out to be rank deficient — a collinear term, or a
+covariate that is constant among the rows actually used to fit it, such as
+\code{time} in an outcome recorded only at the end of follow-up — the
+unestimable terms are dropped from the simulation, exactly as
+\code{\link[stats]{predict}} would, and are named in the warning summary
+printed on exit. Treat that warning as a prompt to fix the formula.
 }
 \examples{
 \dontrun{

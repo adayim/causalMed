@@ -17,3 +17,4 @@ TRUE if valid, stops execution otherwise.
 \description{
 Validate recode parameters
 }
+\keyword{internal}

@@ -25,14 +25,17 @@ element is one of:
         \code{list(natural = NULL, threshold = dyn_int(as.numeric(A > 0)))}.
 }
 If \code{intervention} is \code{NULL}, only the natural course is
-evaluated. If a \code{natural} intervention is not provided, it is added
-automatically and \code{ref_int} is set to \code{"natural"}.}
+evaluated. A \code{natural} element is also added automatically when
+\code{ref_int} asks for the natural course and the list contains no
+\code{NULL} element; see \code{ref_int} and Details.}
 
 \item{ref_int}{Reference intervention for contrasts. Either an integer index
 (\code{0} = natural course; \code{1}, \code{2}, … = elements of
 \code{intervention}) or a character name matching an element (e.g.,
-\code{"always"}). If no \code{natural} intervention is provided, it is added and
-\code{ref_int} is set to \code{"natural"}. Default: \code{0}.}
+\code{"always"}). \code{0} and \code{"natural"} both resolve to the
+\code{NULL} element of \code{intervention} if there is one, and otherwise
+add a \code{natural} element — which requires an exposure model in
+\code{models}. See Details. Default: \code{0}.}
 
 \item{time_len}{length of the time in the data.}
 }

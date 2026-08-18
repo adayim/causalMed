@@ -17,8 +17,8 @@
 #' @param mediation_type Type of the mediation analysis, if the value is \code{NA}
 #' no mediation analysis will be performed (default).
 #' @param med_pool Optional named list keyed by mediator response variable.
-#'   Each element is the time-\eqn{t} slice of a pre-permuted joint
-#'   mediator-trajectory matrix built by \code{.run_interventions} from the
+#'   Each element is the time-\eqn{t} slice of the pre-permuted joint
+#'   mediator-trajectory pool built by \code{.run_interventions} from the
 #'   corresponding reference intervention (Phi00 or Phi11). When the intervention
 #'   \code{intervention} requires a mediator override under
 #'   \code{mediation_type = "I"}, the mediator is assigned directly from this
@@ -151,16 +151,14 @@ simulate_data <- function(data,
       # Use pre-stored Xterms + beta (direct BLAS) instead of predict() to
       # avoid model.frame() reconstruction overhead on every time step.
       if (mod_type == "outcome") {
-        mm   <- model.matrix(model$Xterms, data = data[cond])
-        lp   <- drop(mm %*% model$beta)
+        lp   <- lin_pred(model, data[cond])
         pred <- model$linkinv(lp)
         pred <- pmin(pmax(pred, 1e-10), 1 - 1e-10)
         data[cond, Pred_Y := pred]
       }
 
       if (mod_type == "survival") {
-        mm <- model.matrix(model$Xterms, data = data[cond])
-        lp <- drop(mm %*% model$beta)
+        lp <- lin_pred(model, data[cond])
         h  <- model$linkinv(lp)
         h  <- pmin(pmax(h, 1e-10), 1 - 1e-10)
         data[cond, S := h]

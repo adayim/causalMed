@@ -221,18 +221,21 @@ print.gformula <- function(x,
 
   # -- Identifiability caveat (natural effects with intermediate confounding) --
   # Re-surface the short version of the runtime warning emitted by
-  # check_natural_identifiability(): exposure-affected confounders make the
-  # natural direct/indirect effects non-identifiable, and this is easy to
-  # miss in the warning stream after a long run.
+  # check_natural_identifiability(), which is easy to miss in the warning
+  # stream after a long run. Both state only what the formula scan found and
+  # what the cited papers establish; neither asserts the causal structure.
   ic <- x$intermediate_confounders
   if (is_mediation && identical(args$mediation_type, "N") &&
       !is.null(ic) && length(ic) > 0) {
     cat(sprintf(
       paste0("\n  ! Identifiability: covariate model(s) for {%s} include the ",
-             "exposure '%s' (exposure-affected/intermediate confounder), so the\n",
-             "    natural direct/indirect effects are NOT point-identified here. ",
-             "Consider mediation_type = \"I\".\n",
-             "    (Avin, Shpitser & Pearl 2005; VanderWeele & Tchetgen Tchetgen 2017.)\n"),
+             "exposure '%s', i.e. are modelled as exposure-affected.\n",
+             "    If such a covariate also confounds the mediator-outcome ",
+             "relationship, the natural direct/indirect\n",
+             "    effects are not point-identified (Avin, Shpitser & Pearl 2005; ",
+             "VanderWeele & Tchetgen Tchetgen 2017,\n",
+             "    who propose the interventional analogues, mediation_type = ",
+             "\"I\", for that setting).\n"),
       paste(ic, collapse = ", "), args$exposure))
   }
 
@@ -283,28 +286,66 @@ print.gformula <- function(x,
   # -- Model details (optional) ----------------------------------------------
   if (models) {
     cat("\n--- Fitted models ---\n")
-    for (nm in names(x$fitted_models)) {
-      fitmod   <- x$fitted_models[[nm]]
-      attr_lst <- attributes(fitmod)
-      cat(sprintf("\nVariable : %s  [type: %s | role: %s]\n",
-                  nm, attr_lst$var_type, attr_lst$mod_type))
-      cat(paste(rep("-", 40L), collapse = ""), "\n")
+    .print_fitted_models(x$fitted_models, args$return_fitted, digits,
+                         full = TRUE)
+  }
+
+  invisible(x)
+}
+
+
+# Internal helper ---------------------------------------------------------------
+# Render the fitted-model block shared by print.gformula(models = TRUE) and
+# summary.gformula(). `full = TRUE` prints each model's recodes and, when the
+# object was built with return_fitted = TRUE, its complete summary();
+# `full = FALSE` prints the coefficient table only, rounded to `digits`.
+.print_fitted_models <- function(fitted_models, return_fitted, digits,
+                                 full = TRUE) {
+  for (nm in names(fitted_models)) {
+    fitmod   <- fitted_models[[nm]]
+    attr_lst <- attributes(fitmod)
+    cat(sprintf("\nVariable : %s  [type: %s | role: %s]\n",
+                nm, attr_lst$var_type, attr_lst$mod_type))
+    cat(paste(rep("-", 40L), collapse = ""), "\n")
+
+    if (full) {
       if (!is.null(attr_lst$recodes)) {
         cat("Recodes: ")
         print(attr_lst$recodes)
       }
-      if (args$return_fitted) {
+      if (isTRUE(return_fitted)) {
         print(summary(fitmod))
       } else {
-        cat("Call: ")
-        print(fitmod$call)
-        cat("Coefficients:\n")
-        print(fitmod$coeff)
+        if (!is.null(fitmod$call)) {
+          cat("Call: ")
+          print(fitmod$call)
+        }
+        # NULL whenever no numeric coefficient table could be extracted --
+        # e.g. a custom_fit model of a class summary() does not describe that
+        # way. Say so instead of printing "NULL".
+        if (!is.null(fitmod$coeff)) {
+          cat("Coefficients:\n")
+          print(fitmod$coeff)
+        } else {
+          cat("  (no coefficient table available for this model class;",
+              "rerun with return_fitted = TRUE for the full object)\n")
+        }
       }
+      next
+    }
+
+    coef_tbl <- if (isTRUE(return_fitted)) {
+      tryCatch(summary(fitmod)$coefficients, error = function(e) NULL)
+    } else {
+      fitmod$coeff
+    }
+    if (!is.null(coef_tbl)) {
+      print(round(coef_tbl, digits))
+    } else {
+      cat("  (rerun with return_fitted = TRUE for full coefficient table)\n")
     }
   }
-
-  invisible(x)
+  invisible(NULL)
 }
 
 
@@ -328,25 +369,8 @@ summary.gformula <- function(object,
 
   # Then append full model coefficient tables
   cat("\n--- Fitted model coefficients ---\n")
-  for (nm in names(object$fitted_models)) {
-    fitmod   <- object$fitted_models[[nm]]
-    attr_lst <- attributes(fitmod)
-    cat(sprintf("\nVariable : %s  [type: %s | role: %s]\n",
-                nm, attr_lst$var_type, attr_lst$mod_type))
-    cat(paste(rep("-", 40L), collapse = ""), "\n")
-
-    coef_tbl <- if (object$all.args$return_fitted) {
-      tryCatch(summary(fitmod)$coefficients, error = function(e) NULL)
-    } else {
-      fitmod$coeff
-    }
-
-    if (!is.null(coef_tbl)) {
-      print(round(coef_tbl, digits))
-    } else {
-      cat("  (rerun with return_fitted = TRUE for full coefficient table)\n")
-    }
-  }
+  .print_fitted_models(object$fitted_models, object$all.args$return_fitted,
+                       digits, full = FALSE)
 
   invisible(object)
 }

@@ -32,8 +32,8 @@ simulate_data(
 no mediation analysis will be performed (default).}
 
 \item{med_pool}{Optional named list keyed by mediator response variable.
-Each element is the time-\eqn{t} slice of a pre-permuted joint
-mediator-trajectory matrix built by \code{.run_interventions} from the
+Each element is the time-\eqn{t} slice of the pre-permuted joint
+mediator-trajectory pool built by \code{.run_interventions} from the
 corresponding reference intervention (Phi00 or Phi11). When the intervention
 \code{intervention} requires a mediator override under
 \code{mediation_type = "I"}, the mediator is assigned directly from this

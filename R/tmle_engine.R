@@ -50,8 +50,7 @@ dens_value <- function(model, newdt) {
     return(.tmle_bound(pred[cbind(seq_len(nrow(pred)), col_ix)]))
   }
 
-  mm <- model.matrix(model$Xterms, data = newdt)
-  lp <- drop(mm %*% model$beta)
+  lp <- lin_pred(model, newdt)
 
   if (model$var_type == "binary") {
     p <- .tmle_bound(model$linkinv(lp))
@@ -441,8 +440,7 @@ tmle_natural_mediation <- function(data,
 
   # Exposure propensity P(A_t = 1 | past) at observed history.
   if (!is.null(exp_mod)) {
-    mmA <- model.matrix(exp_mod$Xterms, data = data)
-    pA1 <- .tmle_bound(exp_mod$linkinv(drop(mmA %*% exp_mod$beta)))
+    pA1 <- .tmle_bound(exp_mod$linkinv(lin_pred(exp_mod, data)))
   } else {
     stop("estimator = 'tmle' requires an exposure model (mod_type = 'exposure').",
          domain = "causalMed")
@@ -450,8 +448,7 @@ tmle_natural_mediation <- function(data,
 
   # Probability of remaining uncensored at each row.
   if (!is.null(cen_mod)) {
-    mmC     <- model.matrix(cen_mod$Xterms, data = data)
-    pUncens <- .tmle_bound(1 - cen_mod$linkinv(drop(mmC %*% cen_mod$beta)))
+    pUncens <- .tmle_bound(1 - cen_mod$linkinv(lin_pred(cen_mod, data)))
   } else {
     pUncens <- rep(1, nrow(data))
   }

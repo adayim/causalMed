@@ -52,21 +52,26 @@ devtools::install_github("adayim/causalMed")
     `mGFORMULA` macro and the algorithm of Yamamuro et al. 2021. Does
     not require cross-world independence. **Multiple mediator models**
     are supported under this estimand (Yamamuro 2021 §4); per-mediator
-    IIE(M_k) is reported alongside the overall IDE/TE.
+    IIE(M_k) is reported alongside the overall IDE/TE. On what a
+    non-zero interventional indirect effect does and does not establish,
+    see Miles (2023).
   - `mediation_type = "N"`: natural NDE/NIE (Zheng & van der Laan 2017)
     — conditional mediator distribution with exposure swapping; requires
     stronger assumptions (single mediator only). Natural effects are
     **not identifiable** when a confounder of the mediator–outcome
-    relationship is itself affected by the exposure; `mediation()`
-    detects this, warns, and repeats the caveat in `print()` — prefer
-    `mediation_type = "I"` in that setting.
+    relationship is itself affected by the exposure (Avin, Shpitser &
+    Pearl 2005; VanderWeele & Tchetgen Tchetgen 2017); `mediation()`
+    detects this, warns, and repeats the caveat in `print()`.
+    VanderWeele & Tchetgen Tchetgen (2017) propose the interventional
+    estimand for that setting.
 - **Two estimators for natural effects**: the parametric g-formula
   plug-in (`estimator = "gcomp"`, the default) or a **targeted maximum
   likelihood estimator** (`estimator = "tmle"`, Zheng & van der Laan
-  2017 §4.3) — multiply robust (consistent when only certain subsets of
-  the nuisance models are correct), with Wald confidence intervals from
-  the efficient influence curve, so no bootstrap is needed. Available
-  for `mediation_type = "N"` only.
+  2017 §4.3), for which that paper establishes multiple robustness —
+  consistency when only certain subsets of the nuisance models are
+  correct — with Wald confidence intervals from the efficient influence
+  curve, so no bootstrap is needed. Available for `mediation_type = "N"`
+  only.
 - **Flexible model specification**: logistic regression (binary), linear
   regression (normal), multinomial logistic (categorical), and custom
   simulation functions. Numeric draws are clipped to the observed range
@@ -134,7 +139,6 @@ fit_bin <- gformula(
   quiet       = TRUE,
   seed        = 2025
 )
-#> Warning: package 'future' was built under R version 4.5.3
 
 print(fit_bin)
 #> Call:
@@ -354,9 +358,13 @@ no-unmeasured-confounding assumptions than interventional effects. In
 particular, natural direct and indirect effects are **not identifiable**
 when a mediator–outcome confounder is itself affected by prior exposure
 (Avin, Shpitser & Pearl 2005; VanderWeele & Tchetgen Tchetgen 2017).
-`mediation()` detects this pattern, warns at run time, and restates the
-caveat under the decomposition when you `print()` the result; use
-`mediation_type = "I"` in that setting.
+`mediation()` scans the model formulas for covariates modelled as
+exposure-affected, warns at run time, and restates the caveat under the
+decomposition when you `print()` the result — that scan cannot verify
+the causal structure, and its silence does not establish that no such
+confounder exists. VanderWeele & Tchetgen Tchetgen (2017) propose the
+randomized interventional analogues (`mediation_type = "I"`) for that
+setting.
 
 #### Targeted estimation (TMLE)
 
@@ -372,11 +380,15 @@ fit_tmle <- mediation(
 )
 ```
 
-It runs backward targeted regressions instead of forward simulation, so
-it is multiply robust (consistent when only certain subsets of the
-nuisance models are correct) and reports Wald CIs from the efficient
-influence curve — `R` and `mc_sample` are ignored. It requires an
-exposure model, a binary outcome, and lag-style recodes only
+It runs backward targeted regressions instead of forward simulation.
+Zheng & van der Laan (2017) establish multiple robustness for this
+estimator — consistency when only certain subsets of the nuisance models
+are correct — and it reports Wald CIs from the efficient influence
+curve, so `R` and `mc_sample` are ignored. Note that those results are
+stated for correctly specified nuisance models, and this implementation
+builds its targeted sequential regressions as additive main-effects
+working models; see `?mediation` for the detail. It requires an exposure
+model, a binary outcome, and lag-style recodes only
 (`recodes(lag_A = A)`; exposure lags must be first-order); derived
 recodes such as splines or cumulative counts need `estimator = "gcomp"`.
 Inspect any positivity warnings it reports before trusting the affected
@@ -396,11 +408,13 @@ plan(sequential)     # reset after use
 ## Data format
 
 Input data must be in **long format** with one row per subject per time
-point. The time variable should be an ordered integer starting at 0.
-Variables used in models as lags (e.g., `lag1_A`) must be pre-computed
-and present in the data, or created via `init_recode` / `in_recode`
-hooks. The `nonsurvivaldata` bundled with the package illustrates the
-required structure.
+point. The time variable should be an ordered integer starting at 0. Lag
+variables (e.g. `lag1_A`) must be created by the `init_recode` /
+`in_recode` hooks: the Monte Carlo cohort is built from `id_var` and
+`base_vars` only, so a lag column that merely exists in the input data
+is not carried into the simulation and the run stops with
+`object 'lag1_A' not found`. The `nonsurvivaldata` bundled with the
+package illustrates the required structure.
 
 ``` r
 data("nonsurvivaldata", package = "causalMed")
@@ -458,3 +472,12 @@ head(nonsurvivaldata)
     anti-inflammatory actions in elderly type 2 diabetics. *Statistical
     Methods in Medical Research*, 30(8), 1782–1799.
     [doi:10.1177/09622802211025988](https://doi.org/10.1177/09622802211025988)
+
+7.  Avin, C., Shpitser, I., & Pearl, J. (2005). Identifiability of
+    path-specific effects. *Proceedings of the 19th International Joint
+    Conference on Artificial Intelligence (IJCAI)*, 357–363.
+
+8.  Miles, C. H. (2023). On the causal interpretation of randomised
+    interventional indirect effects. *Journal of the Royal Statistical
+    Society: Series B*, 85(4), 1154–1172.
+    [doi:10.1093/jrsssb/qkad066](https://doi.org/10.1093/jrsssb/qkad066)

@@ -1,16 +1,18 @@
 Package: causalMed
-Title: Causal Mediation Analysis in Survival settings
-Version: 0.0.5
+Title: Parametric G-Formula for Longitudinal Mediation and Total Effects
+Version: 0.1.0
 Authors@R: c(person("Alimu", "Dayimu", 
                     email = "alimdayim@hotmail.com", 
                     role = c("aut", "cre")),
              person("Xingling", "Guo", 
                     role = c("aut")))
-Description: This package implements the time-varying causal mediation analysis 
-    (<doi:10.1002/sim.7426> and <doi:10.1515/jci-2016-0006>). The algorithm behind this
-    is based on g-formula (<doi:10.1016/0270-0255(86)90088-6>), hence the g-formula in this package
-    can estimate counterfactual mean or risk under hypothetical interventions, including time-varying
-    interventions, and confounders.  
+Description: Causal mediation analysis for longitudinal data with time-varying
+    exposures, mediators and confounders, covering both interventional
+    (<doi:10.1002/sim.7426>) and natural (<doi:10.1515/jci-2016-0006>) direct
+    and indirect effects. Estimation uses the parametric g-formula
+    (<doi:10.1016/0270-0255(86)90088-6>), which is also exposed directly so
+    that counterfactual means or risks can be estimated under static, dynamic
+    or time-varying hypothetical interventions.
 Depends: R (>= 3.5.1)
 License: GPL (>= 2)
 Encoding: UTF-8
@@ -32,3 +34,4 @@ URL: https://github.com/adayim/causalMed, https://adayim.github.io/causalMed/
 BugReports: https://github.com/adayim/causalMed/issues
 VignetteBuilder: knitr
 Config/roxygen2/version: 8.0.0
+RoxygenNote: 7.3.3

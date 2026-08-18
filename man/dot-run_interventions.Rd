@@ -52,8 +52,9 @@ element is one of:
         \code{list(natural = NULL, threshold = dyn_int(as.numeric(A > 0)))}.
 }
 If \code{intervention} is \code{NULL}, only the natural course is
-evaluated. If a \code{natural} intervention is not provided, it is added
-automatically and \code{ref_int} is set to \code{"natural"}.}
+evaluated. A \code{natural} element is also added automatically when
+\code{ref_int} asks for the natural course and the list contains no
+\code{NULL} element; see \code{ref_int} and Details.}
 
 \item{in_recode}{Optional expression/function applied at the **start** of each time step
 (e.g., entry-time functional forms). Should be defined with \code{\link{recodes}}. See Details.}

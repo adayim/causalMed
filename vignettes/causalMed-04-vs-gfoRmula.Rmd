@@ -108,31 +108,33 @@ available in `causalMed` include:
 | Covariate type | gfoRmula | causalMed |
 |---------------|:--------:|:---------:|
 | `"binary"` | ✓ | ✓ |
-| `"normal"` (untruncated Gaussian draw) | ✓ | ✓ — via `spec_model(truncate = FALSE)` |
+| `"normal"` | ✓ | ✓ |
 | `"categorical"` | ✓ | ✓ |
-| `"bounded normal"` (clipped to observed range) | ✓ | ✓ — this is `"normal"`'s **default** behaviour |
+| `"bounded normal"` (model fitted on a rescaled response) | ✓ | — |
 | `"zero-inflated normal"` (point mass at 0) | ✓ | — |
 | `"truncated normal"` (left-truncated) | ✓ | — |
 | `"absorbing"` (once 1, always 1) | ✓ | — |
 | `"categorical time"` (time as categorical predictor) | ✓ | — |
 
-An important difference is hiding in the first two rows. In `causalMed`,
-`var_type = "normal"` clips each simulated draw to the range of the response
-observed in the data — that is, it behaves as `gfoRmula`'s **bounded normal**,
-not as its plain normal. This is a deliberate guard against implausible
-extrapolation, but it means the two packages simulate different laws whenever the
-clipping actually binds. Set `spec_model(truncate = FALSE)` to recover the
-untruncated Gaussian draw and match `gfoRmula`'s `"normal"` exactly. (The
-numerical agreement demonstrated below is on data where clipping essentially
-never binds, so it is unaffected.)
+**On range truncation.** Both packages clip simulated normal draws to the
+range of the variable observed in the data, and both do so *by default*. In
+`causalMed` this is `spec_model(truncate = TRUE)`, the default, clipping to
+`range()` of the response; in `gfoRmula` it is the `sim_trunc` argument, whose
+documentation reads "Logical scalar indicating whether to truncate simulated
+covariates to their range in the observed data set" and whose default is
+`TRUE`. Setting `spec_model(truncate = FALSE)` corresponds to
+`sim_trunc = FALSE`.
 
-For the remaining distributions (e.g. a biomarker that can be zero or a treatment
-that is absorbing once initiated), `gfoRmula` is the appropriate choice. However,
-one can use `custom_fit` and `custom_sim` to implement custom distributions and
-simulations in the `spec_model` function. This gives users the flexibility to
-model complex scenarios, but it should be done with caution and careful
-validation, as it requires more manual coding and is not yet supported by
-built-in diagnostics.
+Note that `gfoRmula`'s `"bounded normal"` is a distinct covariate *type*, not
+this truncation: it fits the model on a response rescaled to `[0, 1]` and
+transforms the simulated value back. `causalMed` does not implement it.
+
+For the remaining distributions (e.g. a biomarker that can be zero or a
+treatment that is absorbing once initiated), `gfoRmula` implements them and
+`causalMed` does not. `causalMed`'s `custom_fit` and `custom_sim` arguments to
+`spec_model()` allow a user-supplied fitting function and sampler, which shifts
+the responsibility for the distributional choice — and for validating it — onto
+the user.
 
 ### Competing events
 
@@ -255,9 +257,10 @@ many models are specified.
 
 ## Numerical Validation: Side-by-Side Examples
 
-For total-effect analyses the two packages should produce equivalent results.
-We illustrate this with both a binary end-of-follow-up outcome and a survival
-outcome.
+For total-effect analyses the two packages implement the same estimator, so with
+matching model specifications and matching truncation settings they are expected
+to agree up to Monte Carlo error. We check that with both a binary
+end-of-follow-up outcome and a survival outcome.
 
 ### Data preparation
 
@@ -551,9 +554,12 @@ data.frame(
 )
 ```
 
-The differences are well within 0.0001, confirming that `causalMed`'s
-g-formula engine is numerically consistent with `gfoRmula` as the reference
-implementation.
+On this example the differences are within 0.0001. The package's test suite runs
+the same comparison against `gfoRmula` on a binary end-of-follow-up outcome, a
+survival outcome and a dynamic intervention, so the agreement shown here is not
+a one-off; it is established on those data-generating processes, at those model
+specifications, and does not by itself extend to settings the comparison does
+not cover.
 
 ---
 

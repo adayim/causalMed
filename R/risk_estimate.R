@@ -1,39 +1,38 @@
-#' Calculate Risk Difference, Risk Ratio, or Mediation Effects based on g-formula
+#' Point-estimate contrasts against a reference intervention
 #'
 #' @description
-#' These internal functions compute the Risk Difference (RD) and Risk Ratio (RR)
-#' for g-formula estimates of the total effect, natural direct effect (NDE), 
-#' and natural indirect effect (NIE). The functions also calculate confidence intervals 
-#' (for RD and RR) and mediation effects based on g-formula methodology.
+#' Internal use only. Turns the per-intervention mean outcomes produced by
+#' \code{.run_interventions} into risk differences and risk ratios against the
+#' reference intervention. Confidence intervals are \emph{not} computed here;
+#' \code{\link{gformula}} adds them from the bootstrap replicates.
 #'
 #' @details
-#' These functions are used internally within the g-formula framework for effect estimation.
-#' They are not intended for direct user input. The functions perform:
-#' - \code{risk_estimate_point}: Computes point estimates for risk difference and risk ratio.
-#' - \code{risk_estimate_boot}: Computes per-bootstrap-replicate estimates for the effects (RD/RR).
-#' - \code{risk_estimate_mediation}: Computes total, direct, and indirect effects by subtraction.
+#' Companion internal functions in the same file, not documented separately:
+#' \code{risk_estimate_boot} does the same job for one stacked bootstrap
+#' replicate, and \code{risk_estimate_mediation} builds the mediation
+#' decomposition (total, direct, per-mediator indirect) by subtraction.
 #'
-#' These functions operate on the output of the \code{.run_interventions} function, estimating 
-#' effects (both point estimates and confidence intervals) from simulated data.
-#'
-#' @param data_list A list of simulated datasets returned by \code{.run_interventions}.
-#' @param ref_int Reference intervention to compare against.
-#' @param intervention A vector specifying the interventions to compare.
-#' @param return_data Logical. If \code{TRUE}, returns the simulated data along with effects.
+#' @param data_list Named list of intervention results from
+#'   \code{.run_interventions}: one mean outcome per intervention, or one
+#'   simulated \code{data.table} per intervention when \code{return_data} is
+#'   \code{TRUE}.
+#' @param ref_int Character scalar naming the reference element of
+#'   \code{data_list}.
+#' @param intervention The named intervention list; its names determine which
+#'   contrasts are formed.
+#' @param return_data Logical. \code{TRUE} when \code{data_list} holds
+#'   simulated datasets rather than scalar means.
 #'
 #' @return
-#' A \code{data.table} with calculated effects (Risk Difference, Risk Ratio, or Mediation effects)
-#' and, if applicable, confidence intervals. For mediation effects, the result will show
-#' total, direct, and indirect effects.
+#' A \code{data.table} with columns \code{Intervention}, \code{Risk_type}
+#' (\code{"Difference"} or \code{"Ratio"}) and \code{Estimate}: two rows per
+#' non-reference intervention.
 #'
 #' @seealso \code{\link{gformula}}, \code{\link{mediation}}
 #'
 #' @importFrom data.table data.table
 #'
 #' @keywords internal
-
-
-# Point estimates: risk difference and risk ratio from the main g-formula run
 risk_estimate_point <- function(data_list, ref_int, intervention, return_data) {
   ref_dat <- data_list[[ref_int]]
   vs_nam <- setdiff(names(intervention), ref_int)

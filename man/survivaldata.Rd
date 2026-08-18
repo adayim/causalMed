@@ -5,18 +5,21 @@
 \alias{survivaldata}
 \title{Example Dataset for a Survival Outcome}
 \format{
-A data frame with 7113 rows and 10 variables:
+A data frame with 7113 rows and 10 variables, in long at-risk format
+  (one row per subject per time point while still at risk; 3000 subjects,
+  2799 events, no missing values):
 \describe{
-  \item{id}{Unique subject identifier.}
-  \item{time}{Time variable (integer, starting at 0).}
+  \item{id}{Unique subject identifier (1-3000).}
+  \item{time}{Time variable (integer, 0 to 4).}
   \item{V}{Time-fixed baseline covariate.}
-  \item{L}{Time-varying confounder.}
+  \item{L}{Time-varying confounder (continuous).}
   \item{A}{Time-varying binary exposure.}
-  \item{M}{Time-varying mediator.}
-  \item{Y}{Survival outcome indicator (1 = event, 0 = alive/censored).}
-  \item{lag1_A}{Lagged exposure (A at previous time point).}
-  \item{lag1_M}{Lagged mediator.}
-  \item{lag1_L}{Lagged confounder.}
+  \item{M}{Time-varying mediator (continuous).}
+  \item{Y}{Event indicator at this time point (1 = event, 0 = still at
+    risk). There is no censoring in this dataset.}
+  \item{lag1_A}{Exposure at the previous time point; 0 at \code{time == 0}.}
+  \item{lag1_M}{Previous value of \code{M}; 0 at \code{time == 0}.}
+  \item{lag1_L}{Previous value of \code{L}; 0 at \code{time == 0}.}
 }
 }
 \source{
@@ -26,9 +29,9 @@ Simulated data generated for package examples.
 survivaldata
 }
 \description{
-A simulated dataset with time-varying and baseline variables for subjects
-with a survival outcome, suitable for use with the g-formula and mediation
-functions under survival settings.
+A simulated dataset with time-varying and baseline variables for 3000
+subjects with a discrete-time survival outcome, suitable for use with the
+g-formula and mediation functions under survival settings.
 }
 \details{
 The data-generating structure can be summarized as:
@@ -42,5 +45,8 @@ Y_t \leftarrow V, A_t, M_t, L_t, A_t*M_t, t.
 Events and follow-up observations are generated only while subjects remain at
 risk. Therefore, once \code{Y} becomes 1 at time \eqn{t}, no observations are
 retained for that subject at subsequent time points \eqn{t+1, t+2, \ldots}.
+}
+\seealso{
+\code{\link{nonsurvivaldata}} for the end-of-follow-up counterpart.
 }
 \keyword{datasets}

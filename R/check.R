@@ -23,7 +23,18 @@ check_error <- function(data,
     stop("Models must be provided as a list", domain = "causalMed")
   }
 
-  out_flag <- sapply(models, function(mods) mods$mod_type %in% c("outcome", "survival"))
+  # Validate the model class up front: every check below reads $mod_type and
+  # $call, which an element that did not come from spec_model() does not have,
+  # so leaving this until the end produced a confusing downstream error first.
+  cls <- vapply(models, function(x) !inherits(x, "causalMed_gmodel"), logical(1))
+  if (any(cls)) {
+    stop("Models in the list must be `causalMed_gmodel` object, please use spec_model to create!")
+  }
+
+  # Model roles, read once.
+  mod_types <- vapply(models, function(mods) mods$mod_type, character(1))
+
+  out_flag <- mod_types %in% c("outcome", "survival")
   if (sum(out_flag) > 1) {
     stop("Only one outcome model or survival model allowed.", domain = "causalMed")
   }
@@ -42,19 +53,43 @@ check_error <- function(data,
     stop("The time variable must be numeric.", domain = "causalMed")
   }
 
+  # `base_vars` must be time-fixed. The Monte Carlo cohort is drawn from
+  # unique(data[, c(id_var, base_vars)]); a column that varies within a subject
+  # contributes several rows for that subject, so the sampler silently
+  # over-represents subjects with more distinct values. Warn rather than stop:
+  # the run is still meaningful, but the baseline distribution is not the one
+  # the user intended. Implemented with base tapply to avoid adding data.table
+  # NSE columns to utils::globalVariables().
+  bvars <- setdiff(base_vars, c(id_var, time_var))
+  if (length(bvars) > 0) {
+    varying <- bvars[vapply(bvars, function(v) {
+      any(tapply(data[[v]], data[[id_var]],
+                 function(x) length(unique(x))) > 1L)
+    }, logical(1))]
+    if (length(varying) > 0) {
+      warning(sprintf(paste0(
+        "Baseline variable(s) {%s} are not time-fixed: they take more than one ",
+        "value within at least one '%s'. The Monte Carlo cohort is sampled from ",
+        "the unique (%s, baseline) rows, so those subjects are over-represented ",
+        "in every intervention. Keep only time-fixed columns in `base_vars` and model ",
+        "time-varying ones with spec_model(mod_type = \"covariate\")."),
+        paste(varying, collapse = ", "), id_var, id_var),
+        call. = FALSE, domain = "causalMed")
+    }
+  }
+
   # Check if variables in the formula included in the data
   vars_models <- unlist(lapply(models, function(x) all.vars(formula(x$call))))
   check_var_in(vars_models, data)
 
   # Get the variable name of exposure and check if it the same as the exposure
-  exp_flag <- sapply(models, function(mods) mods$mod_type == "exposure")
+  exp_flag <- mod_types == "exposure"
   if (sum(exp_flag) > 1) {
     stop("Only one exposure model is allowed.", domain = "causalMed")
   }
 
   if (any(exp_flag)) {
-    exp_flag <- which(exp_flag)
-    exposure_var <- all.vars(formula(models[[exp_flag]]$call)[[2]])
+    exposure_var <- all.vars(formula(models[[which(exp_flag)]]$call)[[2]])
     if (exposure_var != exposure) {
       stop("The given exposure variable was different between exposure model in `models`.",
         domain = "causalMed"
@@ -63,16 +98,13 @@ check_error <- function(data,
   }
 
   # Check for survival models
-  cen_flag <- sapply(models, function(mods) mods$mod_type == "censor")
-  surv_flag <- sapply(models, function(mods) mods$mod_type == "survival")
-  if (sum(cen_flag) > 1) {
+  if (sum(mod_types == "censor") > 1) {
     stop("Only one censor model is allowed.", domain = "causalMed")
   }
-  if (sum(surv_flag) > 1) {
-    stop("Only one survival model is allowed.", domain = "causalMed")
-  }
+  # (A second "survival" model is already caught by the outcome/survival count
+  # above; only the censor model needs its own uniqueness check.)
 
-  is_survival <- any(cen_flag) || any(surv_flag)
+  is_survival <- any(mod_types %in% c("censor", "survival"))
 
   if (is_survival) {
     y <- as.numeric(na.omit(data[[outcome]]))
@@ -82,14 +114,11 @@ check_error <- function(data,
     }
   }
 
-  # Outcome model or survival model must be defined and one only
-  out_flag <- sapply(models, function(mods) mods$mod_type == "outcome")
-  if (is_survival & any(out_flag)) {
+  # A censor model implies a survival setting, so it cannot be paired with a
+  # plain "outcome" model. (The reverse case -- neither an outcome nor a
+  # survival model -- is already rejected above.)
+  if (is_survival && any(mod_types == "outcome")) {
     stop("You cannot define the outcome model with survival/censor model at the same time.", domain = "causalMed")
-  }
-
-  if (!any(out_flag) & !is_survival) {
-    stop("Outcome or survival model must be defined in the `models`.", domain = "causalMed")
   }
 
   # Block user columns named "S" or "Sc" to avoid clashes with internal variables for survival outcome.
@@ -103,14 +132,6 @@ check_error <- function(data,
       )
       stop(msg, call. = FALSE)
     }
-  }
-
-
-
-  # Check the models class
-  cls <- vapply(models, function(x) !inherits(x, "causalMed_gmodel"), logical(1))
-  if (any(cls)) {
-    stop("Models in the list must be `causalMed_gmodel` object, please use spec_model to create!")
   }
 }
 
@@ -169,18 +190,64 @@ check_intervention <- function(models, intervention, ref_int, time_len) {
     stop("Length of the elements in the intervention must be 0 (`NULL`), 1 or the same length of time.", domain = "causalMed")
   }
 
-  # Check for reference intervention
-  if (length(ref_int) > 1) {
+  # Check for reference intervention. `&&` (not `&`) throughout: with `&` both
+  # sides are always evaluated, so a character `ref_int` reached the numeric
+  # comparison and was silently compared as a string.
+  if (length(ref_int) != 1L || is.na(ref_int)) {
     stop("Length of `ref_int` must be 1.", domain = "causalMed")
   }
 
-  if (is.numeric(ref_int) & ref_int > length(intervention)) {
-    stop("`ref_int` must be less than the length of intervention.", domain = "causalMed")
+  if (is.numeric(ref_int)) {
+    if (ref_int < 0 || ref_int != round(ref_int)) {
+      stop("Numeric `ref_int` must be a whole number: 0 for the natural course, or the position of an intervention.",
+           domain = "causalMed")
+    }
+    if (ref_int > length(intervention)) {
+      stop("`ref_int` must be less than the length of intervention.", domain = "causalMed")
+    }
+  } else if (is.character(ref_int)) {
+    # "natural" is always allowed: gformula() creates the natural-course
+    # intervention when the user asks for it and did not supply one.
+    if (ref_int != "natural" && !ref_int %in% names(intervention)) {
+      stop("`ref_int` must be included in the names of intervention.", domain = "causalMed")
+    }
+  } else {
+    stop("`ref_int` must be a whole number or the name of an intervention.",
+         domain = "causalMed")
   }
+}
 
-  if (is.character(ref_int) & ref_int != "natural" & !ref_int %in% names(intervention)) {
-    stop("`ref_int` must be included in the names of intervention.", domain = "causalMed")
-  }
+
+#' Check that a natural-course intervention can be simulated
+#'
+#' A natural-course intervention -- a \code{NULL} element of \code{intervention},
+#' or \code{intervention = NULL} -- draws the exposure from its own fitted model
+#' at each time step. Without a \code{mod_type = "exposure"} model there is
+#' nothing to draw from, and the exposure column never enters the Monte Carlo
+#' dataset, so the run fails deep inside \code{model.matrix()} with an opaque
+#' "object '<exposure>' not found". Fail early with an actionable message.
+#'
+#' @param models List of model specifications from \code{\link{spec_model}}.
+#' @param intervention The resolved (named, non-\code{NULL}) intervention list.
+#' @param exposure Character scalar. Name of the exposure variable.
+#' @keywords internal
+check_natural_course <- function(models, intervention, exposure) {
+  if (!any(vapply(intervention, is.null, logical(1)))) return(invisible(NULL))
+  if (any(vapply(models, function(m) identical(m$mod_type, "exposure"), logical(1))))
+    return(invisible(NULL))
+
+  # Do NOT advise "use only static/dynamic interventions": with the default
+  # ref_int = 0 a static-only list still gets a natural course added as the
+  # reference, so following that advice hits this same error again. The way out
+  # is to name one of the supplied interventions as the reference.
+  stop(sprintf(paste0(
+    "A natural-course intervention was requested but no exposure model was ",
+    "supplied, so there is nothing to draw '%s' from. Either add ",
+    "spec_model(%s ~ ..., mod_type = \"exposure\") to `models`, or -- if you ",
+    "did not want a natural course -- set `ref_int` to the name of one of ",
+    "your interventions, since the default ref_int = 0 asks for the natural ",
+    "course as the reference."),
+    exposure, exposure), call. = FALSE, domain = "causalMed")
 }
 
 #' Check temporal ordering of models for mediation analysis
@@ -245,20 +312,21 @@ check_mediation_order <- function(models) {
 #' Warn about non-identifiability of natural effects under intermediate confounding
 #'
 #' For \code{mediation_type = "N"}, natural direct and indirect effects are not
-#' identifiable from observational data when an intermediate confounder of the
+#' identifiable from observational data when a confounder of the
 #' mediator-outcome relationship is itself affected by exposure (Avin, Shpitser
 #' & Pearl 2005; VanderWeele 2014; VanderWeele & Tchetgen Tchetgen 2017). This
-#' check inspects the covariate models for dependence on the exposure variable
-#' on the right-hand side of the formula; if any are found, a warning is
-#' emitted suggesting \code{mediation_type = "I"} instead.
+#' check reads the model formulas only: it reports covariate models that carry
+#' the exposure on the right-hand side, i.e. covariates the user has modelled
+#' as exposure-affected. It does not establish that such a covariate also
+#' confounds the mediator-outcome relationship, and its silence does not
+#' establish that no such confounder exists.
 #'
 #' @param models List of model specifications from \code{\link{spec_model}}.
 #' @param exposure Character scalar. Name of the exposure variable.
 #' @return Invisibly returns a character vector of the covariate (response)
-#'   names whose model includes the exposure on the right-hand side (the
-#'   exposure-affected/intermediate confounders); empty if none. The caller
-#'   can persist this so downstream methods (e.g. \code{print.gformula}) can
-#'   re-surface the identifiability caveat.
+#'   names whose model includes the exposure on the right-hand side; empty if
+#'   none. The caller can persist this so downstream methods (e.g.
+#'   \code{print.gformula}) can re-surface the identifiability caveat.
 #' @keywords internal
 check_natural_identifiability <- function(models, exposure) {
   cov_idx <- which(sapply(models, function(m) m$mod_type == "covariate"))
@@ -279,12 +347,15 @@ check_natural_identifiability <- function(models, exposure) {
     warning(sprintf(
       paste0(
         "mediation_type = \"N\" requested, but covariate model(s) for {%s} include ",
-        "the exposure '%s' on the right-hand side, indicating an intermediate ",
-        "(exposure-affected) confounder. Natural direct and indirect effects are ",
-        "NOT identifiable from observational data in this setting (Avin, Shpitser ",
-        "& Pearl 2005; VanderWeele 2014; VanderWeele & Tchetgen Tchetgen 2017). ",
-        "Consider mediation_type = \"I\" for identifiable interventional ",
-        "(randomized-analogue) effects."
+        "the exposure '%s' on the right-hand side, i.e. they are modelled as ",
+        "exposure-affected. If such a covariate also confounds the ",
+        "mediator-outcome relationship, natural direct and indirect effects are ",
+        "NOT identifiable from observational data (Avin, Shpitser & Pearl 2005; ",
+        "VanderWeele 2014; VanderWeele & Tchetgen Tchetgen 2017); for that ",
+        "setting VanderWeele & Tchetgen Tchetgen (2017) propose the randomized ",
+        "interventional analogues, available here as mediation_type = \"I\". ",
+        "This check reads the model formulas only and cannot verify the causal ",
+        "structure."
       ),
       paste(hit, collapse = ", "), exposure
     ), call. = FALSE, domain = "causalMed")

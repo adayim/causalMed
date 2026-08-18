@@ -11,16 +11,22 @@
 #'   \code{formula} must exist in the analysis \code{data.frame} when fitting/evaluating
 #'   the model during g-formula simulation.
 #'
-#' @param subset Optional. A logical expression or character vector defining a subset
-#'   of observations to fit/simulate this model on; passed through when fitting and also
-#'   respected during simulation of the response for this model.
+#' @param subset Optional. An unquoted logical expression naming columns of the
+#'   analysis data (e.g. \code{platnormm1 == 0}) that restricts this model to a
+#'   subset of observations. It is passed through when fitting and re-evaluated
+#'   at each time step during simulation, so only the rows satisfying it have
+#'   their response drawn from this model. Rows that never satisfy it keep
+#'   whatever value they already carry.
 #'
-#' @param recode Optional character vector. Should be defined with \code{\link{recodes}}. One or more recoding statements (e.g.,
-#'   \code{L_lag1 = L} or \code{M_lag1 = 0}) to be applied **before** evaluating
-#'   the model and **before** simulating the response for this model (useful for dynamic recoding).
+#' @param recode Optional. One or more recoding statements built with
+#'   \code{\link{recodes}} (e.g. \code{recodes(L_lag1 = L)} or
+#'   \code{recodes(M_lag1 = 0)}), applied \strong{before} fitting the model and
+#'   \strong{before} simulating its response (useful for dynamic recoding).
+#'   Anything that is not a \code{recodes()} object is rejected.
 #'
 #' @param var_type Character. The response type for simulation/prediction:
-#'   \code{"binary"}, \code{"normal"}, \code{"categorical"}, or \code{"custom"}.
+#'   \code{"normal"} (the default), \code{"binary"}, \code{"categorical"}, or
+#'   \code{"custom"}.
 #'   By default, values are simulated via:
 #'   \itemize{
 #'     \item \code{"binary"}: Bernoulli draws using the fitted mean.
@@ -32,31 +38,71 @@
 #'           \code{truncate = FALSE}).
 #'   }
 #'
-#' @param mod_type Character. The role of this model in the data-generating process:
-#'   \code{"covariate"}, \code{"exposure"}, \code{"mediator"},
-#'   \code{"outcome"}, \code{"censor"}, or \code{"survival"}.
+#' @param mod_type Character. The role of this model in the data-generating
+#'   process: \code{"covariate"} (the default), \code{"exposure"},
+#'   \code{"mediator"}, \code{"outcome"}, \code{"censor"}, or
+#'   \code{"survival"}.
 #'
-#' @param custom_fit Optional. A model fitting function used
-#'   when \code{var_type = "custom"}. If \code{var_type = "custom"} and
-#'   \code{custom_fit} is not provided, \code{\link[stats]{glm}} is used by default.
-#' This can be used to define the modeling fitting function other than \code{\link[stats]{glm}}
-#'  and \code{\link[nnet]{multinom}}. For parallel computation, provide the fully
-#'   qualified function name (e.g., \code{truncreg::truncreg} for truncated regression).
+#' @param custom_fit Optional. A model fitting function, used \strong{only}
+#'   when \code{var_type = "custom"} (it is ignored, with a warning, for the
+#'   other types). If \code{var_type = "custom"} and \code{custom_fit} is not
+#'   provided, \code{\link[stats]{glm}} is used by default.
+#'   This can be used to define a fitting function other than
+#'   \code{\link[stats]{glm}} and \code{\link[nnet]{multinom}}.
 #'
-#' @param custom_sim Optional. A simulation function for the model. It should
-#'   accept exactly two arguments: the fitted model object and a \code{data.frame} of
-#'   new data to predict on, and return a vector of simulated responses of matching length.
-#'   If omitted and \code{var_type = "custom"}, normal draws are used by default.
+#'   \strong{Scope:} \code{spec_model()} records the function \emph{name}, not
+#'   the function object, and the fit is evaluated inside the package. The name
+#'   must therefore resolve from the global environment or from a package
+#'   namespace — a fitter defined inside another function or inside
+#'   \code{local()} will not be found. Prefer a fully qualified name (e.g.
+#'   \code{truncreg::truncreg} for truncated regression), which is also what
+#'   makes the bootstrap work under a parallel \code{\link[future]{plan}}, where
+#'   each worker is a fresh session.
+#'
+#'   \strong{What the fitted object must provide:} without \code{custom_sim}
+#'   the simulation evaluates the fit's linear predictor, so it needs a
+#'   \code{terms} component and a \code{\link[stats]{coef}} method; a fit
+#'   lacking either is rejected with an explanatory error naming the variable.
+#'   With \code{custom_sim} the drawing is delegated, and neither is required.
+#'   Choosing a model that is appropriate for the variable, and a
+#'   \code{custom_sim} that draws from the distribution that model implies,
+#'   remains the analyst's responsibility.
+#'
+#' @param custom_sim Optional. A simulation function for the model. It must
+#'   accept two arguments -- the fitted model object and a \code{data.frame} of
+#'   new data to predict on -- and return a vector of simulated responses of
+#'   matching length. When supplied it takes priority over the drawing rule
+#'   implied by \code{var_type}. If omitted and \code{var_type = "custom"},
+#'   normal draws are used by default, which requires the fitted object to have
+#'   a \code{terms} component and a \code{\link[stats]{coef}} method.
+#'
+#'   \strong{It supplies a draw, not a fitted value.} At each time step the
+#'   Monte Carlo engine assigns this variable the vector \code{custom_sim}
+#'   returns, in place of the draw the built-in \code{var_type} rule would have
+#'   made (a Bernoulli draw for \code{"binary"}, a Gaussian draw around the
+#'   linear predictor for \code{"normal"}). Returning \code{predict()}'s fitted
+#'   value therefore assigns the conditional mean rather than a draw from the
+#'   conditional distribution. Whether that is appropriate for the variable
+#'   being simulated is the analyst's decision.
+#'
+#'   \strong{It does not apply to the outcome.} For \code{mod_type = "outcome"}
+#'   or \code{"survival"} the reported risk is computed from the fitted model's
+#'   own linear predictor, so \code{custom_sim} affects only the simulated
+#'   response value, never the estimate. Those models must therefore have
+#'   extractable coefficients.
 #'
 #' @param truncate Logical. If \code{TRUE} (default), simulated numeric values are
 #'   clipped to the range of the response observed in the data — i.e. a
-#'   \code{"normal"} covariate is drawn as a \emph{bounded} normal, and numeric
-#'   output of \code{custom_sim} is clipped as well. This guards against
-#'   implausible extrapolation when a fitted linear model is simulated far
-#'   outside its support, and it is the historical behaviour of this package.
-#'   Set \code{FALSE} to draw from the untruncated fitted distribution (matching
-#'   the plain \code{"normal"} covariate type of \pkg{gfoRmula}) or to let a
-#'   \code{custom_sim} function be authoritative over its own output range.
+#'   \code{"normal"} draw is clipped to \code{[min, max]} of the observed
+#'   response, and numeric output of \code{custom_sim} is clipped as well.
+#'   \code{TRUE} is the default. It corresponds to the \code{sim_trunc}
+#'   argument of \pkg{gfoRmula}, documented there as "whether to truncate
+#'   simulated covariates to their range in the observed data set", whose
+#'   default is also \code{TRUE}. Set \code{FALSE} to draw from the untruncated
+#'   fitted distribution (corresponding to \code{sim_trunc = FALSE}), or to let
+#'   a \code{custom_sim} function be authoritative over its own output range.
+#'   Which is appropriate depends on the variable being simulated and is the
+#'   analyst's decision.
 #'   Has no effect on \code{"binary"} or \code{"categorical"} responses.
 #'
 #' @param ... Other parameters passed to the model fitting function, \code{\link[stats]{glm}},
@@ -71,15 +117,16 @@
 #' \code{custom_sim}) that are used later by \code{\link{gformula}}/\code{\link{mediation}}
 #' to fit in temporal order and to simulate counterfactual trajectories.
 #' 
-#' @return 
-#' An object of class \code{"gmodel"}:
+#' @return
+#' An object of class \code{"causalMed_gmodel"}:
 #' \describe{
 #'   \item{\code{call}}{An unevaluated call (function + arguments) to fit the model.}
-#'   \item{\code{subset}}{The subset expression/character vector provided via \code{subset}.}
+#'   \item{\code{subset}}{The unevaluated subset expression provided via \code{subset}.}
 #'   \item{\code{recode}}{The recoding statements provided via \code{recode}.}
 #'   \item{\code{var_type}}{The response type, as provided.}
 #'   \item{\code{mod_type}}{The model role, as provided.}
-#'   \item{\code{custom_sim}}{A symbolic customized simulation function name, as provided.}
+#'   \item{\code{custom_sim}}{The simulation function provided via \code{custom_sim}.}
+#'   \item{\code{truncate}}{The truncation flag, as provided.}
 #' }
 #'
 #' @importFrom nnet multinom
@@ -135,6 +182,28 @@ spec_model <- function(formula,
 
   if (!inherits(formula, "formula")) {
     stop("`formula` is not a formula object.", domain = "causalMed")
+  }
+
+  # custom_sim is called as custom_sim(fitted_model, newdata) by sim_value();
+  # anything else fails much later, inside the Monte Carlo loop.
+  if (!is.null(custom_sim)) {
+    if (!is.function(custom_sim)) {
+      stop("`custom_sim` must be a function taking the fitted model and a ",
+           "data.frame of new data.", domain = "causalMed")
+    }
+    if (!is.primitive(custom_sim) && length(formals(custom_sim)) < 2L) {
+      stop("`custom_sim` must accept two arguments: the fitted model object ",
+           "and a data.frame of new data.", domain = "causalMed")
+    }
+  }
+
+  # custom_fit only replaces the fitting call when var_type = "custom";
+  # supplying it otherwise silently had no effect.
+  if (!is.null(custom_fit) && var_type != "custom") {
+    warning(sprintf(paste0(
+      "`custom_fit` is only used when var_type = \"custom\"; it is ignored for ",
+      "var_type = \"%s\". The model will be fitted with the default function ",
+      "for that type."), var_type), call. = FALSE, domain = "causalMed")
   }
 
   args_list <- tmpcall
