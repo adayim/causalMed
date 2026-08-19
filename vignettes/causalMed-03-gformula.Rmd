@@ -47,7 +47,11 @@ The shared vocabulary — long-format data, `spec_model()`, the `var_type` /
 ``` r
 library(causalMed)
 library(data.table)
-#> Warning: package 'data.table' was built under R version 4.5.3
+#> 
+#> Attaching package: 'data.table'
+#> The following object is masked from 'package:base':
+#> 
+#>     %notin%
 ```
 
 ---
@@ -382,12 +386,18 @@ fit_gvhd$estimate
 #> 2: never / natural      Ratio  0.96066816
 ```
 
-Preventing GvHD is estimated to lower the 5-year risk of death by a couple of
-percentage points. With 1 825 daily time steps this Monte Carlo loop takes a
-few minutes, which is why this vignette is **precomputed** — the code above ran
-once when the vignette was assembled (see `vignettes/precompute.R`), so its
-output is real but the shipped vignette still builds instantly. Set `R > 1`
-there for bootstrap confidence intervals (much slower again on this dataset).
+The two rows above are the simulated 5-year risks of death under the natural
+course and under the "never GvHD" strategy, and their contrast. This reproduces
+the analysis specification of Keil et al. (2014) — read that paper for the
+substantive interpretation and for the assumptions it rests on; the purpose
+here is to show the machinery on a published example, not to draw a clinical
+conclusion.
+
+With 1 825 daily time steps this Monte Carlo loop takes a few minutes, which is
+why this vignette is **precomputed**: the code above was run once when the
+vignette was assembled, so its output is real while the shipped vignette builds
+instantly. Set `R > 1` for bootstrap confidence intervals (much slower again on
+this dataset).
 
 ---
 
@@ -491,14 +501,17 @@ coef(fit_full$fitted_models$A)
 
 ### Retrieving the simulated data
 
-Set `return_data = TRUE` to retrieve the full Monte Carlo dataset (can be
-large):
+Set `return_data = TRUE` to retrieve the simulated Monte Carlo dataset (can be
+large). It is the **end-of-follow-up snapshot**: one row per Monte Carlo
+subject per intervention, holding each variable at its final simulated time step
+together with the accumulated `Pred_Y`. It is not a row-per-time-point panel —
+the simulation overwrites each variable in place as it steps through time.
 
 
 ``` r
 fit_data <- gformula(..., return_data = TRUE)
 
-# Simulated trajectories with predicted outcomes, one row per MC subject per time
+# One row per MC subject per intervention, at the last time point
 head(fit_data$sim_data)
 ```
 

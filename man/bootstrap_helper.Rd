@@ -52,8 +52,9 @@ element is one of:
         \code{list(natural = NULL, threshold = dyn_int(as.numeric(A > 0)))}.
 }
 If \code{intervention} is \code{NULL}, only the natural course is
-evaluated. If a \code{natural} intervention is not provided, it is added
-automatically and \code{ref_int} is set to \code{"natural"}.}
+evaluated. A \code{natural} element is also added automatically when
+\code{ref_int} asks for the natural course and the list contains no
+\code{NULL} element; see \code{ref_int} and Details.}
 
 \item{init_recode}{Optional expression/function applied once at time 0 before the Monte Carlo loop
 (e.g., initializing baseline-derived variables). Should be defined with \code{\link{recodes}}. See Details.}
@@ -64,8 +65,14 @@ automatically and \code{ref_int} is set to \code{"natural"}.}
 \item{out_recode}{Optional expression/function applied at the **end** of each time step
 (e.g., create lags, cumulative counts). Should be defined with \code{\link{recodes}}. See Details.}
 
-\item{mc_sample}{Integer. Monte Carlo sample size used for simulation.
-Default \code{nrow(data) * 100}.}
+\item{mc_sample}{Integer. Size of the Monte Carlo cohort simulated under
+each intervention, counted in subjects. Defaults to \code{NULL}, which
+resolves to 50 times the number of subjects in \code{data} and reports the
+value it chose unless \code{quiet = TRUE}. Monte Carlo error falls as
+\code{1/sqrt(mc_sample)} while sampling error falls with the number of
+subjects, so the two stay in a fixed ratio when \code{mc_sample} is set as
+a multiple of the subject count; a larger multiple buys precision in the
+point estimate and does not change what is being estimated.}
 
 \item{R}{Number of bootstrap replicates. If \code{R > 1},
 computation uses \code{future.apply::future_lapply} and runs sequentially

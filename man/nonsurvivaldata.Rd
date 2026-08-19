@@ -5,21 +5,26 @@
 \alias{nonsurvivaldata}
 \title{Example Dataset for a Non-Survival Outcome}
 \format{
-A data frame with 5000 rows and 13 variables:
+A data frame with 15,000 rows (3000 subjects x 5 time points) and 13
+  variables:
 \describe{
-  \item{id}{Unique subject identifier.}
+  \item{id}{Unique subject identifier (1-3000).}
   \item{time}{Time variable (0 to 4).}
   \item{V}{Time-fixed baseline covariate.}
   \item{L1}{Time-varying confounder 1 (continuous).}
   \item{L2}{Time-varying confounder 2 (binary).}
   \item{A}{Time-varying binary exposure.}
-  \item{M}{Time-varying mediator.}
-  \item{Y_bin}{Binary outcome observed at each time point.}
-  \item{Y_cont}{Continuous outcome observed at each time point.}
-  \item{lag1_A}{Lagged exposure (A at previous time point).}
-  \item{lag1_L1}{Lagged confounder L1.}
-  \item{lag1_L2}{Lagged confounder L2.}
-  \item{lag1_M}{Lagged mediator.}
+  \item{M}{Time-varying mediator (continuous).}
+  \item{Y_bin}{Binary end-of-follow-up outcome. Recorded \strong{only at
+    \code{time == 4}}; \code{NA} at \code{time} 0-3.}
+  \item{Y_cont}{Continuous end-of-follow-up outcome, on the same schedule as
+    \code{Y_bin}: recorded \strong{only at \code{time == 4}}, \code{NA}
+    otherwise.}
+  \item{lag1_A}{Exposure at the previous time point; \code{NA} at
+    \code{time == 0}.}
+  \item{lag1_L1}{Previous value of \code{L1}; \code{NA} at \code{time == 0}.}
+  \item{lag1_L2}{Previous value of \code{L2}; \code{NA} at \code{time == 0}.}
+  \item{lag1_M}{Previous value of \code{M}; \code{NA} at \code{time == 0}.}
 }
 }
 \source{
@@ -29,8 +34,10 @@ Simulated data generated for package examples.
 nonsurvivaldata
 }
 \description{
-A simulated dataset with time-varying and baseline variables for 1000 subjects
-over 5 time points, including exposure, mediator, confounders, and outcome.
+A simulated dataset with time-varying and baseline variables for 3000
+subjects over 5 time points, including exposure, mediator, confounders, and
+an end-of-follow-up outcome. Every subject contributes all 5 rows (there is
+no attrition), which makes this the simpler of the two simulated examples.
 }
 \details{
 The simulated longitudinal data-generating structure can be summarized as:
@@ -39,10 +46,27 @@ A_t \leftarrow V, L1_{t-1}, L2_{t-1}, A_{t-1}, t;\quad
 L1_t \leftarrow V, A_t, L1_{t-1}, t;\quad
 L2_t \leftarrow V, A_t, L2_{t-1}, t;\quad
 M_t \leftarrow V, A_t, L1_t, L2_t, M_{t-1}, t;\quad
-Y_t \leftarrow V, A_t, M_t, L1_t, L2_t, A_t*M_t.
+Y \leftarrow V, A_4, M_4, L1_4, L2_4, A_4*M_4.
 }
-The same outcome model structure is used for both \code{Y_bin} and
-\code{Y_cont}, with the appropriate outcome distribution specified for each
-outcome type.
+The exposure, mediator and confounders evolve at every time point, but the
+outcome is realised once, at the end of follow-up. The same outcome
+structure is used for both \code{Y_bin} and \code{Y_cont}, with the
+appropriate distribution specified for each.
+
+Two consequences for model specification:
+\itemize{
+  \item Because the outcome exists at a single time point, \code{time} is
+    constant among the rows used to fit the outcome model and must
+    \strong{not} appear in its formula: the term is not estimable and would
+    be dropped (with a warning) from the simulation.
+  \item The \code{lag1_*} columns are \code{NA} at \code{time == 0}, so a
+    baseline value must be supplied through \code{init_recode}, e.g.
+    \code{init_recode = recodes(lag1_A = 0, lag1_L1 = 0)}. (The lag columns
+    of \code{\link{survivaldata}} are 0-filled at baseline instead, so no
+    initialisation is strictly required there.)
+}
+}
+\seealso{
+\code{\link{survivaldata}} for the survival-outcome counterpart.
 }
 \keyword{datasets}

@@ -44,8 +44,7 @@ sim_value <- function(model, newdt) {
   # model$Xterms and model$beta are pre-extracted once after fitting in .run_interventions,
   # avoiding the model.frame() + na.action overhead that predict() incurs.
   # model.matrix() + %*% is a direct BLAS call.
-  mm <- model.matrix(model$Xterms, data = newdt)
-  lp <- drop(mm %*% model$beta)
+  lp <- lin_pred(model, newdt)
 
   if (var_type == "binary") {
     pred <- model$linkinv(lp)

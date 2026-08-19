@@ -60,26 +60,33 @@
 
 #' Example Dataset for a Non-Survival Outcome
 #'
-#' A simulated dataset with time-varying and baseline variables for 1000 subjects
-#' over 5 time points, including exposure, mediator, confounders, and outcome.
+#' A simulated dataset with time-varying and baseline variables for 3000
+#' subjects over 5 time points, including exposure, mediator, confounders, and
+#' an end-of-follow-up outcome. Every subject contributes all 5 rows (there is
+#' no attrition), which makes this the simpler of the two simulated examples.
 #'
-#' @format A data frame with 5000 rows and 13 variables:
+#' @format A data frame with 15,000 rows (3000 subjects x 5 time points) and 13
+#'   variables:
 #' \describe{
-#'   \item{id}{Unique subject identifier.}
+#'   \item{id}{Unique subject identifier (1-3000).}
 #'   \item{time}{Time variable (0 to 4).}
 #'   \item{V}{Time-fixed baseline covariate.}
 #'   \item{L1}{Time-varying confounder 1 (continuous).}
 #'   \item{L2}{Time-varying confounder 2 (binary).}
 #'   \item{A}{Time-varying binary exposure.}
-#'   \item{M}{Time-varying mediator.}
-#'   \item{Y_bin}{Binary outcome observed at each time point.}
-#'   \item{Y_cont}{Continuous outcome observed at each time point.}
-#'   \item{lag1_A}{Lagged exposure (A at previous time point).}
-#'   \item{lag1_L1}{Lagged confounder L1.}
-#'   \item{lag1_L2}{Lagged confounder L2.}
-#'   \item{lag1_M}{Lagged mediator.}
+#'   \item{M}{Time-varying mediator (continuous).}
+#'   \item{Y_bin}{Binary end-of-follow-up outcome. Recorded \strong{only at
+#'     \code{time == 4}}; \code{NA} at \code{time} 0-3.}
+#'   \item{Y_cont}{Continuous end-of-follow-up outcome, on the same schedule as
+#'     \code{Y_bin}: recorded \strong{only at \code{time == 4}}, \code{NA}
+#'     otherwise.}
+#'   \item{lag1_A}{Exposure at the previous time point; \code{NA} at
+#'     \code{time == 0}.}
+#'   \item{lag1_L1}{Previous value of \code{L1}; \code{NA} at \code{time == 0}.}
+#'   \item{lag1_L2}{Previous value of \code{L2}; \code{NA} at \code{time == 0}.}
+#'   \item{lag1_M}{Previous value of \code{M}; \code{NA} at \code{time == 0}.}
 #' }
-#' 
+#'
 #' @details
 #' The simulated longitudinal data-generating structure can be summarized as:
 #' \deqn{
@@ -87,36 +94,56 @@
 #' L1_t \leftarrow V, A_t, L1_{t-1}, t;\quad
 #' L2_t \leftarrow V, A_t, L2_{t-1}, t;\quad
 #' M_t \leftarrow V, A_t, L1_t, L2_t, M_{t-1}, t;\quad
-#' Y_t \leftarrow V, A_t, M_t, L1_t, L2_t, A_t*M_t.
+#' Y \leftarrow V, A_4, M_4, L1_4, L2_4, A_4*M_4.
 #' }
-#' The same outcome model structure is used for both \code{Y_bin} and
-#' \code{Y_cont}, with the appropriate outcome distribution specified for each
-#' outcome type.
+#' The exposure, mediator and confounders evolve at every time point, but the
+#' outcome is realised once, at the end of follow-up. The same outcome
+#' structure is used for both \code{Y_bin} and \code{Y_cont}, with the
+#' appropriate distribution specified for each.
 #'
+#' Two consequences for model specification:
+#' \itemize{
+#'   \item Because the outcome exists at a single time point, \code{time} is
+#'     constant among the rows used to fit the outcome model and must
+#'     \strong{not} appear in its formula: the term is not estimable and would
+#'     be dropped (with a warning) from the simulation.
+#'   \item The \code{lag1_*} columns are \code{NA} at \code{time == 0}, so a
+#'     baseline value must be supplied through \code{init_recode}, e.g.
+#'     \code{init_recode = recodes(lag1_A = 0, lag1_L1 = 0)}. (The lag columns
+#'     of \code{\link{survivaldata}} are 0-filled at baseline instead, so no
+#'     initialisation is strictly required there.)
+#' }
+#'
+#' @seealso \code{\link{survivaldata}} for the survival-outcome counterpart.
 #' @source Simulated data generated for package examples.
 "nonsurvivaldata"
 
 
 #' Example Dataset for a Survival Outcome
 #'
-#' A simulated dataset with time-varying and baseline variables for subjects
-#' with a survival outcome, suitable for use with the g-formula and mediation
-#' functions under survival settings.
+#' A simulated dataset with time-varying and baseline variables for 3000
+#' subjects with a discrete-time survival outcome, suitable for use with the
+#' g-formula and mediation functions under survival settings.
 #'
-#' @format A data frame with 7113 rows and 10 variables:
+#' @format A data frame with 7113 rows and 10 variables, in long at-risk format
+#'   (one row per subject per time point while still at risk; 3000 subjects,
+#'   2799 events, no missing values):
 #' \describe{
-#'   \item{id}{Unique subject identifier.}
-#'   \item{time}{Time variable (integer, starting at 0).}
+#'   \item{id}{Unique subject identifier (1-3000).}
+#'   \item{time}{Time variable (integer, 0 to 4).}
 #'   \item{V}{Time-fixed baseline covariate.}
-#'   \item{L}{Time-varying confounder.}
+#'   \item{L}{Time-varying confounder (continuous).}
 #'   \item{A}{Time-varying binary exposure.}
-#'   \item{M}{Time-varying mediator.}
-#'   \item{Y}{Survival outcome indicator (1 = event, 0 = alive/censored).}
-#'   \item{lag1_A}{Lagged exposure (A at previous time point).}
-#'   \item{lag1_M}{Lagged mediator.}
-#'   \item{lag1_L}{Lagged confounder.}
+#'   \item{M}{Time-varying mediator (continuous).}
+#'   \item{Y}{Event indicator at this time point (1 = event, 0 = still at
+#'     risk). There is no censoring in this dataset.}
+#'   \item{lag1_A}{Exposure at the previous time point; 0 at \code{time == 0}.}
+#'   \item{lag1_M}{Previous value of \code{M}; 0 at \code{time == 0}.}
+#'   \item{lag1_L}{Previous value of \code{L}; 0 at \code{time == 0}.}
 #' }
-#' 
+#'
+#' @seealso \code{\link{nonsurvivaldata}} for the end-of-follow-up counterpart.
+#'
 #' @details
 #' The data-generating structure can be summarized as:
 #' \deqn{
@@ -187,10 +214,10 @@
 #'   Interventional indirect effect via M2 \tab \eqn{-0.97} (0.009) \cr
 #'   Mediated-interaction residual (TE \eqn{-} overall) \tab \eqn{0.10} (0.016) \cr
 #' }
-#' Every intervention in the interventional decomposition, including the references, draws each mediator
-#' jointly over time from an independently permuted marginal pool
-#' (Yamamuro et al. 2021, Eq. 2 and Fig. 3); the total effect is the
-#' natural-course contrast, so the residual row is non-zero.
+#' The mediated-interaction residual is non-zero because the reported total
+#' effect is a natural-course contrast while the direct and indirect effects
+#' are interventional; see the \emph{Mediator pool} section of
+#' \code{\link{mediation}} for how the mediator draws are constructed.
 #'
 #' @source Simulated from the data-generating process of Yamamuro, S.,
 #'   Shinozaki, T., Iimuro, S., & Matsuyama, Y. (2021). Mediational g-formula

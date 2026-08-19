@@ -57,8 +57,11 @@
   # For each treatment level appearing in any intervention's mediator_overrides, run a
   # reference intervention at that level once with collect_pool = TRUE. The resulting
   # `pools` object is a list keyed by treatment level (as character); each
-  # element is itself a named list keyed by mediator response variable, with
-  # value an `mc_sample × T` matrix of simulated mediator trajectories.
+  # element is itself a named list keyed by mediator response variable, whose
+  # value is a length-T list of `mc_sample`-long vectors — the k-th holding
+  # every pool individual's simulated mediator value at `time_seq[k]`, in the
+  # mediator's own type. Pool individual i's trajectory is the i-th entry of
+  # every slice.
   #
   # `cached_arms` stores the scalar Phi estimate from each pool-collection
   # pass so that pure reference interventions (no mediator overrides) in the main loop
@@ -149,8 +152,12 @@
             src_key      <- as.character(interv$mediator_overrides[[med_var]])
             pool_for_med <- pools[[src_key]][[med_var]]
             if (!is.null(pool_for_med)) {
-              perm <- sample.int(nrow(pool_for_med))
-              interv_med_pool[[med_var]] <- pool_for_med[perm, , drop = FALSE]
+              # ONE permutation applied to every time slice, so subject i
+              # receives pool individual perm[i]'s whole trajectory (the joint
+              # draw of Paper 4 Eq. 4), not an independent value per time step.
+              perm <- sample.int(length(pool_for_med[[1L]]))
+              interv_med_pool[[med_var]] <-
+                lapply(pool_for_med, function(v) v[perm])
             }
           }
         }
@@ -262,16 +269,97 @@ fit_spec_models <- function(models, data) {
       msg = sprintf("Outcome model: %s", rsp_vars)
     )
 
+    # Aliased (NA) coefficients arise whenever the design is rank deficient --
+    # a perfectly collinear term, a factor level unobserved in the fitting
+    # subset, or a covariate that is constant among the complete cases (e.g.
+    # `time` in an outcome recorded only at the end of follow-up). `beta` would
+    # then carry an NA and `mm %*% beta` would return NA for EVERY row, turning
+    # the whole analysis into a silent all-NA result. predict() drops aliased
+    # terms instead, so do the same here and say which terms went: keep only the
+    # estimable coefficients and record their names so lin_pred() can subset the
+    # design matrix to match. Categorical (multinom) fits are exempt -- their
+    # coef() is a matrix and they predict through predict(), not `beta`.
+    #
+    # Both terms() and coef() are extracted DEFENSIVELY. A `custom_fit` model
+    # can be any class, and a data-adaptive learner (ranger, xgboost, a
+    # SuperLearner ensemble) typically has neither a terms component nor a
+    # coef() method. That is fine as long as nothing evaluates a linear
+    # predictor for this node — see `needs_lp` below — because `custom_sim`
+    # then does the drawing. Letting terms()/coef() error here would refuse a
+    # perfectly usable nuisance model; letting them return NULL silently would
+    # surface later as "requires numeric/complex matrix/vector arguments" out
+    # of `mm %*% NULL`.
+    Xterms    <- tryCatch(delete.response(terms(fitmodel)), error = function(e) NULL)
+    beta      <- tryCatch(coef(fitmodel), error = function(e) NULL)
+    beta_cols <- NULL
+    if (!is.null(beta) && !is.matrix(beta) && anyNA(beta)) {
+      # Index by POSITION when coef() returns an unnamed vector -- legal, and
+      # what a hand-rolled or wrapped fit may hand back. Subsetting by name
+      # then silently reduced `beta` to numeric(0) (NULL[logical] is NULL),
+      # reported an empty `{}` set of dropped terms, and refused a perfectly
+      # usable model with "provides no usable model terms/coefficients".
+      # `lin_pred()` subsets the design matrix with `mm[, beta_cols]`, which
+      # takes column indices just as happily as names.
+      keep      <- !is.na(beta)
+      nms       <- names(beta)
+      aliased   <- if (is.null(nms)) paste("position", which(!keep)) else nms[!keep]
+      beta_cols <- if (is.null(nms)) which(keep) else nms[keep]
+      beta      <- beta[keep]
+      causalmed_env$warning <- c(
+        causalmed_env$warning,
+        sprintf(paste0("Model for '%s' is rank deficient: term(s) {%s} could not ",
+                       "be estimated and were dropped from the simulation (as ",
+                       "predict() would). This usually means a predictor is ",
+                       "collinear with another, or is constant among the rows ",
+                       "used to fit the model -- check the model formula."),
+                rsp_vars, paste(aliased, collapse = ", "))
+      )
+    }
+
+    # Does the simulation evaluate a linear predictor for this node?
+    #   - outcome/survival: always — simulate_data() computes the predicted
+    #     risk/hazard from the fitted coefficients, and a custom_sim function
+    #     cannot stand in for that (it supplies a DRAW, not the estimand).
+    #   - other nodes: only when sim_value() falls through to lin_pred(), i.e.
+    #     when there is no custom_sim and the type is not "categorical" (which
+    #     predicts through predict()).
+    # Refuse early, and say what to do, rather than failing inside a matrix
+    # product several layers down.
+    needs_lp <- mods$mod_type %in% c("outcome", "survival") ||
+      (!identical(mods$var_type, "categorical") && is.null(mods$custom_sim))
+    if (needs_lp && (is.null(Xterms) || is.null(beta) || length(beta) == 0L)) {
+      stop(sprintf(paste0(
+        "The fitted model for '%s' (mod_type = \"%s\") provides no usable model ",
+        "terms/coefficients, but the simulation needs its linear predictor. %s"),
+        rsp_vars, mods$mod_type,
+        if (mods$mod_type %in% c("outcome", "survival"))
+          paste0("The outcome/survival model supplies the predicted risk itself, ",
+                 "so it must be a model with a terms component and a coef() ",
+                 "method (e.g. glm). A custom_sim function cannot replace it.")
+        else
+          paste0("Supply a custom_sim function in spec_model() to draw '",
+                 rsp_vars, "', or fit it with a model that has a coef() method.")),
+        call. = FALSE, domain = "causalMed")
+    }
+
     # Pre-extract prediction components so the hot-path simulation loop can
     # skip predict() overhead (model.frame construction + na.action).
     # model.matrix(Xterms, newdt) %*% beta is a direct BLAS call.
     list(
       fitted     = fitmodel,
-      Xterms     = delete.response(terms(fitmodel)),
-      beta       = coef(fitmodel),
+      Xterms     = Xterms,
+      beta       = beta,
+      # NULL for a full-rank fit, so the hot path pays nothing; otherwise the
+      # estimable coefficients' names, or their column positions when coef()
+      # came back unnamed.
+      beta_cols  = beta_cols,
       linkinv    = if (inherits(fitmodel, "glm")) family(fitmodel)$linkinv
                    else identity,
-      sigma      = tryCatch(sigma(fitmodel), error = function(e) NULL),
+      # suppressWarnings: sigma.default probes nobs(), which emits a
+      # "no 'nobs' method is available" warning for non-standard fit classes.
+      # That is noise about a value we are only opportunistically extracting.
+      sigma      = suppressWarnings(
+                     tryCatch(sigma(fitmodel), error = function(e) NULL)),
       recodes    = mods$recode,
       subset     = mods$subset,
       var_type   = mods$var_type,
@@ -286,6 +374,17 @@ fit_spec_models <- function(models, data) {
   })
 }
 
+# Linear predictor from the pre-extracted design terms and coefficients.
+# Shared by sim_value() (drawing), simulate_data() (outcome/hazard prediction)
+# and the TMLE engine's dens_value(), so all three treat a rank-deficient fit
+# the same way. `beta_cols` is NULL for the usual full-rank case, in which case
+# this is exactly the original `model.matrix() %*% beta` BLAS call.
+lin_pred <- function(model, newdt) {
+  mm <- model.matrix(model$Xterms, data = newdt)
+  if (!is.null(model$beta_cols)) mm <- mm[, model$beta_cols, drop = FALSE]
+  drop(mm %*% model$beta)
+}
+
 #' Monte Carlo simulation
 #'
 #' @description
@@ -294,12 +393,13 @@ fit_spec_models <- function(models, data) {
 #' @inheritParams gformula
 #' @param time_seq Time sequence vector of the data.
 #' @param med_pool Optional named list keyed by mediator response variable.
-#'   Each element is a pre-permuted `nrow(data) × T` matrix (column names =
-#'   time index as character) supplying the cross-world joint trajectory for
-#'   that mediator. The per-time slice is delivered to \code{simulate_data}.
+#'   Each element is itself a pre-permuted list of \code{T} vectors (one per
+#'   time point, each of length \code{nrow(data)}, in the mediator's own type)
+#'   supplying the cross-world joint trajectory for that mediator. The per-time
+#'   slice is delivered to \code{simulate_data}.
 #' @param collect_pool Logical. If \code{TRUE}, capture the simulated
-#'   trajectory of every mediator into a named list of `nrow(data) × T`
-#'   matrices and return it alongside the risk estimate.
+#'   trajectory of every mediator into a named list of per-time vector lists
+#'   and return it alongside the risk estimate.
 #'
 #' @keywords internal
 #'
@@ -344,12 +444,17 @@ simulate_intervention <- function(data,
     } else {
       med_var_pc <- vapply(models[which(med_flag_pc)],
                            function(m) m$rsp_vars, character(1))
-      # Pre-allocate one matrix per mediator: rows = pool individuals, cols = times.
+      # One pool per mediator, stored as a LIST of per-time vectors rather than
+      # a numeric matrix. A matrix forces a single storage mode, which silently
+      # mangled non-numeric mediators: a factor was reduced to its integer level
+      # codes and a character coerced the whole matrix. The list keeps each
+      # time slice in the mediator's own type (numeric, character or factor
+      # with its levels), so what is drawn from the pool is what was simulated.
+      # Element k holds the pool individuals' values at time_seq[k]; the joint
+      # trajectory of pool individual i is the i-th entry of every element.
       m_pool_out <- setNames(
         lapply(med_var_pc, function(v) {
-          mat <- matrix(NA_real_, nrow = nrow(data), ncol = length(time_seq))
-          colnames(mat) <- as.character(time_seq)
-          mat
+          setNames(vector("list", length(time_seq)), as.character(time_seq))
         }),
         med_var_pc
       )
@@ -402,10 +507,10 @@ simulate_intervention <- function(data,
     }
 
     # Per-time slice of each mediator pool (named list of length-nrow(data)
-    # vectors, already in subject-i order because the matrix was pre-permuted
+    # vectors, already in subject-i order because the pool was pre-permuted
     # in .run_interventions).
     t_med_pool <- if (!is.null(med_pool)) {
-      setNames(lapply(med_pool, function(mat) mat[, indx]), names(med_pool))
+      setNames(lapply(med_pool, function(p) p[[indx]]), names(med_pool))
     } else NULL
 
     # dyn_int() / causalMed_intervention objects pass through as-is; static
@@ -425,13 +530,38 @@ simulate_intervention <- function(data,
       med_pool       = t_med_pool
     )
 
-    # Collect each mediator's value into the pool matrix (used by the
-    # reference intervention pass). Rows where the mediator model's subset would not
+    # Collect each mediator's value into the pool (used by the reference
+    # intervention pass). Rows where the mediator model's subset would not
     # have applied at time t carry whatever value was there at the start of
     # this iteration — preserving the per-individual trajectory.
+    #
+    # copy() IS LOAD-BEARING. `data[[mv]]` hands back the data.table's own
+    # column vector, and simulate_data() writes the next time step with
+    # `data[cond, (resp_var) := vals]` — a `:=` WITH an `i` argument, which
+    # sub-assigns IN PLACE. Storing the bare vector therefore stores a live
+    # reference: every slice mutates together and the whole pool ends up
+    # holding M(T), collapsing the joint trajectory to a constant. (The
+    # earlier matrix form was safe only incidentally: `mat[, indx] <- x`
+    # copies the values in.) Snapshot it explicitly. 
+    #
+    # The NULL guard is equally load-bearing. simulate_data() skips a model
+    # WHOLESALE when its `subset` selects no rows at this time step
+    # (`if (sum(cond) != 0L)`), so the mediator column may not exist yet and
+    # `data[[mv]]` is then NULL. `[[<-` with a NULL value DELETES the list
+    # element instead of storing it: the pool silently loses a slice, every
+    # later time step shifts down one position, and the run eventually dies in
+    # sim_value() with "Argument eta must be a nonempty numeric vector". Store
+    # an explicit all-missing slice so the pool stays aligned with `time_seq`
+    # -- nothing consumes it, because the same empty `subset` also suppresses
+    # the pool-draw assignment at that step.
     if (collect_pool) {
       for (mv in med_var_pc) {
-        m_pool_out[[mv]][, indx] <- data[[mv]]
+        slice <- data[[mv]]
+        m_pool_out[[mv]][[indx]] <- if (is.null(slice)) {
+          rep(NA, nrow(data))
+        } else {
+          data.table::copy(slice)
+        }
       }
     }
 
@@ -439,11 +569,17 @@ simulate_intervention <- function(data,
     # individuals remain in the pool; risk is computed analytically from
     # Pred_Y = 1 - prod(1 - h_t) accumulated in simulate_data().
     if (is_survival) {
-      if (!is.null(intervention) & cen_flag != 0) {
+      if (!is.null(intervention) && cen_flag != 0) {
         set(data, j = censor, value = 0)
       }
       if (cen_flag != 0) {
-        data[[outcome]] <- ifelse(data[[censor]] == 1, 0, data[[outcome]])
+        # set(), not `[[<-`: base list assignment shallow-copies the
+        # data.table and invalidates its internal self-reference, so the very
+        # next `:=` (out_recode, or the next time step's recodes) emitted
+        # data.table's "shallow copy was taken" warning to the user, once per
+        # time step.
+        set(data, j = outcome,
+            value = ifelse(data[[censor]] == 1, 0, data[[outcome]]))
       }
     }
 

@@ -286,6 +286,7 @@ testthat::test_that("Predefined intervention", {
 
  testthat::test_that("Dynamic intervention: causalMed vs gfoRmula", {
    testthat::skip_on_cran()
+   testthat::skip_if_not_installed("gfoRmula")
 
    suppressPackageStartupMessages(library(data.table))
    suppressPackageStartupMessages(library(gfoRmula))

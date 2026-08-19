@@ -41,10 +41,10 @@
 #' **Mediator pool (interventional effects)**
 #' For \code{mediation_type = "I"}, a natural-course pass under each treatment
 #' level \eqn{a^*} stores every simulated individual's full mediator trajectory
-#' \eqn{M(1{:}T)} in a pool matrix. Each decomposition intervention that fixes a
+#' \eqn{M(1{:}T)} in a pool. Each decomposition intervention that fixes a
 #' mediator to its \eqn{a^*} value — \emph{including the reference interventions}
-#' \code{Phi00} (\eqn{a^* = 0}) and \code{Phi11} (\eqn{a^* = 1}) — permutes the
-#' rows of that matrix once and assigns subject \eqn{i} the entire trajectory of
+#' \code{Phi00} (\eqn{a^* = 0}) and \code{Phi11} (\eqn{a^* = 1}) — permutes that
+#' pool once and assigns subject \eqn{i} the entire trajectory of
 #' pool individual \eqn{\pi(i)}: a joint, stochastic draw \eqn{G_{a^*}} from the
 #' simulated distribution of \eqn{M(1{:}T)}, independent of \eqn{i}'s own
 #' confounder history (and permuted independently across mediators). This makes
@@ -96,12 +96,16 @@
 #'   there exists a time-varying confounder of the mediator-outcome
 #'   relationship that is itself affected by prior exposure (Avin, Shpitser
 #'   & Pearl 2005; VanderWeele 2014; VanderWeele & Tchetgen Tchetgen 2017).
-#'   In that setting use \code{mediation_type = "I"}, which targets
-#'   randomized interventional analogues of the direct/indirect effects and
-#'   remains identifiable. A warning is emitted at runtime if \code{"N"} is
-#'   chosen and any covariate model includes the exposure on its right-hand
-#'   side, which is a sufficient (though not necessary) signal of intermediate
-#'   confounding; the caveat is repeated by \code{print()}.
+#'   For that setting VanderWeele & Tchetgen Tchetgen (2017) propose the
+#'   randomized interventional analogues of the direct and indirect effects,
+#'   which \code{mediation_type = "I"} targets and which remain identifiable.
+#'   A warning is emitted at runtime if \code{"N"} is chosen and any covariate
+#'   model includes the exposure on its right-hand side — that is, a covariate
+#'   the user has modelled as exposure-affected. The check reads the model
+#'   formulas only: it does not establish that such a covariate also confounds
+#'   the mediator-outcome relationship, nor does its silence establish that no
+#'   intermediate confounder exists. Judging the causal structure remains the
+#'   analyst's responsibility. The caveat is repeated by \code{print()}.
 #'   \strong{Interpretation of \code{"I"}.} Randomized interventional indirect
 #'   effects buy identifiability at a price: they do not satisfy a sharp
 #'   mediational null criterion, so a non-zero IIE does not by itself prove
@@ -110,12 +114,17 @@
 #'   one, not merely computational.
 #'
 #' @param n_vw Integer. Number of independent permutation draws averaged for
-#'   each interventional cross-world intervention. The same averaging is applied
-#'   within every bootstrap replicate. Default \code{2L} to match the SAS
-#'   \code{mGFORMULA} macro's \code{n_vw = 2}. Set to \code{1L} to disable
-#'   averaging (faster, slightly noisier Monte Carlo). Has no effect when
-#'   \code{mediation_type = "N"} (the natural-effect mediator swap is not
-#'   permutation-based).
+#'   each intervention that draws its mediators from a permuted pool. Under
+#'   \code{mediation_type = "I"} that is \emph{every} intervention in the
+#'   decomposition — the references \code{Phi00} and \code{Phi11} just as much
+#'   as the cross-world \code{Phi10} and \code{Phi1_k} — but not the
+#'   natural-course interventions \code{nat0}/\code{nat1}, whose mediators come
+#'   from their own fitted models and involve no permutation. The same
+#'   averaging is applied within every bootstrap replicate. Default \code{2L}
+#'   to match the SAS \code{mGFORMULA} macro's \code{n_vw = 2}. Set to
+#'   \code{1L} to disable averaging (faster, slightly noisier Monte Carlo). Has
+#'   no effect when \code{mediation_type = "N"} (the natural-effect mediator
+#'   swap is not permutation-based).
 #'
 #' @param estimator Character. \code{"gcomp"} (default) for the parametric
 #'   g-formula plug-in (Monte Carlo simulation + bootstrap CIs), or
@@ -139,7 +148,16 @@
 #'   (consistent when specific subsets of the nuisance models are correct,
 #'   not only when all are), reports Wald CIs from the efficient influence
 #'   curve without bootstrapping (\code{R} is ignored), and has no Monte
-#'   Carlo simulation error (\code{mc_sample} is ignored). Practical
+#'   Carlo simulation error (\code{mc_sample} is ignored).
+#'   \strong{Working-model form:} the models you supply are used as written for
+#'   the conditional densities that form the clever covariates, but the
+#'   targeted sequential regressions are constructed as \emph{additive
+#'   main-effects} models in the variables appearing in those formulas.
+#'   Transformations and interactions (\code{poly()}, splines, \code{A:M}) are
+#'   therefore not carried into the sequential regressions. This is a property
+#'   of this implementation, not of the estimator as published; the theoretical
+#'   results of Zheng & van der Laan (2017) are stated for correctly specified
+#'   nuisance models. Practical
 #'   positivity violations (few subjects following an intervened regime) are
 #'   handled by skipping the affected fluctuation steps and truncating
 #'   extreme weights, with collected warnings — inspect these before trusting
@@ -206,8 +224,20 @@
   #'         \code{perct_lcl_RR}/\code{perct_ucl_RR},
   #'         \code{norm_lcl_RR}/\code{norm_ucl_RR} for RR. \code{RR} is
   #'         \code{NA} for the Mediation Proportion rows.
-  #'   \item \code{sim_data}: if \code{return_data = TRUE}, the Monte Carlo simulated
-  #'         longitudinal dataset used internally (can be large).
+  #'   \item \code{sim_data}: if \code{return_data = TRUE}, the simulated Monte
+  #'         Carlo dataset used internally (can be large), stacked across
+  #'         interventions with an \code{Intervention} column. It is the
+  #'         \strong{end-of-follow-up snapshot} — one row per Monte Carlo
+  #'         subject per intervention, holding each variable at its final
+  #'         simulated time step alongside the accumulated \code{Pred_Y} — not a
+  #'         row-per-time-point panel.
+  #'         With \code{n_vw > 1} the pool-drawing interventions are simulated
+  #'         \code{n_vw} times and only the \emph{last} permutation is retained
+  #'         here, whereas \code{effect_size$Est} averages all \code{n_vw} of
+  #'         them. Recomputing \code{mean(Pred_Y)} from \code{sim_data} will
+  #'         therefore not reproduce \code{Est} exactly for those interventions
+  #'         (it does for \code{nat0}/\code{nat1}); use \code{n_vw = 1} if you
+  #'         need the two to agree.
   #'   \item \code{fitted_models}: a named list of fitted models keyed by outcome, exposure,
   #'         and mediator variables. If \code{return_fitted = TRUE}, returns full model objects
   #'         plus attributes (\code{recodes}, \code{subset}, \code{var_type}, \code{mod_type});
@@ -312,7 +342,7 @@ mediation <- function(data,
                       init_recode = NULL,
                       in_recode = NULL,
                       out_recode = NULL,
-                      mc_sample = nrow(data)*100,
+                      mc_sample = NULL,
                       mediation_type = c("I", "N"),
                       n_vw = 2L,
                       estimator = c("gcomp", "tmle"),
@@ -353,9 +383,40 @@ mediation <- function(data,
   # Check for error
   check_error(data, id_var, base_vars, exposure, time_var, models)
 
+  # Resolved here rather than in the signature so it can count subjects rather
+  # than rows. TMLE does no Monte Carlo simulation, so it takes the value
+  # silently and never uses it.
+  if (is.null(mc_sample)) {
+    mc_sample <- 50L * data.table::uniqueN(data[[id_var]])
+    if (!quiet && !identical(estimator, "tmle")) {
+      message(sprintf(
+        "mc_sample not supplied: using %d (50 per subject, %d subjects).",
+        mc_sample, data.table::uniqueN(data[[id_var]])))
+    }
+  }
+  mc_sample <- as.integer(mc_sample)
+  all.args$mc_sample <- mc_sample
+
   check_recode_param("in_recode", in_recode)
   check_recode_param("out_recode", out_recode)
   check_recode_param("init_recode", init_recode)
+
+  # `outcome` is supplied separately from `models`, but it must name the same
+  # variable the outcome/survival model predicts: it drives the observed
+  # benchmark and, for estimator = "tmle", the whole targeted engine. A name
+  # that matches no column silently produced an NA benchmark, and made the
+  # TMLE binary-outcome guard pass vacuously (all(logical(0)) is TRUE). Pin the
+  # two together. check_error() has already established that exactly one
+  # outcome/survival model exists.
+  out_idx       <- which(sapply(models, function(m)
+    m$mod_type %in% c("outcome", "survival")))
+  model_outcome <- all.vars(formula(models[[out_idx]]$call)[[2]])
+  if (!identical(as.character(outcome), model_outcome)) {
+    stop(sprintf(
+      "`outcome` (\"%s\") must name the response of the %s model (\"%s\").",
+      paste(outcome, collapse = ", "), models[[out_idx]]$mod_type, model_outcome
+    ), domain = "causalMed")
+  }
 
   # Validate that the exposure variable is binary {0, 1}
   exp_vals <- unique(na.omit(data[[exposure]]))

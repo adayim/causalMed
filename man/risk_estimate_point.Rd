@@ -2,39 +2,41 @@
 % Please edit documentation in R/risk_estimate.R
 \name{risk_estimate_point}
 \alias{risk_estimate_point}
-\title{Calculate Risk Difference, Risk Ratio, or Mediation Effects based on g-formula}
+\title{Point-estimate contrasts against a reference intervention}
 \usage{
 risk_estimate_point(data_list, ref_int, intervention, return_data)
 }
 \arguments{
-\item{data_list}{A list of simulated datasets returned by \code{.run_interventions}.}
+\item{data_list}{Named list of intervention results from
+\code{.run_interventions}: one mean outcome per intervention, or one
+simulated \code{data.table} per intervention when \code{return_data} is
+\code{TRUE}.}
 
-\item{ref_int}{Reference intervention to compare against.}
+\item{ref_int}{Character scalar naming the reference element of
+\code{data_list}.}
 
-\item{intervention}{A vector specifying the interventions to compare.}
+\item{intervention}{The named intervention list; its names determine which
+contrasts are formed.}
 
-\item{return_data}{Logical. If \code{TRUE}, returns the simulated data along with effects.}
+\item{return_data}{Logical. \code{TRUE} when \code{data_list} holds
+simulated datasets rather than scalar means.}
 }
 \value{
-A \code{data.table} with calculated effects (Risk Difference, Risk Ratio, or Mediation effects)
-and, if applicable, confidence intervals. For mediation effects, the result will show
-total, direct, and indirect effects.
+A \code{data.table} with columns \code{Intervention}, \code{Risk_type}
+(\code{"Difference"} or \code{"Ratio"}) and \code{Estimate}: two rows per
+non-reference intervention.
 }
 \description{
-These internal functions compute the Risk Difference (RD) and Risk Ratio (RR)
-for g-formula estimates of the total effect, natural direct effect (NDE), 
-and natural indirect effect (NIE). The functions also calculate confidence intervals 
-(for RD and RR) and mediation effects based on g-formula methodology.
+Internal use only. Turns the per-intervention mean outcomes produced by
+\code{.run_interventions} into risk differences and risk ratios against the
+reference intervention. Confidence intervals are \emph{not} computed here;
+\code{\link{gformula}} adds them from the bootstrap replicates.
 }
 \details{
-These functions are used internally within the g-formula framework for effect estimation.
-They are not intended for direct user input. The functions perform:
-- \code{risk_estimate_point}: Computes point estimates for risk difference and risk ratio.
-- \code{risk_estimate_boot}: Computes per-bootstrap-replicate estimates for the effects (RD/RR).
-- \code{risk_estimate_mediation}: Computes total, direct, and indirect effects by subtraction.
-
-These functions operate on the output of the \code{.run_interventions} function, estimating 
-effects (both point estimates and confidence intervals) from simulated data.
+Companion internal functions in the same file, not documented separately:
+\code{risk_estimate_boot} does the same job for one stacked bootstrap
+replicate, and \code{risk_estimate_mediation} builds the mediation
+decomposition (total, direct, per-mediator indirect) by subtraction.
 }
 \seealso{
 \code{\link{gformula}}, \code{\link{mediation}}

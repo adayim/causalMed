@@ -15,7 +15,7 @@ mediation(
   init_recode = NULL,
   in_recode = NULL,
   out_recode = NULL,
-  mc_sample = nrow(data) * 100,
+  mc_sample = NULL,
   mediation_type = c("I", "N"),
   n_vw = 2L,
   estimator = c("gcomp", "tmle"),
@@ -54,8 +54,14 @@ way data generation process. See \code{\link{spec_model}} for a recommended cons
 \item{out_recode}{Optional expression/function applied at the **end** of each time step
 (e.g., create lags, cumulative counts). Should be defined with \code{\link{recodes}}. See Details.}
 
-\item{mc_sample}{Integer. Monte Carlo sample size used for simulation.
-Default \code{nrow(data) * 100}.}
+\item{mc_sample}{Integer. Size of the Monte Carlo cohort simulated under
+each intervention, counted in subjects. Defaults to \code{NULL}, which
+resolves to 50 times the number of subjects in \code{data} and reports the
+value it chose unless \code{quiet = TRUE}. Monte Carlo error falls as
+\code{1/sqrt(mc_sample)} while sampling error falls with the number of
+subjects, so the two stay in a fixed ratio when \code{mc_sample} is set as
+a multiple of the subject count; a larger multiple buys precision in the
+point estimate and does not change what is being estimated.}
 
 \item{mediation_type}{Character. Type of mediation effect:
 \code{"I"} for interventional effect (default) or \code{"N"} for natural
@@ -67,12 +73,16 @@ package is designed for (see below).
 there exists a time-varying confounder of the mediator-outcome
 relationship that is itself affected by prior exposure (Avin, Shpitser
 & Pearl 2005; VanderWeele 2014; VanderWeele & Tchetgen Tchetgen 2017).
-In that setting use \code{mediation_type = "I"}, which targets
-randomized interventional analogues of the direct/indirect effects and
-remains identifiable. A warning is emitted at runtime if \code{"N"} is
-chosen and any covariate model includes the exposure on its right-hand
-side, which is a sufficient (though not necessary) signal of intermediate
-confounding; the caveat is repeated by \code{print()}.
+For that setting VanderWeele & Tchetgen Tchetgen (2017) propose the
+randomized interventional analogues of the direct and indirect effects,
+which \code{mediation_type = "I"} targets and which remain identifiable.
+A warning is emitted at runtime if \code{"N"} is chosen and any covariate
+model includes the exposure on its right-hand side — that is, a covariate
+the user has modelled as exposure-affected. The check reads the model
+formulas only: it does not establish that such a covariate also confounds
+the mediator-outcome relationship, nor does its silence establish that no
+intermediate confounder exists. Judging the causal structure remains the
+analyst's responsibility. The caveat is repeated by \code{print()}.
 \strong{Interpretation of \code{"I"}.} Randomized interventional indirect
 effects buy identifiability at a price: they do not satisfy a sharp
 mediational null criterion, so a non-zero IIE does not by itself prove
@@ -81,12 +91,17 @@ The choice between \code{"I"} and \code{"N"} is therefore a substantive
 one, not merely computational.}
 
 \item{n_vw}{Integer. Number of independent permutation draws averaged for
-each interventional cross-world intervention. The same averaging is applied
-within every bootstrap replicate. Default \code{2L} to match the SAS
-\code{mGFORMULA} macro's \code{n_vw = 2}. Set to \code{1L} to disable
-averaging (faster, slightly noisier Monte Carlo). Has no effect when
-\code{mediation_type = "N"} (the natural-effect mediator swap is not
-permutation-based).}
+each intervention that draws its mediators from a permuted pool. Under
+\code{mediation_type = "I"} that is \emph{every} intervention in the
+decomposition — the references \code{Phi00} and \code{Phi11} just as much
+as the cross-world \code{Phi10} and \code{Phi1_k} — but not the
+natural-course interventions \code{nat0}/\code{nat1}, whose mediators come
+from their own fitted models and involve no permutation. The same
+averaging is applied within every bootstrap replicate. Default \code{2L}
+to match the SAS \code{mGFORMULA} macro's \code{n_vw = 2}. Set to
+\code{1L} to disable averaging (faster, slightly noisier Monte Carlo). Has
+no effect when \code{mediation_type = "N"} (the natural-effect mediator
+swap is not permutation-based).}
 
 \item{estimator}{Character. \code{"gcomp"} (default) for the parametric
 g-formula plug-in (Monte Carlo simulation + bootstrap CIs), or
@@ -110,7 +125,16 @@ fluctuations instead of forward simulation: it is multiply robust
 (consistent when specific subsets of the nuisance models are correct,
 not only when all are), reports Wald CIs from the efficient influence
 curve without bootstrapping (\code{R} is ignored), and has no Monte
-Carlo simulation error (\code{mc_sample} is ignored). Practical
+Carlo simulation error (\code{mc_sample} is ignored).
+\strong{Working-model form:} the models you supply are used as written for
+the conditional densities that form the clever covariates, but the
+targeted sequential regressions are constructed as \emph{additive
+main-effects} models in the variables appearing in those formulas.
+Transformations and interactions (\code{poly()}, splines, \code{A:M}) are
+therefore not carried into the sequential regressions. This is a property
+of this implementation, not of the estimator as published; the theoretical
+results of Zheng & van der Laan (2017) are stated for correctly specified
+nuisance models. Practical
 positivity violations (few subjects following an intervened regime) are
 handled by skipping the affected fluctuation steps and truncating
 extreme weights, with collected warnings — inspect these before trusting
@@ -204,8 +228,20 @@ An object of class \code{"gformula"} with components:
         \code{perct_lcl_RR}/\code{perct_ucl_RR},
         \code{norm_lcl_RR}/\code{norm_ucl_RR} for RR. \code{RR} is
         \code{NA} for the Mediation Proportion rows.
-  \item \code{sim_data}: if \code{return_data = TRUE}, the Monte Carlo simulated
-        longitudinal dataset used internally (can be large).
+  \item \code{sim_data}: if \code{return_data = TRUE}, the simulated Monte
+        Carlo dataset used internally (can be large), stacked across
+        interventions with an \code{Intervention} column. It is the
+        \strong{end-of-follow-up snapshot} — one row per Monte Carlo
+        subject per intervention, holding each variable at its final
+        simulated time step alongside the accumulated \code{Pred_Y} — not a
+        row-per-time-point panel.
+        With \code{n_vw > 1} the pool-drawing interventions are simulated
+        \code{n_vw} times and only the \emph{last} permutation is retained
+        here, whereas \code{effect_size$Est} averages all \code{n_vw} of
+        them. Recomputing \code{mean(Pred_Y)} from \code{sim_data} will
+        therefore not reproduce \code{Est} exactly for those interventions
+        (it does for \code{nat0}/\code{nat1}); use \code{n_vw = 1} if you
+        need the two to agree.
   \item \code{fitted_models}: a named list of fitted models keyed by outcome, exposure,
         and mediator variables. If \code{return_fitted = TRUE}, returns full model objects
         plus attributes (\code{recodes}, \code{subset}, \code{var_type}, \code{mod_type});
@@ -281,10 +317,10 @@ For non-standard covariate distributions (bounded, zero-inflated, truncated), us
 **Mediator pool (interventional effects)**
 For \code{mediation_type = "I"}, a natural-course pass under each treatment
 level \eqn{a^*} stores every simulated individual's full mediator trajectory
-\eqn{M(1{:}T)} in a pool matrix. Each decomposition intervention that fixes a
+\eqn{M(1{:}T)} in a pool. Each decomposition intervention that fixes a
 mediator to its \eqn{a^*} value — \emph{including the reference interventions}
-\code{Phi00} (\eqn{a^* = 0}) and \code{Phi11} (\eqn{a^* = 1}) — permutes the
-rows of that matrix once and assigns subject \eqn{i} the entire trajectory of
+\code{Phi00} (\eqn{a^* = 0}) and \code{Phi11} (\eqn{a^* = 1}) — permutes that
+pool once and assigns subject \eqn{i} the entire trajectory of
 pool individual \eqn{\pi(i)}: a joint, stochastic draw \eqn{G_{a^*}} from the
 simulated distribution of \eqn{M(1{:}T)}, independent of \eqn{i}'s own
 confounder history (and permuted independently across mediators). This makes

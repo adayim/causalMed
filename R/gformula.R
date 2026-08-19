@@ -27,9 +27,22 @@
 #' Provide a named list \code{intervention} with exposure values per time
 #' (e.g., \code{list(natural = NULL, always = c(1,1,1), never = c(0,0,0))}).
 #' If \code{intervention} is \code{NULL}, the function evaluates the natural course only.
-#' If at least one element is \code{NULL} and \code{ref_int == 0}, that element is used
-#' as the reference ("natural"). Otherwise, a \code{natural} intervention is added automatically,
-#' and \code{ref_int} is set to \code{"natural"}.
+#'
+#' The reference is resolved before simulation, so that \code{ref_int} always
+#' names an intervention that exists:
+#' \itemize{
+#'   \item \code{ref_int = 0} and \code{ref_int = "natural"} both ask for the
+#'         natural course. The \code{NULL} element of \code{intervention} is
+#'         used if one was supplied — whatever it is named — and otherwise a
+#'         \code{natural} element is added to the list.
+#'   \item An integer position, or a name matching an element, uses that
+#'         intervention as the reference; no natural course is added.
+#' }
+#' Because the default is \code{ref_int = 0}, a list holding only static or
+#' dynamic interventions still gains a natural course. The natural course draws
+#' the exposure from its fitted model, so \code{models} must then include a
+#' \code{mod_type = "exposure"} model; supplying one is required unless
+#' \code{ref_int} names one of the interventions you provided.
 #'
 #' **Model specification**
 #' Each element of \code{models} is typically created by \code{\link{spec_model}}
@@ -70,13 +83,16 @@
 #'           \code{list(natural = NULL, threshold = dyn_int(as.numeric(A > 0)))}.
 #'   }
 #'   If \code{intervention} is \code{NULL}, only the natural course is
-#'   evaluated. If a \code{natural} intervention is not provided, it is added
-#'   automatically and \code{ref_int} is set to \code{"natural"}.
+#'   evaluated. A \code{natural} element is also added automatically when
+#'   \code{ref_int} asks for the natural course and the list contains no
+#'   \code{NULL} element; see \code{ref_int} and Details.
 #' @param ref_int Reference intervention for contrasts. Either an integer index
 #'   (\code{0} = natural course; \code{1}, \code{2}, … = elements of
 #'   \code{intervention}) or a character name matching an element (e.g.,
-#'   \code{"always"}). If no \code{natural} intervention is provided, it is added and
-#'   \code{ref_int} is set to \code{"natural"}. Default: \code{0}.
+#'   \code{"always"}). \code{0} and \code{"natural"} both resolve to the
+#'   \code{NULL} element of \code{intervention} if there is one, and otherwise
+#'   add a \code{natural} element — which requires an exposure model in
+#'   \code{models}. See Details. Default: \code{0}.
 #' @param init_recode Optional expression/function applied once at time 0 before the Monte Carlo loop
 #'   (e.g., initializing baseline-derived variables). Should be defined with \code{\link{recodes}}. See Details.
 #' @param in_recode Optional expression/function applied at the **start** of each time step
@@ -85,8 +101,14 @@
 #'   (e.g., create lags, cumulative counts). Should be defined with \code{\link{recodes}}. See Details.
 #' @param return_fitted Logical. If \code{TRUE}, return full fitted model objects; otherwise,
 #'   a light-weight summary (call and coefficients). Default \code{FALSE}.
-#' @param mc_sample Integer. Monte Carlo sample size used for simulation.
-#'   Default \code{nrow(data) * 100}.
+#' @param mc_sample Integer. Size of the Monte Carlo cohort simulated under
+#'   each intervention, counted in subjects. Defaults to \code{NULL}, which
+#'   resolves to 50 times the number of subjects in \code{data} and reports the
+#'   value it chose unless \code{quiet = TRUE}. Monte Carlo error falls as
+#'   \code{1/sqrt(mc_sample)} while sampling error falls with the number of
+#'   subjects, so the two stay in a fixed ratio when \code{mc_sample} is set as
+#'   a multiple of the subject count; a larger multiple buys precision in the
+#'   point estimate and does not change what is being estimated.
 #' @param return_data Logical. If \code{TRUE}, return the stacked simulated data
 #'   (all interventions) including predicted outcomes; may be large. Default \code{FALSE}.
 #' @param R Number of bootstrap replicates. If \code{R > 1},
@@ -117,8 +139,14 @@
 #'   \item \code{estimate}: if multiple interventions are provided, a \code{data.table}
 #'         of contrasts vs. \code{ref_int} (columns typically include \code{Intervention},
 #'         \code{Risk_type}, \code{Estimate}, and (if \code{R > 1}) CI columns).
-#'   \item \code{sim_data}: if \code{return_data = TRUE}, the stacked simulated
-#'         Monte Carlo dataset across interventions (can be large).
+#'   \item \code{sim_data}: if \code{return_data = TRUE}, the simulated Monte
+#'         Carlo dataset stacked across interventions with an
+#'         \code{Intervention} column (can be large). It is the
+#'         \strong{end-of-follow-up snapshot} — one row per Monte Carlo subject
+#'         per intervention, holding each variable at its final simulated time
+#'         step alongside the accumulated \code{Pred_Y} — not a
+#'         row-per-time-point panel: the simulation overwrites each variable in
+#'         place as it steps through time.
 #'   \item \code{fitted_models}: a named list of fitted models.
 #'         If \code{return_fitted = TRUE}, returns full model objects plus attributes
 #'         (\code{recodes}, \code{subset}, \code{var_type}, \code{mod_type});
@@ -146,6 +174,13 @@
 #' and model censoring appropriately). The function may record warnings internally and
 #' print them on exit. Results depend on correct temporal ordering, model specification,
 #' positivity, and no unmeasured confounding assumptions customary for g-formula.
+#'
+#' If a fitted model turns out to be rank deficient — a collinear term, or a
+#' covariate that is constant among the rows actually used to fit it, such as
+#' \code{time} in an outcome recorded only at the end of follow-up — the
+#' unestimable terms are dropped from the simulation, exactly as
+#' \code{\link[stats]{predict}} would, and are named in the warning summary
+#' printed on exit. Treat that warning as a prompt to fix the formula.
 #'
 #' @references
 #' Robins, J. M. (1986). A new approach to causal inference in mortality studies with a sustained
@@ -213,7 +248,7 @@ gformula <- function(data,
                      in_recode = NULL,
                      out_recode = NULL,
                      return_fitted = FALSE,
-                     mc_sample = nrow(data)*100,
+                     mc_sample = NULL,
                      return_data = FALSE,
                      R = 500,
                      quiet = FALSE,
@@ -227,6 +262,17 @@ gformula <- function(data,
 
   # Check for error
   check_error(data, id_var, base_vars, exposure, time_var, models)
+
+  if (is.null(mc_sample)) {
+    mc_sample <- 50L * data.table::uniqueN(data[[id_var]])
+    if (!quiet) {
+      message(sprintf(
+        "mc_sample not supplied: using %d (50 per subject, %d subjects).",
+        mc_sample, data.table::uniqueN(data[[id_var]])))
+    }
+  }
+  mc_sample <- as.integer(mc_sample)
+  all.args$mc_sample <- mc_sample
 
   check_recode_param("in_recode", in_recode)
   check_recode_param("out_recode", out_recode)
@@ -252,24 +298,39 @@ gformula <- function(data,
   if (!is.null(intervention)) {
     check_intervention(models, intervention, ref_int, time_len)
 
-    # If any intervention is set to NULL, but reference not defined.
-    if (ref_int == 0 & length(intervention) >= 1) {
-      interv_value <- sapply(intervention, is.null)
-      if (any(interv_value)) {
-        ref_int <- names(which(interv_value))
-      } else {
-        intervention <- c(list(natural = NULL), intervention)
-        ref_int <- "natural"
-      }
-    } else if (is.numeric(ref_int) && ref_int >= 1) {
-      # Resolve a positional reference to its name. Downstream,
-      # risk_estimate_point()/risk_estimate_boot() drop the reference with
-      # setdiff(names(intervention), ref_int) -- a numeric index never matches
-      # a name, so leaving it numeric would emit a spurious self-contrast row
-      # (reference vs. itself: RD 0, RR 1). Safe here because the `natural`
-      # prepend above only happens on the ref_int == 0 branch, so indices are
-      # still those of the user's list.
+    # Resolve `ref_int` to the NAME of an element of `intervention`, adding the
+    # natural course when the requested reference does not exist yet.
+    # Downstream, risk_estimate_point()/risk_estimate_boot() drop the reference
+    # with setdiff(names(intervention), ref_int): a numeric index never matches
+    # a name (spurious self-contrast row), and a name that is absent silently
+    # yields a zero-row contrast table. So every path below must end with
+    # `ref_int` naming an element that really exists.
+    if (is.numeric(ref_int) && ref_int >= 1) {
+      # Positional reference. Safe to index the user's list directly: the
+      # `natural` prepend below cannot have happened yet.
       ref_int <- names(intervention)[ref_int]
+    } else if (identical(as.character(ref_int), "0") ||
+               (identical(ref_int, "natural") &&
+                !("natural" %in% names(intervention)))) {
+      # "The natural course", asked for either positionally (ref_int = 0) or by
+      # name. Both mean the NULL element, whatever the user called it -- so
+      # resolve to that element's name and only fall through to creating one
+      # when there is none. Matching on the NAME alone would prepend a SECOND
+      # natural course next to an existing `list(nat = NULL, ...)`, breaking
+      # check_intervention()'s one-NULL-element rule and emitting a nonsense
+      # `nat - natural` contrast. The `!("natural" %in% names(...))` guard keeps
+      # a non-NULL intervention the user chose to call "natural" as the
+      # reference, and stops the prepend from colliding with its name.
+      interv_value <- vapply(intervention, is.null, logical(1))
+      ref_int <- if (any(interv_value)) names(which(interv_value))[1] else NA_character_
+    }
+
+    # Add the natural course when it was asked for but not supplied -- ref_int
+    # = 0 or "natural" with no NULL element anywhere. The "natural" case used
+    # to sail past every check and produce an empty contrast table.
+    if (is.na(ref_int)) {
+      intervention <- c(list(natural = NULL), intervention)
+      ref_int <- "natural"
     }
     # Record the resolved reference so print() shows the name actually used
     # (e.g. "natural") rather than the raw 0 placeholder.
@@ -277,8 +338,16 @@ gformula <- function(data,
   }
 
   if (is.null(intervention)) {
-    intervention <- list(intervention = NULL)
+    # Natural course only. Name it "natural" so the output label matches the
+    # documentation and the label used whenever an explicit intervention list
+    # is given.
+    intervention <- list(natural = NULL)
+    all.args$ref_int <- "natural"
   }
+
+  # `intervention` is now a resolved named list in both paths, so one check
+  # covers the explicit list and the intervention = NULL shorthand.
+  check_natural_course(models, intervention, exposure)
 
   # Get the position of the outcome
   out_flag <- sapply(models, function(mods) mods$mod_type %in% c("outcome", "survival"))

@@ -143,8 +143,18 @@ wrap_fitted_models <- function(fitted_models, return_fitted) {
     r <- if (return_fitted) {
       x$fitted
     } else {
-      list(call  = x$fitted$call,
-           coeff = summary(x$fitted)$coefficients)
+      # The compact summary is a convenience for printing, so it must never
+      # take down an otherwise successful run. A `custom_fit` model can be any
+      # class: `$` fails on a non-list fit, and summary() may return something
+      # with no $coefficients (summary.default gives a matrix, and `$` on a
+      # matrix is an error) or a non-numeric table that print(round(.)) would
+      # then reject. Degrade to NULL; print()/summary() already say
+      # "rerun with return_fitted = TRUE" when the table is missing.
+      list(call  = tryCatch(x$fitted$call, error = function(e) NULL),
+           coeff = tryCatch({
+             cf <- summary(x$fitted)$coefficients
+             if (is.null(cf) || !is.numeric(cf)) NULL else cf
+           }, error = function(e) NULL))
     }
     structure(r,
               recodes  = x$recodes,

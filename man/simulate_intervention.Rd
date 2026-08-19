@@ -47,8 +47,9 @@ element is one of:
         \code{list(natural = NULL, threshold = dyn_int(as.numeric(A > 0)))}.
 }
 If \code{intervention} is \code{NULL}, only the natural course is
-evaluated. If a \code{natural} intervention is not provided, it is added
-automatically and \code{ref_int} is set to \code{"natural"}.}
+evaluated. A \code{natural} element is also added automatically when
+\code{ref_int} asks for the natural course and the list contains no
+\code{NULL} element; see \code{ref_int} and Details.}
 
 \item{init_recode}{Optional expression/function applied once at time 0 before the Monte Carlo loop
 (e.g., initializing baseline-derived variables). Should be defined with \code{\link{recodes}}. See Details.}
@@ -63,13 +64,14 @@ automatically and \code{ref_int} is set to \code{"natural"}.}
 (all interventions) including predicted outcomes; may be large. Default \code{FALSE}.}
 
 \item{med_pool}{Optional named list keyed by mediator response variable.
-Each element is a pre-permuted `nrow(data) × T` matrix (column names =
-time index as character) supplying the cross-world joint trajectory for
-that mediator. The per-time slice is delivered to \code{simulate_data}.}
+Each element is itself a pre-permuted list of \code{T} vectors (one per
+time point, each of length \code{nrow(data)}, in the mediator's own type)
+supplying the cross-world joint trajectory for that mediator. The per-time
+slice is delivered to \code{simulate_data}.}
 
 \item{collect_pool}{Logical. If \code{TRUE}, capture the simulated
-trajectory of every mediator into a named list of `nrow(data) × T`
-matrices and return it alongside the risk estimate.}
+trajectory of every mediator into a named list of per-time vector lists
+and return it alongside the risk estimate.}
 }
 \description{
 Internal use only. Monte Carlo simulation.
