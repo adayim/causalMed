@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -74,9 +74,10 @@
 time-varying exposure into a <strong>direct</strong> component (not
 through the mediator) and an <strong>indirect</strong> component
 (through the mediator), for time-varying mediators and confounders —
-including confounders affected by prior exposure, the setting where
-standard regression-based mediation fails. This vignette is the full
-mediation story:</p>
+including confounders affected by prior exposure, the setting the
+mediational g-formula was developed for (Lin et al. 2017; VanderWeele
+&amp; Tchetgen Tchetgen 2017). This vignette is the full mediation
+story:</p>
 <ol style="list-style-type: decimal">
 <li>the two estimands — interventional and natural effects — and how to
 choose,</li>
@@ -186,12 +187,18 @@ zero and the row is omitted.</p>
 </table>
 <p>The identifiability row is the practical decision point: natural
 effects are <strong>not point-identified</strong> when a confounder of
-the mediator–outcome relationship is itself affected by the exposure (an
-<em>intermediate confounder</em>). <code><a href="../reference/mediation.html">mediation()</a></code> detects that
-structure — the exposure on the right-hand side of a covariate model —
-and warns; the interventional effects remain identifiable there, which
-is why they are the default. The natural effects section below shows the
-warning in action.</p>
+the mediator–outcome relationship is itself affected by the exposure —
+an <em>intermediate confounder</em> (Avin, Shpitser &amp; Pearl 2005;
+VanderWeele &amp; Tchetgen Tchetgen 2017). <code><a href="../reference/mediation.html">mediation()</a></code>
+warns when a covariate model carries the exposure on its right-hand
+side, i.e. when a covariate is <em>modelled as</em> exposure-affected.
+That is a scan of your formulas, not of the causal structure: it cannot
+confirm that such a covariate also confounds the mediator–outcome
+relationship, and its silence does not establish that no intermediate
+confounder exists. Deciding that is yours. VanderWeele &amp; Tchetgen
+Tchetgen (2017) propose the interventional analogues for this setting,
+which is why <code>"I"</code> is the default. The natural effects
+section below shows the warning in action.</p>
 </div>
 <div class="section level2">
 <h2 id="requirements-and-defaults">Requirements and defaults<a class="anchor" aria-label="anchor" href="#requirements-and-defaults"></a>
@@ -226,8 +233,7 @@ cohort is simulated under each treatment level
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>a</mi><mo>*</mo></msup><annotation encoding="application/x-tex">a^*</annotation></semantics></math>
 and every individual’s full mediator trajectory
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>M</mi><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>:</mo><mi>T</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">M(1{:}T)</annotation></semantics></math>
-is stored as a row of a pool matrix. Each intervention that fixes a
-mediator to its
+is stored in a pool. Each intervention that fixes a mediator to its
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>a</mi><mo>*</mo></msup><annotation encoding="application/x-tex">a^*</annotation></semantics></math>
 value — <strong>including the reference interventions</strong>
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="normal">Φ</mi><mn>00</mn></msub><mo>=</mo><mi>E</mi><mo stretchy="false" form="prefix">[</mo><msub><mi>Y</mi><mrow><mn>0</mn><mo>,</mo><msub><mi>G</mi><mn>0</mn></msub></mrow></msub><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">\Phi_{00} = E[Y_{0,G_0}]</annotation></semantics></math>
@@ -235,7 +241,7 @@ and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="normal">Φ</mi><mn>11</mn></msub><mo>=</mo><mi>E</mi><mo stretchy="false" form="prefix">[</mo><msub><mi>Y</mi><mrow><mn>1</mn><mo>,</mo><msub><mi>G</mi><mn>1</mn></msub></mrow></msub><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">\Phi_{11} = E[Y_{1,G_1}]</annotation></semantics></math>,
 not only the cross-world
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi mathvariant="normal">Φ</mi><mn>10</mn></msub><annotation encoding="application/x-tex">\Phi_{10}</annotation></semantics></math>
-— row-permutes the relevant pool once and assigns subject
+— permutes the relevant pool once and assigns subject
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
 the <em>entire</em> trajectory of one randomly chosen pool individual
 (each mediator permuted independently). This is the joint-trajectory
@@ -440,9 +446,9 @@ ordinary g-formula total effect.</li>
 <li>
 <strong>TE − (Direct + Indirect)</strong>: IDE + IIE sum to the
 <em>interventional overall effect</em> <code>Phi11 − Phi00</code>, not
-to TE; this row is the difference (a mediated-interaction residual). It
-is usually small; a large value signals strong exposure–mediator
-interaction in the outcome process. (For
+to TE; this row is the arithmetic difference between the two, reported
+so the decomposition can be read against the total effect. Yamamuro et
+al. (2021) report the corresponding quantity for their simulation. (For
 <code>mediation_type = "N"</code> the decomposition is exact and this
 row is absent.)</li>
 <li>
@@ -468,15 +474,32 @@ the data.</p>
 <div class="section level3">
 <h3 id="the-n_vw-argument">The <code>n_vw</code> argument<a class="anchor" aria-label="anchor" href="#the-n_vw-argument"></a>
 </h3>
-<p>Every cross-world intervention draws the mediator by randomly
-permuting the pool of simulated mediator trajectories. <code>n_vw</code>
-controls how many independent permutations are averaged per intervention
-(default <code>2</code>, matching the SAS <code>mGFORMULA</code> macro).
-Averaging reduces Monte Carlo noise from the permutation step at the
-cost of one extra simulation pass per intervention;
-<code>n_vw = 1</code> is faster and slightly noisier. It has no effect
-on natural effects (<code>mediation_type = "N"</code>), which do not use
-permutation.</p>
+<p>Every intervention that draws its mediators from a permuted pool does
+so by randomly permuting the pool of simulated mediator trajectories.
+Under <code>mediation_type = "I"</code> that is the <em>whole</em>
+decomposition — the references
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi mathvariant="normal">Φ</mi><mn>00</mn></msub><annotation encoding="application/x-tex">\Phi_{00}</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi mathvariant="normal">Φ</mi><mn>11</mn></msub><annotation encoding="application/x-tex">\Phi_{11}</annotation></semantics></math>
+as well as the cross-world
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi mathvariant="normal">Φ</mi><mn>10</mn></msub><annotation encoding="application/x-tex">\Phi_{10}</annotation></semantics></math>
+— but not the natural-course interventions
+<code>nat0</code>/<code>nat1</code>, whose mediators come from their own
+fitted models. <code>n_vw</code> controls how many independent
+permutations are averaged per intervention (default <code>2</code>,
+matching the SAS <code>mGFORMULA</code> macro). Averaging reduces Monte
+Carlo noise from the permutation step at the cost of one extra
+simulation pass per intervention; <code>n_vw = 1</code> is faster and
+slightly noisier. It has no effect on natural effects
+(<code>mediation_type = "N"</code>), which do not use permutation.</p>
+<p>One consequence worth knowing if you use
+<code>return_data = TRUE</code>: with <code>n_vw &gt; 1</code>,
+<code>sim_data</code> keeps only the last permutation of each
+pool-drawing intervention while <code>effect_size$Est</code> averages
+all of them, so recomputing <code>mean(Pred_Y)</code> from
+<code>sim_data</code> will not exactly reproduce <code>Est</code> for
+those interventions. Set <code>n_vw = 1</code> if you need the two to
+agree.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/mediation.html">mediation</a></span><span class="op">(</span><span class="va">...</span>, n_vw <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>   <span class="co"># single permutation per intervention: faster, noisier</span></span></code></pre></div>
 <hr>
@@ -622,11 +645,13 @@ Each mediator’s pool is permuted independently.</p>
 relative magnitudes (IDE &gt; IIE via M1 &gt; IIE via M2, small positive
 residual) are recovered, and the two indirect effects are estimated
 closely. The total and direct effects deviate by roughly 1–1.5
-percentage points — sampling error from fitting on a single dataset. The
-published study averages 1000 replicate datasets, under which the mean
-estimates match the true values (Yamamuro et al. 2021, and reproduced
-with this package during development); a per-dataset bootstrap
-(<code>R &gt; 1</code>) quantifies this uncertainty in applied use.</p>
+percentage points. The <code>True</code> column is a large-sample value
+computed from the data-generating process, whereas the estimate comes
+from one finite dataset simulated a finite number of times, so it
+carries both sampling error and Monte Carlo error; the run above is a
+single point estimate with neither quantified. A bootstrap
+(<code>R &gt; 1</code>) is what supplies that uncertainty in applied
+use.</p>
 <p>Because the decomposition is sequential, the <em>order</em> of the
 mediator models matters: it must reflect the assumed temporal/causal
 ordering among the mediators. Multiple mediators are not available for
@@ -696,12 +721,14 @@ depends on, before the survival model):</p>
 <p>In the simulation, censoring is <strong>abolished</strong> in every
 intervention (all interventions fix the exposure, and the censoring
 indicator is set to 0), so the reported risks are counterfactual risks
-<em>in the absence of censoring</em> — the standard g-formula treatment
-of right-censoring. The censoring model’s role is to let the hazard
-model be fitted on data where censoring depends on measured covariates.
-Here the estimates from the censored data are close to the full-data
-estimates above, as expected when censoring depends only on modelled
-covariates.</p>
+<em>in the absence of censoring</em>, as in the g-formula treatment of
+right-censoring described by Robins (1986) and Westreich et al. (2012).
+The censoring model’s role is to let the hazard model be fitted on data
+where censoring depends on measured covariates. Whether these estimates
+recover the full-data ones depends on censoring being independent of the
+outcome given the modelled covariates — an assumption about your data,
+not something the package can check. Compare the two tables here to see
+how they came out in this constructed example.</p>
 <hr>
 </div>
 <div class="section level2">
@@ -777,8 +804,8 @@ also defined for survival outcomes. However, in this dataset the
 confounder <code>L</code> is affected by the current exposure — an
 <em>intermediate confounder</em> — and natural direct and indirect
 effects are <strong>not identifiable</strong> in that setting (see the
-estimands section above). <code><a href="../reference/mediation.html">mediation()</a></code> detects the exposure
-on the right-hand side of a covariate model and warns:</p>
+estimands section above). <code><a href="../reference/mediation.html">mediation()</a></code> finds the exposure on
+the right-hand side of a covariate model and warns:</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_nat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mediation.html">mediation</a></span><span class="op">(</span></span>
 <span>  data           <span class="op">=</span> <span class="va">dat</span>,</span>
@@ -797,15 +824,20 @@ on the right-hand side of a covariate model and warns:</p>
 <span>  seed           <span class="op">=</span> <span class="fl">2026</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt; Warning: mediation_type = "N" requested, but covariate model(s) for {L} include</span></span>
-<span><span class="co">#&gt; the exposure 'A' on the right-hand side, indicating an intermediate</span></span>
-<span><span class="co">#&gt; (exposure-affected) confounder. Natural direct and indirect effects are NOT</span></span>
-<span><span class="co">#&gt; identifiable from observational data in this setting (Avin, Shpitser &amp; Pearl</span></span>
-<span><span class="co">#&gt; 2005; VanderWeele 2014; VanderWeele &amp; Tchetgen Tchetgen 2017). Consider</span></span>
-<span><span class="co">#&gt; mediation_type = "I" for identifiable interventional (randomized-analogue)</span></span>
-<span><span class="co">#&gt; effects.</span></span></code></pre></div>
-<p>The interventional effects (<code>"I"</code>) remain identifiable
-under intermediate confounding and are the recommended estimand here —
-which is why they are the package default.</p>
+<span><span class="co">#&gt; the exposure 'A' on the right-hand side, i.e. they are modelled as</span></span>
+<span><span class="co">#&gt; exposure-affected. If such a covariate also confounds the mediator-outcome</span></span>
+<span><span class="co">#&gt; relationship, natural direct and indirect effects are NOT identifiable from</span></span>
+<span><span class="co">#&gt; observational data (Avin, Shpitser &amp; Pearl 2005; VanderWeele 2014; VanderWeele</span></span>
+<span><span class="co">#&gt; &amp; Tchetgen Tchetgen 2017); for that setting VanderWeele &amp; Tchetgen Tchetgen</span></span>
+<span><span class="co">#&gt; (2017) propose the randomized interventional analogues, available here as</span></span>
+<span><span class="co">#&gt; mediation_type = "I". This check reads the model formulas only and cannot</span></span>
+<span><span class="co">#&gt; verify the causal structure.</span></span></code></pre></div>
+<p>Interventional effects (<code>"I"</code>) remain identifiable under
+intermediate confounding, and VanderWeele &amp; Tchetgen Tchetgen (2017)
+propose them for exactly this setting; that is why <code>"I"</code> is
+the package default. The choice between the two estimands is a
+substantive one — see Miles (2023) on what a non-zero interventional
+indirect effect does and does not establish.</p>
 <div class="section level3">
 <h3 id="a-targeted-tmle-estimator-for-natural-effects">A targeted (TMLE) estimator for natural effects<a class="anchor" aria-label="anchor" href="#a-targeted-tmle-estimator-for-natural-effects"></a>
 </h3>
@@ -816,10 +848,15 @@ likelihood estimator from the same reference (Zheng &amp; van der Laan
 2017, Section 4.3), including right-censored survival outcomes. Instead
 of simulating forward, it runs backward iterated regressions with
 targeted fluctuation steps, weighting by inverse treatment <em>and</em>
-censoring probabilities. It is multiply robust (consistent when certain
-subsets of the nuisance models are correct) and reports Wald CIs from
-the efficient influence curve, so no bootstrap is required
-(<code>R</code> and <code>mc_sample</code> are ignored).</p>
+censoring probabilities. Zheng &amp; van der Laan (2017) establish
+multiple robustness for it — consistency when certain subsets of the
+nuisance models are correct — and it reports Wald CIs from the efficient
+influence curve, so no bootstrap is required (<code>R</code> and
+<code>mc_sample</code> are ignored). Those results are stated for
+correctly specified nuisance models; this implementation builds its
+targeted sequential regressions as additive main-effects working models,
+so transformations and interactions written into your formulas are not
+carried into them (see <code><a href="../reference/mediation.html">?mediation</a></code>).</p>
 <p>Reusing the censored dataset and model list from the censoring
 section (which already includes the required exposure model):</p>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
@@ -839,12 +876,14 @@ section (which already includes the required exposure model):</p>
 <span>  seed           <span class="op">=</span> <span class="fl">2026</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt; Warning: mediation_type = "N" requested, but covariate model(s) for {L} include</span></span>
-<span><span class="co">#&gt; the exposure 'A' on the right-hand side, indicating an intermediate</span></span>
-<span><span class="co">#&gt; (exposure-affected) confounder. Natural direct and indirect effects are NOT</span></span>
-<span><span class="co">#&gt; identifiable from observational data in this setting (Avin, Shpitser &amp; Pearl</span></span>
-<span><span class="co">#&gt; 2005; VanderWeele 2014; VanderWeele &amp; Tchetgen Tchetgen 2017). Consider</span></span>
-<span><span class="co">#&gt; mediation_type = "I" for identifiable interventional (randomized-analogue)</span></span>
-<span><span class="co">#&gt; effects.</span></span>
+<span><span class="co">#&gt; the exposure 'A' on the right-hand side, i.e. they are modelled as</span></span>
+<span><span class="co">#&gt; exposure-affected. If such a covariate also confounds the mediator-outcome</span></span>
+<span><span class="co">#&gt; relationship, natural direct and indirect effects are NOT identifiable from</span></span>
+<span><span class="co">#&gt; observational data (Avin, Shpitser &amp; Pearl 2005; VanderWeele 2014; VanderWeele</span></span>
+<span><span class="co">#&gt; &amp; Tchetgen Tchetgen 2017); for that setting VanderWeele &amp; Tchetgen Tchetgen</span></span>
+<span><span class="co">#&gt; (2017) propose the randomized interventional analogues, available here as</span></span>
+<span><span class="co">#&gt; mediation_type = "I". This check reads the model formulas only and cannot</span></span>
+<span><span class="co">#&gt; verify the causal structure.</span></span>
 <span><span class="co">#&gt; TMLE L-step t=4: only 3 observation(s) follow the intervened regime at this node (practical positivity violation). Fluctuation skipped; the estimate relies on model extrapolation here.</span></span>
 <span><span class="co">#&gt;   [repeated 2 time(s)]</span></span>
 <span><span class="co">#&gt; =============</span></span>
@@ -876,8 +915,9 @@ where <code>L</code> depends on current <code>A</code>), no estimator
 can fix that. The same warning is emitted at run time and re-surfaced as
 a short caveat under the decomposition when you <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> the
 result (the offending confounders are also stored in
-<code>fit$intermediate_confounders</code>), and the interventional path
-remains the recommended analysis here.</li>
+<code>fit$intermediate_confounders</code>). It is for this setting that
+VanderWeele &amp; Tchetgen Tchetgen (2017) propose the interventional
+estimand.</li>
 <li>
 <strong>Positivity warnings deserve attention.</strong> If few
 subjects follow an intervened regime (e.g., never treated at every time
@@ -929,6 +969,12 @@ multiple mediators. <em>Statistical Methods in Medical Research</em>,
 <li>Zheng, W., &amp; van der Laan, M. (2017). Longitudinal mediation
 analysis with time-varying mediators and exposures, with application to
 survival outcomes. <em>Journal of Causal Inference</em>, 5(2).</li>
+<li>Avin, C., Shpitser, I., &amp; Pearl, J. (2005). Identifiability of
+path-specific effects. <em>Proceedings of the 19th International Joint
+Conference on Artificial Intelligence (IJCAI)</em>, 357–363.</li>
+<li>Miles, C. H. (2023). On the causal interpretation of randomised
+interventional indirect effects. <em>Journal of the Royal Statistical
+Society: Series B</em>, 85(4), 1154–1172.</li>
 <li>Keil, A. P., Edwards, J. K., Richardson, D. B., Naimi, A. I., &amp;
 Cole, S. R. (2014). The parametric g-formula for time-to-event data:
 intuition and a worked example. <em>Epidemiology</em>, 25(6),

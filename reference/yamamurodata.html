@@ -19,7 +19,7 @@ against known values."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -128,10 +128,10 @@ is one draw of \(n = 10000\) subjects (seed 2468) from the identical
 process, making single-dataset estimates informative.</p>
 <p><strong>Large-sample true values</strong> (risk differences in percentage points,
 computed from the data-generating process at \(n = 10^7\); Monte Carlo
-SE in parentheses):</p><table class="table table"><tr><td>Total effect (TE = \(E[Y_1] - E[Y_0]\))</td><td>\(-6.36\) (0.011)</td></tr><tr><td>Interventional direct effect (IDE)</td><td>\(-3.20\) (0.013)</td></tr><tr><td>Interventional indirect effect via M1</td><td>\(-2.29\) (0.011)</td></tr><tr><td>Interventional indirect effect via M2</td><td>\(-0.97\) (0.009)</td></tr><tr><td>Mediated-interaction residual (TE \(-\) overall)</td><td>\(0.10\) (0.016)</td></tr></table><p>Every intervention in the interventional decomposition, including the references, draws each mediator
-jointly over time from an independently permuted marginal pool
-(Yamamuro et al. 2021, Eq. 2 and Fig. 3); the total effect is the
-natural-course contrast, so the residual row is non-zero.</p>
+SE in parentheses):</p><table class="table table"><tr><td>Total effect (TE = \(E[Y_1] - E[Y_0]\))</td><td>\(-6.36\) (0.011)</td></tr><tr><td>Interventional direct effect (IDE)</td><td>\(-3.20\) (0.013)</td></tr><tr><td>Interventional indirect effect via M1</td><td>\(-2.29\) (0.011)</td></tr><tr><td>Interventional indirect effect via M2</td><td>\(-0.97\) (0.009)</td></tr><tr><td>Mediated-interaction residual (TE \(-\) overall)</td><td>\(0.10\) (0.016)</td></tr></table><p>The mediated-interaction residual is non-zero because the reported total
+effect is a natural-course contrast while the direct and indirect effects
+are interventional; see the <em>Mediator pool</em> section of
+<code><a href="mediation.html">mediation</a></code> for how the mediator draws are constructed.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

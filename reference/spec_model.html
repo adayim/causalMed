@@ -11,7 +11,7 @@ can further pass to gformula or mediation."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -76,20 +76,26 @@ the model during g-formula simulation.</p></dd>
 
 
 <dt id="arg-subset">subset<a class="anchor" aria-label="anchor" href="#arg-subset"></a></dt>
-<dd><p>Optional. A logical expression or character vector defining a subset
-of observations to fit/simulate this model on; passed through when fitting and also
-respected during simulation of the response for this model.</p></dd>
+<dd><p>Optional. An unquoted logical expression naming columns of the
+analysis data (e.g. <code>platnormm1 == 0</code>) that restricts this model to a
+subset of observations. It is passed through when fitting and re-evaluated
+at each time step during simulation, so only the rows satisfying it have
+their response drawn from this model. Rows that never satisfy it keep
+whatever value they already carry.</p></dd>
 
 
 <dt id="arg-recode">recode<a class="anchor" aria-label="anchor" href="#arg-recode"></a></dt>
-<dd><p>Optional character vector. Should be defined with <code><a href="recodes.html">recodes</a></code>. One or more recoding statements (e.g.,
-<code>L_lag1 = L</code> or <code>M_lag1 = 0</code>) to be applied **before** evaluating
-the model and **before** simulating the response for this model (useful for dynamic recoding).</p></dd>
+<dd><p>Optional. One or more recoding statements built with
+<code><a href="recodes.html">recodes</a></code> (e.g. <code>recodes(L_lag1 = L)</code> or
+<code>recodes(M_lag1 = 0)</code>), applied <strong>before</strong> fitting the model and
+<strong>before</strong> simulating its response (useful for dynamic recoding).
+Anything that is not a <code><a href="recodes.html">recodes()</a></code> object is rejected.</p></dd>
 
 
 <dt id="arg-var-type">var_type<a class="anchor" aria-label="anchor" href="#arg-var-type"></a></dt>
 <dd><p>Character. The response type for simulation/prediction:
-<code>"binary"</code>, <code>"normal"</code>, <code>"categorical"</code>, or <code>"custom"</code>.
+<code>"normal"</code> (the default), <code>"binary"</code>, <code>"categorical"</code>, or
+<code>"custom"</code>.
 By default, values are simulated via:</p><ul><li><p><code>"binary"</code>: Bernoulli draws using the fitted mean.</p></li>
 <li><p><code>"normal"</code>: Gaussian draws using fitted mean, <strong>clipped to
         the observed range</strong> of the response (see <code>truncate</code>).</p></li>
@@ -101,37 +107,73 @@ By default, values are simulated via:</p><ul><li><p><code>"binary"</code>: Berno
 
 
 <dt id="arg-mod-type">mod_type<a class="anchor" aria-label="anchor" href="#arg-mod-type"></a></dt>
-<dd><p>Character. The role of this model in the data-generating process:
-<code>"covariate"</code>, <code>"exposure"</code>, <code>"mediator"</code>,
-<code>"outcome"</code>, <code>"censor"</code>, or <code>"survival"</code>.</p></dd>
+<dd><p>Character. The role of this model in the data-generating
+process: <code>"covariate"</code> (the default), <code>"exposure"</code>,
+<code>"mediator"</code>, <code>"outcome"</code>, <code>"censor"</code>, or
+<code>"survival"</code>.</p></dd>
 
 
 <dt id="arg-custom-fit">custom_fit<a class="anchor" aria-label="anchor" href="#arg-custom-fit"></a></dt>
-<dd><p>Optional. A model fitting function used
-  when <code>var_type = "custom"</code>. If <code>var_type = "custom"</code> and
-  <code>custom_fit</code> is not provided, <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm</a></code> is used by default.
-This can be used to define the modeling fitting function other than <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm</a></code>
- and <code><a href="https://rdrr.io/pkg/nnet/man/multinom.html" class="external-link">multinom</a></code>. For parallel computation, provide the fully
-  qualified function name (e.g., <code><a href="https://rdrr.io/pkg/truncreg/man/truncreg.html" class="external-link">truncreg::truncreg</a></code> for truncated regression).</p></dd>
+<dd><p>Optional. A model fitting function, used <strong>only</strong>
+  when <code>var_type = "custom"</code> (it is ignored, with a warning, for the
+  other types). If <code>var_type = "custom"</code> and <code>custom_fit</code> is not
+  provided, <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm</a></code> is used by default.
+  This can be used to define a fitting function other than
+  <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm</a></code> and <code><a href="https://rdrr.io/pkg/nnet/man/multinom.html" class="external-link">multinom</a></code>.</p>
+<p><strong>Scope:</strong> <code>spec_model()</code> records the function <em>name</em>, not
+  the function object, and the fit is evaluated inside the package. The name
+  must therefore resolve from the global environment or from a package
+  namespace — a fitter defined inside another function or inside
+  <code><a href="https://rdrr.io/r/base/eval.html" class="external-link">local()</a></code> will not be found. Prefer a fully qualified name (e.g.
+  <code><a href="https://rdrr.io/pkg/truncreg/man/truncreg.html" class="external-link">truncreg::truncreg</a></code> for truncated regression), which is also what
+  makes the bootstrap work under a parallel <code><a href="https://future.futureverse.org/reference/plan.html" class="external-link">plan</a></code>, where
+  each worker is a fresh session.</p>
+<p><strong>What the fitted object must provide:</strong> without <code>custom_sim</code>
+  the simulation evaluates the fit's linear predictor, so it needs a
+  <code>terms</code> component and a <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></code> method; a fit
+  lacking either is rejected with an explanatory error naming the variable.
+  With <code>custom_sim</code> the drawing is delegated, and neither is required.
+  Choosing a model that is appropriate for the variable, and a
+  <code>custom_sim</code> that draws from the distribution that model implies,
+  remains the analyst's responsibility.</p></dd>
 
 
 <dt id="arg-custom-sim">custom_sim<a class="anchor" aria-label="anchor" href="#arg-custom-sim"></a></dt>
-<dd><p>Optional. A simulation function for the model. It should
-accept exactly two arguments: the fitted model object and a <code>data.frame</code> of
-new data to predict on, and return a vector of simulated responses of matching length.
-If omitted and <code>var_type = "custom"</code>, normal draws are used by default.</p></dd>
+<dd><p>Optional. A simulation function for the model. It must
+  accept two arguments – the fitted model object and a <code>data.frame</code> of
+  new data to predict on – and return a vector of simulated responses of
+  matching length. When supplied it takes priority over the drawing rule
+  implied by <code>var_type</code>. If omitted and <code>var_type = "custom"</code>,
+  normal draws are used by default, which requires the fitted object to have
+  a <code>terms</code> component and a <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></code> method.</p>
+<p><strong>It supplies a draw, not a fitted value.</strong> At each time step the
+  Monte Carlo engine assigns this variable the vector <code>custom_sim</code>
+  returns, in place of the draw the built-in <code>var_type</code> rule would have
+  made (a Bernoulli draw for <code>"binary"</code>, a Gaussian draw around the
+  linear predictor for <code>"normal"</code>). Returning <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code>'s fitted
+  value therefore assigns the conditional mean rather than a draw from the
+  conditional distribution. Whether that is appropriate for the variable
+  being simulated is the analyst's decision.</p>
+<p><strong>It does not apply to the outcome.</strong> For <code>mod_type = "outcome"</code>
+  or <code>"survival"</code> the reported risk is computed from the fitted model's
+  own linear predictor, so <code>custom_sim</code> affects only the simulated
+  response value, never the estimate. Those models must therefore have
+  extractable coefficients.</p></dd>
 
 
 <dt id="arg-truncate">truncate<a class="anchor" aria-label="anchor" href="#arg-truncate"></a></dt>
 <dd><p>Logical. If <code>TRUE</code> (default), simulated numeric values are
 clipped to the range of the response observed in the data — i.e. a
-<code>"normal"</code> covariate is drawn as a <em>bounded</em> normal, and numeric
-output of <code>custom_sim</code> is clipped as well. This guards against
-implausible extrapolation when a fitted linear model is simulated far
-outside its support, and it is the historical behaviour of this package.
-Set <code>FALSE</code> to draw from the untruncated fitted distribution (matching
-the plain <code>"normal"</code> covariate type of <span class="pkg">gfoRmula</span>) or to let a
-<code>custom_sim</code> function be authoritative over its own output range.
+<code>"normal"</code> draw is clipped to <code>[min, max]</code> of the observed
+response, and numeric output of <code>custom_sim</code> is clipped as well.
+<code>TRUE</code> is the default. It corresponds to the <code>sim_trunc</code>
+argument of <span class="pkg">gfoRmula</span>, documented there as "whether to truncate
+simulated covariates to their range in the observed data set", whose
+default is also <code>TRUE</code>. Set <code>FALSE</code> to draw from the untruncated
+fitted distribution (corresponding to <code>sim_trunc = FALSE</code>), or to let
+a <code>custom_sim</code> function be authoritative over its own output range.
+Which is appropriate depends on the variable being simulated and is the
+analyst's decision.
 Has no effect on <code>"binary"</code> or <code>"categorical"</code> responses.</p></dd>
 
 
@@ -142,11 +184,11 @@ Has no effect on <code>"binary"</code> or <code>"categorical"</code> responses.<
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>An object of class <code>"gmodel"</code>:</p><dl><dt><code>call</code></dt>
+    <p>An object of class <code>"causalMed_gmodel"</code>:</p><dl><dt><code>call</code></dt>
 <dd><p>An unevaluated call (function + arguments) to fit the model.</p></dd>
 
   <dt><code>subset</code></dt>
-<dd><p>The subset expression/character vector provided via <code>subset</code>.</p></dd>
+<dd><p>The unevaluated subset expression provided via <code>subset</code>.</p></dd>
 
   <dt><code>recode</code></dt>
 <dd><p>The recoding statements provided via <code>recode</code>.</p></dd>
@@ -158,7 +200,10 @@ Has no effect on <code>"binary"</code> or <code>"categorical"</code> responses.<
 <dd><p>The model role, as provided.</p></dd>
 
   <dt><code>custom_sim</code></dt>
-<dd><p>A symbolic customized simulation function name, as provided.</p></dd>
+<dd><p>The simulation function provided via <code>custom_sim</code>.</p></dd>
+
+  <dt><code>truncate</code></dt>
+<dd><p>The truncation flag, as provided.</p></dd>
 
 
 </dl></div>

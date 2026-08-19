@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -70,16 +70,19 @@ element is one of:</p><ul><li><p><code>NULL</code> — the natural course (expos
         draw) are in scope, e.g.
         <code>list(natural = NULL, threshold = dyn_int(as.numeric(A &gt; 0)))</code>.</p></li>
 </ul><p>If <code>intervention</code> is <code>NULL</code>, only the natural course is
-evaluated. If a <code>natural</code> intervention is not provided, it is added
-automatically and <code>ref_int</code> is set to <code>"natural"</code>.</p></dd>
+evaluated. A <code>natural</code> element is also added automatically when
+<code>ref_int</code> asks for the natural course and the list contains no
+<code>NULL</code> element; see <code>ref_int</code> and Details.</p></dd>
 
 
 <dt id="arg-ref-int">ref_int<a class="anchor" aria-label="anchor" href="#arg-ref-int"></a></dt>
 <dd><p>Reference intervention for contrasts. Either an integer index
 (<code>0</code> = natural course; <code>1</code>, <code>2</code>, … = elements of
 <code>intervention</code>) or a character name matching an element (e.g.,
-<code>"always"</code>). If no <code>natural</code> intervention is provided, it is added and
-<code>ref_int</code> is set to <code>"natural"</code>. Default: <code>0</code>.</p></dd>
+<code>"always"</code>). <code>0</code> and <code>"natural"</code> both resolve to the
+<code>NULL</code> element of <code>intervention</code> if there is one, and otherwise
+add a <code>natural</code> element — which requires an exposure model in
+<code>models</code>. See Details. Default: <code>0</code>.</p></dd>
 
 
 <dt id="arg-time-len">time_len<a class="anchor" aria-label="anchor" href="#arg-time-len"></a></dt>

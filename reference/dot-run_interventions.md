@@ -78,9 +78,10 @@ intervention.
     scope, e.g.
     `list(natural = NULL, threshold = dyn_int(as.numeric(A > 0)))`.
 
-  If `intervention` is `NULL`, only the natural course is evaluated. If
-  a `natural` intervention is not provided, it is added automatically
-  and `ref_int` is set to `"natural"`.
+  If `intervention` is `NULL`, only the natural course is evaluated. A
+  `natural` element is also added automatically when `ref_int` asks for
+  the natural course and the list contains no `NULL` element; see
+  `ref_int` and Details.
 
 - in_recode:
 
@@ -112,8 +113,14 @@ intervention.
 
 - mc_sample:
 
-  Integer. Monte Carlo sample size used for simulation. Default
-  `nrow(data) * 100`.
+  Integer. Size of the Monte Carlo cohort simulated under each
+  intervention, counted in subjects. Defaults to `NULL`, which resolves
+  to 50 times the number of subjects in `data` and reports the value it
+  chose unless `quiet = TRUE`. Monte Carlo error falls as
+  `1/sqrt(mc_sample)` while sampling error falls with the number of
+  subjects, so the two stay in a fixed ratio when `mc_sample` is set as
+  a multiple of the subject count; a larger multiple buys precision in
+  the point estimate and does not change what is being estimated.
 
 - n_vw:
 

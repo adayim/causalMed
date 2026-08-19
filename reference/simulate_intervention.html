@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -100,8 +100,9 @@ element is one of:</p><ul><li><p><code>NULL</code> — the natural course (expos
         draw) are in scope, e.g.
         <code>list(natural = NULL, threshold = dyn_int(as.numeric(A &gt; 0)))</code>.</p></li>
 </ul><p>If <code>intervention</code> is <code>NULL</code>, only the natural course is
-evaluated. If a <code>natural</code> intervention is not provided, it is added
-automatically and <code>ref_int</code> is set to <code>"natural"</code>.</p></dd>
+evaluated. A <code>natural</code> element is also added automatically when
+<code>ref_int</code> asks for the natural course and the list contains no
+<code>NULL</code> element; see <code>ref_int</code> and Details.</p></dd>
 
 
 <dt id="arg-init-recode">init_recode<a class="anchor" aria-label="anchor" href="#arg-init-recode"></a></dt>
@@ -126,15 +127,16 @@ automatically and <code>ref_int</code> is set to <code>"natural"</code>.</p></dd
 
 <dt id="arg-med-pool">med_pool<a class="anchor" aria-label="anchor" href="#arg-med-pool"></a></dt>
 <dd><p>Optional named list keyed by mediator response variable.
-Each element is a pre-permuted `nrow(data) × T` matrix (column names =
-time index as character) supplying the cross-world joint trajectory for
-that mediator. The per-time slice is delivered to <code>simulate_data</code>.</p></dd>
+Each element is itself a pre-permuted list of <code>T</code> vectors (one per
+time point, each of length <code>nrow(data)</code>, in the mediator's own type)
+supplying the cross-world joint trajectory for that mediator. The per-time
+slice is delivered to <code>simulate_data</code>.</p></dd>
 
 
 <dt id="arg-collect-pool">collect_pool<a class="anchor" aria-label="anchor" href="#arg-collect-pool"></a></dt>
 <dd><p>Logical. If <code>TRUE</code>, capture the simulated
-trajectory of every mediator into a named list of `nrow(data) × T`
-matrices and return it alongside the risk estimate.</p></dd>
+trajectory of every mediator into a named list of per-time vector lists
+and return it alongside the risk estimate.</p></dd>
 
 </dl></div>
 

@@ -13,7 +13,7 @@ optional survival/terminal outcomes, and nonparametric uncertainty via bootstrap
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -67,7 +67,7 @@ optional survival/terminal outcomes, and nonparametric uncertainty via bootstrap
 <span>  in_recode <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  out_recode <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  return_fitted <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  mc_sample <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">data</span><span class="op">)</span> <span class="op">*</span> <span class="fl">100</span>,</span>
+<span>  mc_sample <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  return_data <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  R <span class="op">=</span> <span class="fl">500</span>,</span>
 <span>  quiet <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -117,16 +117,19 @@ element is one of:</p><ul><li><p><code>NULL</code> — the natural course (expos
         draw) are in scope, e.g.
         <code>list(natural = NULL, threshold = dyn_int(as.numeric(A &gt; 0)))</code>.</p></li>
 </ul><p>If <code>intervention</code> is <code>NULL</code>, only the natural course is
-evaluated. If a <code>natural</code> intervention is not provided, it is added
-automatically and <code>ref_int</code> is set to <code>"natural"</code>.</p></dd>
+evaluated. A <code>natural</code> element is also added automatically when
+<code>ref_int</code> asks for the natural course and the list contains no
+<code>NULL</code> element; see <code>ref_int</code> and Details.</p></dd>
 
 
 <dt id="arg-ref-int">ref_int<a class="anchor" aria-label="anchor" href="#arg-ref-int"></a></dt>
 <dd><p>Reference intervention for contrasts. Either an integer index
 (<code>0</code> = natural course; <code>1</code>, <code>2</code>, … = elements of
 <code>intervention</code>) or a character name matching an element (e.g.,
-<code>"always"</code>). If no <code>natural</code> intervention is provided, it is added and
-<code>ref_int</code> is set to <code>"natural"</code>. Default: <code>0</code>.</p></dd>
+<code>"always"</code>). <code>0</code> and <code>"natural"</code> both resolve to the
+<code>NULL</code> element of <code>intervention</code> if there is one, and otherwise
+add a <code>natural</code> element — which requires an exposure model in
+<code>models</code>. See Details. Default: <code>0</code>.</p></dd>
 
 
 <dt id="arg-init-recode">init_recode<a class="anchor" aria-label="anchor" href="#arg-init-recode"></a></dt>
@@ -150,8 +153,14 @@ a light-weight summary (call and coefficients). Default <code>FALSE</code>.</p><
 
 
 <dt id="arg-mc-sample">mc_sample<a class="anchor" aria-label="anchor" href="#arg-mc-sample"></a></dt>
-<dd><p>Integer. Monte Carlo sample size used for simulation.
-Default <code>nrow(data) * 100</code>.</p></dd>
+<dd><p>Integer. Size of the Monte Carlo cohort simulated under
+each intervention, counted in subjects. Defaults to <code>NULL</code>, which
+resolves to 50 times the number of subjects in <code>data</code> and reports the
+value it chose unless <code>quiet = TRUE</code>. Monte Carlo error falls as
+<code>1/sqrt(mc_sample)</code> while sampling error falls with the number of
+subjects, so the two stay in a fixed ratio when <code>mc_sample</code> is set as
+a multiple of the subject count; a larger multiple buys precision in the
+point estimate and does not change what is being estimated.</p></dd>
 
 
 <dt id="arg-return-data">return_data<a class="anchor" aria-label="anchor" href="#arg-return-data"></a></dt>
@@ -194,8 +203,14 @@ results (reproducible only via an outer <code><a href="https://rdrr.io/r/base/Ra
 <li><p><code>estimate</code>: if multiple interventions are provided, a <code>data.table</code>
         of contrasts vs. <code>ref_int</code> (columns typically include <code>Intervention</code>,
         <code>Risk_type</code>, <code>Estimate</code>, and (if <code>R &gt; 1</code>) CI columns).</p></li>
-<li><p><code>sim_data</code>: if <code>return_data = TRUE</code>, the stacked simulated
-        Monte Carlo dataset across interventions (can be large).</p></li>
+<li><p><code>sim_data</code>: if <code>return_data = TRUE</code>, the simulated Monte
+        Carlo dataset stacked across interventions with an
+        <code>Intervention</code> column (can be large). It is the
+        <strong>end-of-follow-up snapshot</strong> — one row per Monte Carlo subject
+        per intervention, holding each variable at its final simulated time
+        step alongside the accumulated <code>Pred_Y</code> — not a
+        row-per-time-point panel: the simulation overwrites each variable in
+        place as it steps through time.</p></li>
 <li><p><code>fitted_models</code>: a named list of fitted models.
         If <code>return_fitted = TRUE</code>, returns full model objects plus attributes
         (<code>recodes</code>, <code>subset</code>, <code>var_type</code>, <code>mod_type</code>);
@@ -231,10 +246,19 @@ and normal-approximation confidence intervals are computed from bootstrap resamp
 </ul><p>**Interventions**
 Provide a named list <code>intervention</code> with exposure values per time
 (e.g., <code>list(natural = NULL, always = c(1,1,1), never = c(0,0,0))</code>).
-If <code>intervention</code> is <code>NULL</code>, the function evaluates the natural course only.
-If at least one element is <code>NULL</code> and <code>ref_int == 0</code>, that element is used
-as the reference ("natural"). Otherwise, a <code>natural</code> intervention is added automatically,
-and <code>ref_int</code> is set to <code>"natural"</code>.</p>
+If <code>intervention</code> is <code>NULL</code>, the function evaluates the natural course only.</p>
+<p>The reference is resolved before simulation, so that <code>ref_int</code> always
+names an intervention that exists:</p><ul><li><p><code>ref_int = 0</code> and <code>ref_int = "natural"</code> both ask for the
+        natural course. The <code>NULL</code> element of <code>intervention</code> is
+        used if one was supplied — whatever it is named — and otherwise a
+        <code>natural</code> element is added to the list.</p></li>
+<li><p>An integer position, or a name matching an element, uses that
+        intervention as the reference; no natural course is added.</p></li>
+</ul><p>Because the default is <code>ref_int = 0</code>, a list holding only static or
+dynamic interventions still gains a natural course. The natural course draws
+the exposure from its fitted model, so <code>models</code> must then include a
+<code>mod_type = "exposure"</code> model; supplying one is required unless
+<code>ref_int</code> names one of the interventions you provided.</p>
 <p>**Model specification**
 Each element of <code>models</code> is typically created by <code><a href="spec_model.html">spec_model</a></code>
  and must include: (i) the model formula/call, (ii) a <code>mod_type</code> indicating its role
@@ -255,6 +279,12 @@ For survival-type applications, remove rows after the event of interest (or incl
 and model censoring appropriately). The function may record warnings internally and
 print them on exit. Results depend on correct temporal ordering, model specification,
 positivity, and no unmeasured confounding assumptions customary for g-formula.</p>
+<p>If a fitted model turns out to be rank deficient — a collinear term, or a
+covariate that is constant among the rows actually used to fit it, such as
+<code>time</code> in an outcome recorded only at the end of follow-up — the
+unestimable terms are dropped from the simulation, exactly as
+<code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></code> would, and are named in the warning summary
+printed on exit. Treat that warning as a prompt to fix the formula.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

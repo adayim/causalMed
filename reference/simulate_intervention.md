@@ -69,9 +69,10 @@ simulate_intervention(
     scope, e.g.
     `list(natural = NULL, threshold = dyn_int(as.numeric(A > 0)))`.
 
-  If `intervention` is `NULL`, only the natural course is evaluated. If
-  a `natural` intervention is not provided, it is added automatically
-  and `ref_int` is set to `"natural"`.
+  If `intervention` is `NULL`, only the natural course is evaluated. A
+  `natural` element is also added automatically when `ref_int` asks for
+  the natural course and the list contains no `NULL` element; see
+  `ref_int` and Details.
 
 - init_recode:
 
@@ -104,12 +105,13 @@ simulate_intervention(
 - med_pool:
 
   Optional named list keyed by mediator response variable. Each element
-  is a pre-permuted \`nrow(data) × T\` matrix (column names = time index
-  as character) supplying the cross-world joint trajectory for that
-  mediator. The per-time slice is delivered to `simulate_data`.
+  is itself a pre-permuted list of `T` vectors (one per time point, each
+  of length `nrow(data)`, in the mediator's own type) supplying the
+  cross-world joint trajectory for that mediator. The per-time slice is
+  delivered to `simulate_data`.
 
 - collect_pool:
 
   Logical. If `TRUE`, capture the simulated trajectory of every mediator
-  into a named list of \`nrow(data) × T\` matrices and return it
-  alongside the risk estimate.
+  into a named list of per-time vector lists and return it alongside the
+  risk estimate.

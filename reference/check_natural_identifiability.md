@@ -1,12 +1,14 @@
 # Warn about non-identifiability of natural effects under intermediate confounding
 
 For `mediation_type = "N"`, natural direct and indirect effects are not
-identifiable from observational data when an intermediate confounder of
-the mediator-outcome relationship is itself affected by exposure (Avin,
+identifiable from observational data when a confounder of the
+mediator-outcome relationship is itself affected by exposure (Avin,
 Shpitser & Pearl 2005; VanderWeele 2014; VanderWeele & Tchetgen Tchetgen
-2017). This check inspects the covariate models for dependence on the
-exposure variable on the right-hand side of the formula; if any are
-found, a warning is emitted suggesting `mediation_type = "I"` instead.
+2017). This check reads the model formulas only: it reports covariate
+models that carry the exposure on the right-hand side, i.e. covariates
+the user has modelled as exposure-affected. It does not establish that
+such a covariate also confounds the mediator-outcome relationship, and
+its silence does not establish that no such confounder exists.
 
 ## Usage
 
@@ -28,7 +30,6 @@ check_natural_identifiability(models, exposure)
 ## Value
 
 Invisibly returns a character vector of the covariate (response) names
-whose model includes the exposure on the right-hand side (the
-exposure-affected/intermediate confounders); empty if none. The caller
-can persist this so downstream methods (e.g. `print.gformula`) can
-re-surface the identifiability caveat.
+whose model includes the exposure on the right-hand side; empty if none.
+The caller can persist this so downstream methods (e.g.
+`print.gformula`) can re-surface the identifiability caveat.

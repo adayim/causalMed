@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -86,8 +86,11 @@ direct/indirect effects (Lin et al. 2017) or <strong>natural</strong>
 direct/indirect effects (Zheng &amp; van der Laan 2017).</p></li>
 </ol>
 <p>Both handle time-varying exposures, mediators, and confounders —
-including confounders that are themselves affected by prior exposure, a
-setting where standard regression-based mediation fails.</p>
+including confounders that are themselves affected by prior exposure.
+This is the setting the g-formula was introduced for (Robins 1986), and
+the one in which natural direct and indirect effects are not
+identifiable (Avin, Shpitser &amp; Pearl 2005; VanderWeele &amp;
+Tchetgen Tchetgen 2017).</p>
 <p>This vignette is the short tour: the data format, the
 model-specification vocabulary that every analysis uses, and one
 quick-start example of each function. The full contents live in their
@@ -162,8 +165,8 @@ subject per time point.</p>
 <span><span class="co">#&gt;  8:      1  0.427872915       1 -0.07225413</span></span>
 <span><span class="co">#&gt;  9:      1  0.738161034       1  1.38211221</span></span>
 <span><span class="co">#&gt; 10:      0 -0.002468347       0 -0.30093080</span></span></code></pre></div>
-<p>The <code>nonsurvivaldata</code> dataset contains 1 000 subjects
-observed at five time points (0, 1, 2, 3, 4):</p>
+<p>The <code>nonsurvivaldata</code> dataset contains 3 000 subjects
+observed at five time points (0, 1, 2, 3, 4), 15 000 rows in total:</p>
 <table class="table">
 <thead><tr class="header">
 <th>Variable</th>
@@ -262,13 +265,12 @@ default</td>
 </tbody>
 </table>
 <p><strong>Simulated numeric values are clipped to the observed range of
-the response by default.</strong> So <code>var_type = "normal"</code>
-already gives you a <em>bounded</em> normal — there is no need for a
-custom type to get one. This guards against implausible extrapolation
-from a fitted linear model; pass
+the response by default.</strong> <code>gfoRmula</code> applies the same
+rule by default, through its <code>sim_trunc</code> argument. Pass
 <code>spec_model(truncate = FALSE)</code> to draw from the untruncated
 fitted distribution instead (this also stops the clipping being applied
-to <code>custom_sim</code> output).</p>
+to <code>custom_sim</code> output). Which of the two is appropriate
+depends on the variable being simulated.</p>
 <p>For distributions still not covered — <strong>truncated
 normal</strong>, <strong>zero-inflated normal</strong>,
 <strong>absorbing states</strong> — use <code>var_type = "custom"</code>
@@ -404,8 +406,16 @@ evaluated inside the simulated dataset at each step.</p>
 <span><span class="va">in_rc</span>   <span class="op">&lt;-</span> <span class="fu"><a href="../reference/recodes.html">recodes</a></span><span class="op">(</span>lag1_A  <span class="op">=</span> <span class="va">A</span>,   <span class="co"># At each subsequent step, copy current values</span></span>
 <span>                   lag1_L1 <span class="op">=</span> <span class="va">L1</span>,</span>
 <span>                   lag1_L2 <span class="op">=</span> <span class="va">L2</span><span class="op">)</span></span></code></pre></div>
-<p>If lag columns are already present in the data (pre-computed before
-the call), you do not need recoding hooks.</p>
+<p>The hooks are required even when the lag columns already exist in
+your data. The Monte Carlo cohort is built from <code>id_var</code> and
+<code>base_vars</code> only, so any column a model references that is
+neither of those — every lag column included — has to be created by
+<code>init_recode</code> at the first time point and maintained by
+<code>in_recode</code> thereafter. Without them the run stops with
+<code>object 'lag1_A' not found</code>. Listing lag columns in
+<code>base_vars</code> is not a substitute: they are not time-fixed, and
+<code><a href="../reference/gformula.html">gformula()</a></code> warns that doing so distorts the sampled
+cohort.</p>
 <hr>
 </div>
 <div class="section level2">
@@ -421,8 +431,9 @@ the function:</p>
 <span><span class="va">fit_par</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gformula.html">gformula</a></span><span class="op">(</span><span class="va">...</span>, R <span class="op">=</span> <span class="fl">500</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://future.futureverse.org/reference/plan.html" class="external-link">plan</a></span><span class="op">(</span><span class="va">sequential</span><span class="op">)</span>     <span class="co"># restore default after use</span></span></code></pre></div>
-<p>On Unix/macOS, <code>plan(multicore)</code> (forking) is more
-memory-efficient.</p>
+<p>On Unix/macOS, <code>plan(multicore)</code> forks the current session
+instead of launching new ones; see <code><a href="https://future.futureverse.org/reference/plan.html" class="external-link">?future::plan</a></code> for the
+trade-offs.</p>
 <hr>
 </div>
 <div class="section level2">
@@ -545,8 +556,10 @@ TMLE are all in <code><a href="../articles/causalMed-02-mediation.html">vignette
 <div class="section level2">
 <h2 id="causal-assumptions">Causal Assumptions<a class="anchor" aria-label="anchor" href="#causal-assumptions"></a>
 </h2>
-<p>Valid inference requires the following assumptions to hold for the
-observed data:</p>
+<p>The parametric g-formula identifies these effects under the following
+assumptions (Robins 1986; Westreich et al. 2012; Keil et al. 2014),
+which the package cannot check and which hold or fail as a property of
+your data and design, not of the code:</p>
 <ol style="list-style-type: decimal">
 <li>
 <strong>Consistency</strong>: the potential outcome under the
@@ -567,9 +580,12 @@ required:</p>
 <li>
 <strong>No unmeasured exposure-induced mediator–outcome
 confounding</strong>: there are no confounders of the mediator–outcome
-relationship that are themselves caused by prior exposure.
-Interventional effects (<code>mediation_type = "I"</code>) do not
-require this assumption.</li>
+relationship that are themselves caused by prior exposure. Natural
+direct and indirect effects are not identifiable when one exists (Avin,
+Shpitser &amp; Pearl 2005; VanderWeele &amp; Tchetgen Tchetgen 2017);
+the randomized interventional analogues targeted by
+<code>mediation_type = "I"</code> are identifiable without this
+assumption (VanderWeele &amp; Tchetgen Tchetgen 2017).</li>
 </ol>
 <hr>
 </div>
@@ -577,10 +593,20 @@ require this assumption.</li>
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h2>
 <ul>
+<li>Robins, J. M. (1986). A new approach to causal inference in
+mortality studies with a sustained exposure period — application to
+control of the healthy worker survivor effect. <em>Mathematical
+Modelling</em>, 7(9–12), 1393–1512.</li>
 <li>Westreich, D., Cole, S. R., Young, J. G., et al. (2012). The
 parametric g-formula to estimate the effect of highly active
 antiretroviral therapy on incident AIDS or death. <em>Statistics in
 Medicine</em>, 31, 2000–2009.</li>
+<li>Avin, C., Shpitser, I., &amp; Pearl, J. (2005). Identifiability of
+path-specific effects. <em>Proceedings of the 19th International Joint
+Conference on Artificial Intelligence (IJCAI)</em>, 357–363.</li>
+<li>VanderWeele, T. J., &amp; Tchetgen Tchetgen, E. J. (2017). Mediation
+analysis with time varying exposures and mediators. <em>Journal of the
+Royal Statistical Society: Series B</em>, 79(3), 917–938.</li>
 <li>McGrath, S., Lin, V., Zhang, Z., et al. (2020). gfoRmula: An R
 package for estimating the effects of sustained treatment strategies via
 the parametric g-formula. <em>Patterns</em>, 1, 100008.</li>

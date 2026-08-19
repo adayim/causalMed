@@ -2,8 +2,6 @@
 
 ## All functions
 
-- [`check_recode_param()`](https://adayim.github.io/causalMed/reference/check_recode_param.md)
-  : Validate recode parameters
 - [`dyn_int()`](https://adayim.github.io/causalMed/reference/dyn_int.md)
   : Define a dynamic intervention rule
 - [`gformula()`](https://adayim.github.io/causalMed/reference/gformula.md)

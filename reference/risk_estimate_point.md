@@ -1,10 +1,10 @@
-# Calculate Risk Difference, Risk Ratio, or Mediation Effects based on g-formula
+# Point-estimate contrasts against a reference intervention
 
-These internal functions compute the Risk Difference (RD) and Risk Ratio
-(RR) for g-formula estimates of the total effect, natural direct effect
-(NDE), and natural indirect effect (NIE). The functions also calculate
-confidence intervals (for RD and RR) and mediation effects based on
-g-formula methodology.
+Internal use only. Turns the per-intervention mean outcomes produced by
+`.run_interventions` into risk differences and risk ratios against the
+reference intervention. Confidence intervals are *not* computed here;
+[`gformula`](https://adayim.github.io/causalMed/reference/gformula.md)
+adds them from the bootstrap replicates.
 
 ## Usage
 
@@ -16,40 +16,35 @@ risk_estimate_point(data_list, ref_int, intervention, return_data)
 
 - data_list:
 
-  A list of simulated datasets returned by `.run_interventions`.
+  Named list of intervention results from `.run_interventions`: one mean
+  outcome per intervention, or one simulated `data.table` per
+  intervention when `return_data` is `TRUE`.
 
 - ref_int:
 
-  Reference intervention to compare against.
+  Character scalar naming the reference element of `data_list`.
 
 - intervention:
 
-  A vector specifying the interventions to compare.
+  The named intervention list; its names determine which contrasts are
+  formed.
 
 - return_data:
 
-  Logical. If `TRUE`, returns the simulated data along with effects.
+  Logical. `TRUE` when `data_list` holds simulated datasets rather than
+  scalar means.
 
 ## Value
 
-A `data.table` with calculated effects (Risk Difference, Risk Ratio, or
-Mediation effects) and, if applicable, confidence intervals. For
-mediation effects, the result will show total, direct, and indirect
-effects.
+A `data.table` with columns `Intervention`, `Risk_type` (`"Difference"`
+or `"Ratio"`) and `Estimate`: two rows per non-reference intervention.
 
 ## Details
 
-These functions are used internally within the g-formula framework for
-effect estimation. They are not intended for direct user input. The
-functions perform: - `risk_estimate_point`: Computes point estimates for
-risk difference and risk ratio. - `risk_estimate_boot`: Computes
-per-bootstrap-replicate estimates for the effects (RD/RR). -
-`risk_estimate_mediation`: Computes total, direct, and indirect effects
-by subtraction.
-
-These functions operate on the output of the `.run_interventions`
-function, estimating effects (both point estimates and confidence
-intervals) from simulated data.
+Companion internal functions in the same file, not documented
+separately: `risk_estimate_boot` does the same job for one stacked
+bootstrap replicate, and `risk_estimate_mediation` builds the mediation
+decomposition (total, direct, per-mediator indirect) by subtraction.
 
 ## See also
 

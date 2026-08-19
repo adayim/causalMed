@@ -22,7 +22,7 @@ gformula(
   in_recode = NULL,
   out_recode = NULL,
   return_fitted = FALSE,
-  mc_sample = nrow(data) * 100,
+  mc_sample = NULL,
   return_data = FALSE,
   R = 500,
   quiet = FALSE,
@@ -81,17 +81,19 @@ gformula(
     scope, e.g.
     `list(natural = NULL, threshold = dyn_int(as.numeric(A > 0)))`.
 
-  If `intervention` is `NULL`, only the natural course is evaluated. If
-  a `natural` intervention is not provided, it is added automatically
-  and `ref_int` is set to `"natural"`.
+  If `intervention` is `NULL`, only the natural course is evaluated. A
+  `natural` element is also added automatically when `ref_int` asks for
+  the natural course and the list contains no `NULL` element; see
+  `ref_int` and Details.
 
 - ref_int:
 
   Reference intervention for contrasts. Either an integer index (`0` =
   natural course; `1`, `2`, … = elements of `intervention`) or a
-  character name matching an element (e.g., `"always"`). If no `natural`
-  intervention is provided, it is added and `ref_int` is set to
-  `"natural"`. Default: `0`.
+  character name matching an element (e.g., `"always"`). `0` and
+  `"natural"` both resolve to the `NULL` element of `intervention` if
+  there is one, and otherwise add a `natural` element — which requires
+  an exposure model in `models`. See Details. Default: `0`.
 
 - init_recode:
 
@@ -122,8 +124,14 @@ gformula(
 
 - mc_sample:
 
-  Integer. Monte Carlo sample size used for simulation. Default
-  `nrow(data) * 100`.
+  Integer. Size of the Monte Carlo cohort simulated under each
+  intervention, counted in subjects. Defaults to `NULL`, which resolves
+  to 50 times the number of subjects in `data` and reports the value it
+  chose unless `quiet = TRUE`. Monte Carlo error falls as
+  `1/sqrt(mc_sample)` while sampling error falls with the number of
+  subjects, so the two stay in a fixed ratio when `mc_sample` is set as
+  a multiple of the subject count; a larger multiple buys precision in
+  the point estimate and does not change what is being estimated.
 
 - return_data:
 
@@ -174,8 +182,13 @@ An object of class `"gformula"` with components:
   contrasts vs. `ref_int` (columns typically include `Intervention`,
   `Risk_type`, `Estimate`, and (if `R > 1`) CI columns).
 
-- `sim_data`: if `return_data = TRUE`, the stacked simulated Monte Carlo
-  dataset across interventions (can be large).
+- `sim_data`: if `return_data = TRUE`, the simulated Monte Carlo dataset
+  stacked across interventions with an `Intervention` column (can be
+  large). It is the **end-of-follow-up snapshot** — one row per Monte
+  Carlo subject per intervention, holding each variable at its final
+  simulated time step alongside the accumulated `Pred_Y` — not a
+  row-per-time-point panel: the simulation overwrites each variable in
+  place as it steps through time.
 
 - `fitted_models`: a named list of fitted models. If
   `return_fitted = TRUE`, returns full model objects plus attributes
@@ -222,10 +235,24 @@ confidence intervals are computed from bootstrap resamples.
 values per time (e.g.,
 `list(natural = NULL, always = c(1,1,1), never = c(0,0,0))`). If
 `intervention` is `NULL`, the function evaluates the natural course
-only. If at least one element is `NULL` and `ref_int == 0`, that element
-is used as the reference ("natural"). Otherwise, a `natural`
-intervention is added automatically, and `ref_int` is set to
-`"natural"`.
+only.
+
+The reference is resolved before simulation, so that `ref_int` always
+names an intervention that exists:
+
+- `ref_int = 0` and `ref_int = "natural"` both ask for the natural
+  course. The `NULL` element of `intervention` is used if one was
+  supplied — whatever it is named — and otherwise a `natural` element is
+  added to the list.
+
+- An integer position, or a name matching an element, uses that
+  intervention as the reference; no natural course is added.
+
+Because the default is `ref_int = 0`, a list holding only static or
+dynamic interventions still gains a natural course. The natural course
+draws the exposure from its fitted model, so `models` must then include
+a `mod_type = "exposure"` model; supplying one is required unless
+`ref_int` names one of the interventions you provided.
 
 \*\*Model specification\*\* Each element of `models` is typically
 created by
@@ -258,6 +285,14 @@ event of interest (or include and model censoring appropriately). The
 function may record warnings internally and print them on exit. Results
 depend on correct temporal ordering, model specification, positivity,
 and no unmeasured confounding assumptions customary for g-formula.
+
+If a fitted model turns out to be rank deficient — a collinear term, or
+a covariate that is constant among the rows actually used to fit it,
+such as `time` in an outcome recorded only at the end of follow-up — the
+unestimable terms are dropped from the simulation, exactly as
+[`predict`](https://rdrr.io/r/stats/predict.html) would, and are named
+in the warning summary printed on exit. Treat that warning as a prompt
+to fix the formula.
 
 ## References
 

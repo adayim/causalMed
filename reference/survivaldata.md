@@ -1,8 +1,8 @@
 # Example Dataset for a Survival Outcome
 
-A simulated dataset with time-varying and baseline variables for
-subjects with a survival outcome, suitable for use with the g-formula
-and mediation functions under survival settings.
+A simulated dataset with time-varying and baseline variables for 3000
+subjects with a discrete-time survival outcome, suitable for use with
+the g-formula and mediation functions under survival settings.
 
 ## Usage
 
@@ -12,15 +12,17 @@ survivaldata
 
 ## Format
 
-A data frame with 7113 rows and 10 variables:
+A data frame with 7113 rows and 10 variables, in long at-risk format
+(one row per subject per time point while still at risk; 3000 subjects,
+2799 events, no missing values):
 
 - id:
 
-  Unique subject identifier.
+  Unique subject identifier (1-3000).
 
 - time:
 
-  Time variable (integer, starting at 0).
+  Time variable (integer, 0 to 4).
 
 - V:
 
@@ -28,7 +30,7 @@ A data frame with 7113 rows and 10 variables:
 
 - L:
 
-  Time-varying confounder.
+  Time-varying confounder (continuous).
 
 - A:
 
@@ -36,23 +38,24 @@ A data frame with 7113 rows and 10 variables:
 
 - M:
 
-  Time-varying mediator.
+  Time-varying mediator (continuous).
 
 - Y:
 
-  Survival outcome indicator (1 = event, 0 = alive/censored).
+  Event indicator at this time point (1 = event, 0 = still at risk).
+  There is no censoring in this dataset.
 
 - lag1_A:
 
-  Lagged exposure (A at previous time point).
+  Exposure at the previous time point; 0 at `time == 0`.
 
 - lag1_M:
 
-  Lagged mediator.
+  Previous value of `M`; 0 at `time == 0`.
 
 - lag1_L:
 
-  Lagged confounder.
+  Previous value of `L`; 0 at `time == 0`.
 
 ## Source
 
@@ -69,3 +72,8 @@ Events and follow-up observations are generated only while subjects
 remain at risk. Therefore, once `Y` becomes 1 at time \\t\\, no
 observations are retained for that subject at subsequent time points
 \\t+1, t+2, \ldots\\.
+
+## See also
+
+[`nonsurvivaldata`](https://adayim.github.io/causalMed/reference/nonsurvivaldata.md)
+for the end-of-follow-up counterpart.

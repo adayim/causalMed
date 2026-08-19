@@ -96,8 +96,8 @@ SE in parentheses):
 | Interventional indirect effect via M2            | \\-0.97\\ (0.009) |
 | Mediated-interaction residual (TE \\-\\ overall) | \\0.10\\ (0.016)  |
 
-Every intervention in the interventional decomposition, including the
-references, draws each mediator jointly over time from an independently
-permuted marginal pool (Yamamuro et al. 2021, Eq. 2 and Fig. 3); the
-total effect is the natural-course contrast, so the residual row is
-non-zero.
+The mediated-interaction residual is non-zero because the reported total
+effect is a natural-course contrast while the direct and indirect
+effects are interventional; see the *Mediator pool* section of
+[`mediation`](https://adayim.github.io/causalMed/reference/mediation.md)
+for how the mediator draws are constructed.

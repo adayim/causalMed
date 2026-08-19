@@ -13,7 +13,7 @@ A data.frame summarizing the estimates will be returned.'></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -65,7 +65,7 @@ A <code>data.frame</code> summarizing the estimates will be returned.</p>
 <span>  init_recode <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  in_recode <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  out_recode <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  mc_sample <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">data</span><span class="op">)</span> <span class="op">*</span> <span class="fl">100</span>,</span>
+<span>  mc_sample <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  mediation_type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I"</span>, <span class="st">"N"</span><span class="op">)</span>,</span>
 <span>  n_vw <span class="op">=</span> <span class="fl">2L</span>,</span>
 <span>  estimator <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"gcomp"</span>, <span class="st">"tmle"</span><span class="op">)</span>,</span>
@@ -129,8 +129,14 @@ way data generation process. See <code><a href="spec_model.html">spec_model</a><
 
 
 <dt id="arg-mc-sample">mc_sample<a class="anchor" aria-label="anchor" href="#arg-mc-sample"></a></dt>
-<dd><p>Integer. Monte Carlo sample size used for simulation.
-Default <code>nrow(data) * 100</code>.</p></dd>
+<dd><p>Integer. Size of the Monte Carlo cohort simulated under
+each intervention, counted in subjects. Defaults to <code>NULL</code>, which
+resolves to 50 times the number of subjects in <code>data</code> and reports the
+value it chose unless <code>quiet = TRUE</code>. Monte Carlo error falls as
+<code>1/sqrt(mc_sample)</code> while sampling error falls with the number of
+subjects, so the two stay in a fixed ratio when <code>mc_sample</code> is set as
+a multiple of the subject count; a larger multiple buys precision in the
+point estimate and does not change what is being estimated.</p></dd>
 
 
 <dt id="arg-mediation-type">mediation_type<a class="anchor" aria-label="anchor" href="#arg-mediation-type"></a></dt>
@@ -144,12 +150,16 @@ package is designed for (see below).
 there exists a time-varying confounder of the mediator-outcome
 relationship that is itself affected by prior exposure (Avin, Shpitser
 &amp; Pearl 2005; VanderWeele 2014; VanderWeele &amp; Tchetgen Tchetgen 2017).
-In that setting use <code>mediation_type = "I"</code>, which targets
-randomized interventional analogues of the direct/indirect effects and
-remains identifiable. A warning is emitted at runtime if <code>"N"</code> is
-chosen and any covariate model includes the exposure on its right-hand
-side, which is a sufficient (though not necessary) signal of intermediate
-confounding; the caveat is repeated by <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code>.
+For that setting VanderWeele &amp; Tchetgen Tchetgen (2017) propose the
+randomized interventional analogues of the direct and indirect effects,
+which <code>mediation_type = "I"</code> targets and which remain identifiable.
+A warning is emitted at runtime if <code>"N"</code> is chosen and any covariate
+model includes the exposure on its right-hand side — that is, a covariate
+the user has modelled as exposure-affected. The check reads the model
+formulas only: it does not establish that such a covariate also confounds
+the mediator-outcome relationship, nor does its silence establish that no
+intermediate confounder exists. Judging the causal structure remains the
+analyst's responsibility. The caveat is repeated by <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code>.
 <strong>Interpretation of <code>"I"</code>.</strong> Randomized interventional indirect
 effects buy identifiability at a price: they do not satisfy a sharp
 mediational null criterion, so a non-zero IIE does not by itself prove
@@ -160,12 +170,17 @@ one, not merely computational.</p></dd>
 
 <dt id="arg-n-vw">n_vw<a class="anchor" aria-label="anchor" href="#arg-n-vw"></a></dt>
 <dd><p>Integer. Number of independent permutation draws averaged for
-each interventional cross-world intervention. The same averaging is applied
-within every bootstrap replicate. Default <code>2L</code> to match the SAS
-<code>mGFORMULA</code> macro's <code>n_vw = 2</code>. Set to <code>1L</code> to disable
-averaging (faster, slightly noisier Monte Carlo). Has no effect when
-<code>mediation_type = "N"</code> (the natural-effect mediator swap is not
-permutation-based).</p></dd>
+each intervention that draws its mediators from a permuted pool. Under
+<code>mediation_type = "I"</code> that is <em>every</em> intervention in the
+decomposition — the references <code>Phi00</code> and <code>Phi11</code> just as much
+as the cross-world <code>Phi10</code> and <code>Phi1_k</code> — but not the
+natural-course interventions <code>nat0</code>/<code>nat1</code>, whose mediators come
+from their own fitted models and involve no permutation. The same
+averaging is applied within every bootstrap replicate. Default <code>2L</code>
+to match the SAS <code>mGFORMULA</code> macro's <code>n_vw = 2</code>. Set to
+<code>1L</code> to disable averaging (faster, slightly noisier Monte Carlo). Has
+no effect when <code>mediation_type = "N"</code> (the natural-effect mediator
+swap is not permutation-based).</p></dd>
 
 
 <dt id="arg-estimator">estimator<a class="anchor" aria-label="anchor" href="#arg-estimator"></a></dt>
@@ -191,7 +206,16 @@ fluctuations instead of forward simulation: it is multiply robust
 (consistent when specific subsets of the nuisance models are correct,
 not only when all are), reports Wald CIs from the efficient influence
 curve without bootstrapping (<code>R</code> is ignored), and has no Monte
-Carlo simulation error (<code>mc_sample</code> is ignored). Practical
+Carlo simulation error (<code>mc_sample</code> is ignored).
+<strong>Working-model form:</strong> the models you supply are used as written for
+the conditional densities that form the clever covariates, but the
+targeted sequential regressions are constructed as <em>additive
+main-effects</em> models in the variables appearing in those formulas.
+Transformations and interactions (<code><a href="https://rdrr.io/r/stats/poly.html" class="external-link">poly()</a></code>, splines, <code>A:M</code>) are
+therefore not carried into the sequential regressions. This is a property
+of this implementation, not of the estimator as published; the theoretical
+results of Zheng &amp; van der Laan (2017) are stated for correctly specified
+nuisance models. Practical
 positivity violations (few subjects following an intervened regime) are
 handled by skipping the affected fluctuation steps and truncating
 extreme weights, with collected warnings — inspect these before trusting
@@ -294,8 +318,20 @@ distinct seeds to ensure independent bootstrap draws across analyses.</p></dd>
         <code>perct_lcl_RR</code>/<code>perct_ucl_RR</code>,
         <code>norm_lcl_RR</code>/<code>norm_ucl_RR</code> for RR. <code>RR</code> is
         <code>NA</code> for the Mediation Proportion rows.</p></li>
-<li><p><code>sim_data</code>: if <code>return_data = TRUE</code>, the Monte Carlo simulated
-        longitudinal dataset used internally (can be large).</p></li>
+<li><p><code>sim_data</code>: if <code>return_data = TRUE</code>, the simulated Monte
+        Carlo dataset used internally (can be large), stacked across
+        interventions with an <code>Intervention</code> column. It is the
+        <strong>end-of-follow-up snapshot</strong> — one row per Monte Carlo
+        subject per intervention, holding each variable at its final
+        simulated time step alongside the accumulated <code>Pred_Y</code> — not a
+        row-per-time-point panel.
+        With <code>n_vw &gt; 1</code> the pool-drawing interventions are simulated
+        <code>n_vw</code> times and only the <em>last</em> permutation is retained
+        here, whereas <code>effect_size$Est</code> averages all <code>n_vw</code> of
+        them. Recomputing <code>mean(Pred_Y)</code> from <code>sim_data</code> will
+        therefore not reproduce <code>Est</code> exactly for those interventions
+        (it does for <code>nat0</code>/<code>nat1</code>); use <code>n_vw = 1</code> if you
+        need the two to agree.</p></li>
 <li><p><code>fitted_models</code>: a named list of fitted models keyed by outcome, exposure,
         and mediator variables. If <code>return_fitted = TRUE</code>, returns full model objects
         plus attributes (<code>recodes</code>, <code>subset</code>, <code>var_type</code>, <code>mod_type</code>);
@@ -360,10 +396,10 @@ precedes the mediator, and warns if these are violated.</p>
 <p>**Mediator pool (interventional effects)**
 For <code>mediation_type = "I"</code>, a natural-course pass under each treatment
 level \(a^*\) stores every simulated individual's full mediator trajectory
-\(M(1{:}T)\) in a pool matrix. Each decomposition intervention that fixes a
+\(M(1{:}T)\) in a pool. Each decomposition intervention that fixes a
 mediator to its \(a^*\) value — <em>including the reference interventions</em>
-<code>Phi00</code> (\(a^* = 0\)) and <code>Phi11</code> (\(a^* = 1\)) — permutes the
-rows of that matrix once and assigns subject \(i\) the entire trajectory of
+<code>Phi00</code> (\(a^* = 0\)) and <code>Phi11</code> (\(a^* = 1\)) — permutes that
+pool once and assigns subject \(i\) the entire trajectory of
 pool individual \(\pi(i)\): a joint, stochastic draw \(G_{a^*}\) from the
 simulated distribution of \(M(1{:}T)\), independent of \(i\)'s own
 confounder history (and permuted independently across mediators). This makes

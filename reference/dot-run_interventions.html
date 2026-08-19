@@ -9,7 +9,7 @@ random samples will be drawn from the data and apply the intervention."></head><
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -110,8 +110,9 @@ element is one of:</p><ul><li><p><code>NULL</code> — the natural course (expos
         draw) are in scope, e.g.
         <code>list(natural = NULL, threshold = dyn_int(as.numeric(A &gt; 0)))</code>.</p></li>
 </ul><p>If <code>intervention</code> is <code>NULL</code>, only the natural course is
-evaluated. If a <code>natural</code> intervention is not provided, it is added
-automatically and <code>ref_int</code> is set to <code>"natural"</code>.</p></dd>
+evaluated. A <code>natural</code> element is also added automatically when
+<code>ref_int</code> asks for the natural course and the list contains no
+<code>NULL</code> element; see <code>ref_int</code> and Details.</p></dd>
 
 
 <dt id="arg-in-recode">in_recode<a class="anchor" aria-label="anchor" href="#arg-in-recode"></a></dt>
@@ -136,8 +137,14 @@ no mediation analysis will be performed (default). It will be ignored if the int
 
 
 <dt id="arg-mc-sample">mc_sample<a class="anchor" aria-label="anchor" href="#arg-mc-sample"></a></dt>
-<dd><p>Integer. Monte Carlo sample size used for simulation.
-Default <code>nrow(data) * 100</code>.</p></dd>
+<dd><p>Integer. Size of the Monte Carlo cohort simulated under
+each intervention, counted in subjects. Defaults to <code>NULL</code>, which
+resolves to 50 times the number of subjects in <code>data</code> and reports the
+value it chose unless <code>quiet = TRUE</code>. Monte Carlo error falls as
+<code>1/sqrt(mc_sample)</code> while sampling error falls with the number of
+subjects, so the two stay in a fixed ratio when <code>mc_sample</code> is set as
+a multiple of the subject count; a larger multiple buys precision in the
+point estimate and does not change what is being estimated.</p></dd>
 
 
 <dt id="arg-n-vw">n_vw<a class="anchor" aria-label="anchor" href="#arg-n-vw"></a></dt>

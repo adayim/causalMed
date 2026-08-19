@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -101,7 +101,11 @@ For mediation (direct/indirect decomposition) see
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/adayim/causalMed" class="external-link">causalMed</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r-datatable.com" class="external-link">data.table</a></span><span class="op">)</span></span>
-<span><span class="co">#&gt; Warning: package 'data.table' was built under R version 4.5.3</span></span></code></pre></div>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Attaching package: 'data.table'</span></span>
+<span><span class="co">#&gt; The following object is masked from 'package:base':</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;     %notin%</span></span></code></pre></div>
 <hr>
 </div>
 <div class="section level2">
@@ -423,14 +427,18 @@ it from day one:</p>
 <span><span class="co">#&gt;             &lt;char&gt;     &lt;char&gt;       &lt;num&gt;</span></span>
 <span><span class="co">#&gt; 1: never - natural Difference -0.02406177</span></span>
 <span><span class="co">#&gt; 2: never / natural      Ratio  0.96066816</span></span></code></pre></div>
-<p>Preventing GvHD is estimated to lower the 5-year risk of death by a
-couple of percentage points. With 1 825 daily time steps this Monte
-Carlo loop takes a few minutes, which is why this vignette is
-<strong>precomputed</strong> — the code above ran once when the vignette
-was assembled (see <code>vignettes/precompute.R</code>), so its output
-is real but the shipped vignette still builds instantly. Set
-<code>R &gt; 1</code> there for bootstrap confidence intervals (much
-slower again on this dataset).</p>
+<p>The two rows above are the simulated 5-year risks of death under the
+natural course and under the “never GvHD” strategy, and their contrast.
+This reproduces the analysis specification of Keil et al. (2014) — read
+that paper for the substantive interpretation and for the assumptions it
+rests on; the purpose here is to show the machinery on a published
+example, not to draw a clinical conclusion.</p>
+<p>With 1 825 daily time steps this Monte Carlo loop takes a few
+minutes, which is why this vignette is <strong>precomputed</strong>: the
+code above was run once when the vignette was assembled, so its output
+is real while the shipped vignette builds instantly. Set
+<code>R &gt; 1</code> for bootstrap confidence intervals (much slower
+again on this dataset).</p>
 <hr>
 </div>
 <div class="section level2">
@@ -532,12 +540,17 @@ objects and their coefficients:</p>
 <div class="section level3">
 <h3 id="retrieving-the-simulated-data">Retrieving the simulated data<a class="anchor" aria-label="anchor" href="#retrieving-the-simulated-data"></a>
 </h3>
-<p>Set <code>return_data = TRUE</code> to retrieve the full Monte Carlo
-dataset (can be large):</p>
+<p>Set <code>return_data = TRUE</code> to retrieve the simulated Monte
+Carlo dataset (can be large). It is the <strong>end-of-follow-up
+snapshot</strong>: one row per Monte Carlo subject per intervention,
+holding each variable at its final simulated time step together with the
+accumulated <code>Pred_Y</code>. It is not a row-per-time-point panel —
+the simulation overwrites each variable in place as it steps through
+time.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gformula.html">gformula</a></span><span class="op">(</span><span class="va">...</span>, return_data <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Simulated trajectories with predicted outcomes, one row per MC subject per time</span></span>
+<span><span class="co"># One row per MC subject per intervention, at the last time point</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">fit_data</span><span class="op">$</span><span class="va">sim_data</span><span class="op">)</span></span></code></pre></div>
 <hr>
 </div>

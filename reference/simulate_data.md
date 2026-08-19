@@ -50,8 +50,8 @@ simulate_data(
 - med_pool:
 
   Optional named list keyed by mediator response variable. Each element
-  is the time-\\t\\ slice of a pre-permuted joint mediator-trajectory
-  matrix built by `.run_interventions` from the corresponding reference
+  is the time-\\t\\ slice of the pre-permuted joint mediator-trajectory
+  pool built by `.run_interventions` from the corresponding reference
   intervention (Phi00 or Phi11). When the intervention `intervention`
   requires a mediator override under `mediation_type = "I"`, the
   mediator is assigned directly from this vector (joint draw matching

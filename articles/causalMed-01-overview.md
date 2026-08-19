@@ -18,8 +18,11 @@
     or **natural** direct/indirect effects (Zheng & van der Laan 2017).
 
 Both handle time-varying exposures, mediators, and confounders —
-including confounders that are themselves affected by prior exposure, a
-setting where standard regression-based mediation fails.
+including confounders that are themselves affected by prior exposure.
+This is the setting the g-formula was introduced for (Robins 1986), and
+the one in which natural direct and indirect effects are not
+identifiable (Avin, Shpitser & Pearl 2005; VanderWeele & Tchetgen
+Tchetgen 2017).
 
 This vignette is the short tour: the data format, the
 model-specification vocabulary that every analysis uses, and one
@@ -80,8 +83,8 @@ head(nonsurvivaldata, 10)
 #> 10:      0 -0.002468347       0 -0.30093080
 ```
 
-The `nonsurvivaldata` dataset contains 1 000 subjects observed at five
-time points (0, 1, 2, 3, 4):
+The `nonsurvivaldata` dataset contains 3 000 subjects observed at five
+time points (0, 1, 2, 3, 4), 15 000 rows in total:
 
 | Variable | Role                               |
 |----------|------------------------------------|
@@ -133,12 +136,11 @@ The four built-in `var_type` values cover the most common cases:
 | `"custom"` | User-supplied fit and simulation functions |
 
 **Simulated numeric values are clipped to the observed range of the
-response by default.** So `var_type = "normal"` already gives you a
-*bounded* normal — there is no need for a custom type to get one. This
-guards against implausible extrapolation from a fitted linear model;
-pass `spec_model(truncate = FALSE)` to draw from the untruncated fitted
-distribution instead (this also stops the clipping being applied to
-`custom_sim` output).
+response by default.** `gfoRmula` applies the same rule by default,
+through its `sim_trunc` argument. Pass `spec_model(truncate = FALSE)` to
+draw from the untruncated fitted distribution instead (this also stops
+the clipping being applied to `custom_sim` output). Which of the two is
+appropriate depends on the variable being simulated.
 
 For distributions still not covered — **truncated normal**,
 **zero-inflated normal**, **absorbing states** — use
@@ -231,8 +233,15 @@ in_rc   <- recodes(lag1_A  = A,   # At each subsequent step, copy current values
                    lag1_L2 = L2)
 ```
 
-If lag columns are already present in the data (pre-computed before the
-call), you do not need recoding hooks.
+The hooks are required even when the lag columns already exist in your
+data. The Monte Carlo cohort is built from `id_var` and `base_vars`
+only, so any column a model references that is neither of those — every
+lag column included — has to be created by `init_recode` at the first
+time point and maintained by `in_recode` thereafter. Without them the
+run stops with `object 'lag1_A' not found`. Listing lag columns in
+`base_vars` is not a substitute: they are not time-fixed, and
+[`gformula()`](https://adayim.github.io/causalMed/reference/gformula.md)
+warns that doing so distorts the sampled cohort.
 
 ------------------------------------------------------------------------
 
@@ -253,7 +262,10 @@ fit_par <- gformula(..., R = 500)
 plan(sequential)     # restore default after use
 ```
 
-On Unix/macOS, `plan(multicore)` (forking) is more memory-efficient.
+On Unix/macOS, `plan(multicore)` forks the current session instead of
+launching new ones; see
+[`?future::plan`](https://future.futureverse.org/reference/plan.html)
+for the trade-offs.
 
 ------------------------------------------------------------------------
 
@@ -385,8 +397,10 @@ in
 
 ## Causal Assumptions
 
-Valid inference requires the following assumptions to hold for the
-observed data:
+The parametric g-formula identifies these effects under the following
+assumptions (Robins 1986; Westreich et al. 2012; Keil et al. 2014),
+which the package cannot check and which hold or fail as a property of
+your data and design, not of the code:
 
 1.  **Consistency**: the potential outcome under the observed exposure
     history equals the observed outcome.
@@ -402,17 +416,31 @@ assumption is required:
 
 4.  **No unmeasured exposure-induced mediator–outcome confounding**:
     there are no confounders of the mediator–outcome relationship that
-    are themselves caused by prior exposure. Interventional effects
-    (`mediation_type = "I"`) do not require this assumption.
+    are themselves caused by prior exposure. Natural direct and indirect
+    effects are not identifiable when one exists (Avin, Shpitser & Pearl
+    2005; VanderWeele & Tchetgen Tchetgen 2017); the randomized
+    interventional analogues targeted by `mediation_type = "I"` are
+    identifiable without this assumption (VanderWeele & Tchetgen
+    Tchetgen 2017).
 
 ------------------------------------------------------------------------
 
 ## References
 
+- Robins, J. M. (1986). A new approach to causal inference in mortality
+  studies with a sustained exposure period — application to control of
+  the healthy worker survivor effect. *Mathematical Modelling*, 7(9–12),
+  1393–1512.
 - Westreich, D., Cole, S. R., Young, J. G., et al. (2012). The
   parametric g-formula to estimate the effect of highly active
   antiretroviral therapy on incident AIDS or death. *Statistics in
   Medicine*, 31, 2000–2009.
+- Avin, C., Shpitser, I., & Pearl, J. (2005). Identifiability of
+  path-specific effects. *Proceedings of the 19th International Joint
+  Conference on Artificial Intelligence (IJCAI)*, 357–363.
+- VanderWeele, T. J., & Tchetgen Tchetgen, E. J. (2017). Mediation
+  analysis with time varying exposures and mediators. *Journal of the
+  Royal Statistical Society: Series B*, 79(3), 917–938.
 - McGrath, S., Lin, V., Zhang, Z., et al. (2020). gfoRmula: An R package
   for estimating the effects of sustained treatment strategies via the
   parametric g-formula. *Patterns*, 1, 100008.
