@@ -101,8 +101,14 @@
 #'   (e.g., create lags, cumulative counts). Should be defined with \code{\link{recodes}}. See Details.
 #' @param return_fitted Logical. If \code{TRUE}, return full fitted model objects; otherwise,
 #'   a light-weight summary (call and coefficients). Default \code{FALSE}.
-#' @param mc_sample Integer. Monte Carlo sample size used for simulation.
-#'   Default \code{nrow(data) * 100}.
+#' @param mc_sample Integer. Size of the Monte Carlo cohort simulated under
+#'   each intervention, counted in subjects. Defaults to \code{NULL}, which
+#'   resolves to 50 times the number of subjects in \code{data} and reports the
+#'   value it chose unless \code{quiet = TRUE}. Monte Carlo error falls as
+#'   \code{1/sqrt(mc_sample)} while sampling error falls with the number of
+#'   subjects, so the two stay in a fixed ratio when \code{mc_sample} is set as
+#'   a multiple of the subject count; a larger multiple buys precision in the
+#'   point estimate and does not change what is being estimated.
 #' @param return_data Logical. If \code{TRUE}, return the stacked simulated data
 #'   (all interventions) including predicted outcomes; may be large. Default \code{FALSE}.
 #' @param R Number of bootstrap replicates. If \code{R > 1},
@@ -242,7 +248,7 @@ gformula <- function(data,
                      in_recode = NULL,
                      out_recode = NULL,
                      return_fitted = FALSE,
-                     mc_sample = nrow(data)*100,
+                     mc_sample = NULL,
                      return_data = FALSE,
                      R = 500,
                      quiet = FALSE,
@@ -256,6 +262,17 @@ gformula <- function(data,
 
   # Check for error
   check_error(data, id_var, base_vars, exposure, time_var, models)
+
+  if (is.null(mc_sample)) {
+    mc_sample <- 50L * data.table::uniqueN(data[[id_var]])
+    if (!quiet) {
+      message(sprintf(
+        "mc_sample not supplied: using %d (50 per subject, %d subjects).",
+        mc_sample, data.table::uniqueN(data[[id_var]])))
+    }
+  }
+  mc_sample <- as.integer(mc_sample)
+  all.args$mc_sample <- mc_sample
 
   check_recode_param("in_recode", in_recode)
   check_recode_param("out_recode", out_recode)

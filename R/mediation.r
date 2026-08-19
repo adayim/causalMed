@@ -342,7 +342,7 @@ mediation <- function(data,
                       init_recode = NULL,
                       in_recode = NULL,
                       out_recode = NULL,
-                      mc_sample = nrow(data)*100,
+                      mc_sample = NULL,
                       mediation_type = c("I", "N"),
                       n_vw = 2L,
                       estimator = c("gcomp", "tmle"),
@@ -382,6 +382,20 @@ mediation <- function(data,
 
   # Check for error
   check_error(data, id_var, base_vars, exposure, time_var, models)
+
+  # Resolved here rather than in the signature so it can count subjects rather
+  # than rows. TMLE does no Monte Carlo simulation, so it takes the value
+  # silently and never uses it.
+  if (is.null(mc_sample)) {
+    mc_sample <- 50L * data.table::uniqueN(data[[id_var]])
+    if (!quiet && !identical(estimator, "tmle")) {
+      message(sprintf(
+        "mc_sample not supplied: using %d (50 per subject, %d subjects).",
+        mc_sample, data.table::uniqueN(data[[id_var]])))
+    }
+  }
+  mc_sample <- as.integer(mc_sample)
+  all.args$mc_sample <- mc_sample
 
   check_recode_param("in_recode", in_recode)
   check_recode_param("out_recode", out_recode)

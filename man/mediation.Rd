@@ -15,7 +15,7 @@ mediation(
   init_recode = NULL,
   in_recode = NULL,
   out_recode = NULL,
-  mc_sample = nrow(data) * 100,
+  mc_sample = NULL,
   mediation_type = c("I", "N"),
   n_vw = 2L,
   estimator = c("gcomp", "tmle"),
@@ -54,8 +54,14 @@ way data generation process. See \code{\link{spec_model}} for a recommended cons
 \item{out_recode}{Optional expression/function applied at the **end** of each time step
 (e.g., create lags, cumulative counts). Should be defined with \code{\link{recodes}}. See Details.}
 
-\item{mc_sample}{Integer. Monte Carlo sample size used for simulation.
-Default \code{nrow(data) * 100}.}
+\item{mc_sample}{Integer. Size of the Monte Carlo cohort simulated under
+each intervention, counted in subjects. Defaults to \code{NULL}, which
+resolves to 50 times the number of subjects in \code{data} and reports the
+value it chose unless \code{quiet = TRUE}. Monte Carlo error falls as
+\code{1/sqrt(mc_sample)} while sampling error falls with the number of
+subjects, so the two stay in a fixed ratio when \code{mc_sample} is set as
+a multiple of the subject count; a larger multiple buys precision in the
+point estimate and does not change what is being estimated.}
 
 \item{mediation_type}{Character. Type of mediation effect:
 \code{"I"} for interventional effect (default) or \code{"N"} for natural

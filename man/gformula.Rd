@@ -17,7 +17,7 @@ gformula(
   in_recode = NULL,
   out_recode = NULL,
   return_fitted = FALSE,
-  mc_sample = nrow(data) * 100,
+  mc_sample = NULL,
   return_data = FALSE,
   R = 500,
   quiet = FALSE,
@@ -77,8 +77,14 @@ add a \code{natural} element — which requires an exposure model in
 \item{return_fitted}{Logical. If \code{TRUE}, return full fitted model objects; otherwise,
 a light-weight summary (call and coefficients). Default \code{FALSE}.}
 
-\item{mc_sample}{Integer. Monte Carlo sample size used for simulation.
-Default \code{nrow(data) * 100}.}
+\item{mc_sample}{Integer. Size of the Monte Carlo cohort simulated under
+each intervention, counted in subjects. Defaults to \code{NULL}, which
+resolves to 50 times the number of subjects in \code{data} and reports the
+value it chose unless \code{quiet = TRUE}. Monte Carlo error falls as
+\code{1/sqrt(mc_sample)} while sampling error falls with the number of
+subjects, so the two stay in a fixed ratio when \code{mc_sample} is set as
+a multiple of the subject count; a larger multiple buys precision in the
+point estimate and does not change what is being estimated.}
 
 \item{return_data}{Logical. If \code{TRUE}, return the stacked simulated data
 (all interventions) including predicted outcomes; may be large. Default \code{FALSE}.}
