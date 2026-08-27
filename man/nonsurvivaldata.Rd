@@ -28,7 +28,7 @@ A data frame with 15,000 rows (3000 subjects x 5 time points) and 13
 }
 }
 \source{
-Simulated data generated for package examples.
+Simulated from the parametric process given under Details.
 }
 \usage{
 nonsurvivaldata
@@ -49,9 +49,47 @@ M_t \leftarrow V, A_t, L1_t, L2_t, M_{t-1}, t;\quad
 Y \leftarrow V, A_4, M_4, L1_4, L2_4, A_4*M_4.
 }
 The exposure, mediator and confounders evolve at every time point, but the
-outcome is realised once, at the end of follow-up. The same outcome
-structure is used for both \code{Y_bin} and \code{Y_cont}, with the
-appropriate distribution specified for each.
+outcome is realised once, at the end of follow-up.
+
+The generating parameters are, with \eqn{V \sim N(0, 1)} and all lagged terms
+set to zero at \eqn{t = 0}:
+
+\preformatted{
+  logit P(A_t = 1) =  1.25 + 0.50 V + 0.25 L1_{t-1} + 0.25 L2_{t-1}
+                           + 0.20 A_{t-1} + 0.01 t
+  E(L1_t)          =  0.02 + 0.50 V + 0.18 A_t + 0.35 L1_{t-1} + 0.02 t
+                     (Gaussian, SD 0.70)
+  logit P(L2_t = 1)= -0.10 + 0.40 V + 0.18 A_t + 0.35 L2_{t-1} + 0.02 t
+  E(M_t)           =  0.05 + 0.50 V + 0.45 A_t + 0.12 L1_t + 0.10 L2_t
+                           + 0.30 M_{t-1} + 0.02 t   (Gaussian, SD 0.50)
+  logit(pi)        = -2.60 + 0.50 V + 0.51 A_4 + 0.45 M_4
+                           + 0.25 L1_4 - 0.25 L2_4 + 0.30 A_4 M_4
+}
+
+Both outcomes share that same \eqn{\pi}: \code{Y_bin} is
+\eqn{\mathrm{Bernoulli}(\pi)} and \code{Y_cont} is
+\eqn{\mathrm{Beta}(50\pi,\, 50(1-\pi))}. \code{Y_cont} therefore lies
+strictly in \eqn{(0, 1)}; fitting it with \code{var_type = "normal"} is a
+working approximation, not the generating distribution.
+
+The confounders \eqn{L1} and \eqn{L2} depend on current exposure, so
+exposure-affected confounding of the mediator-outcome relationship is
+present -- the setting the interventional effects are designed for.
+
+\strong{Large-sample true values} (risk differences, computed under the same
+permuted-pool construction the package uses for
+\code{mediation_type = "I"}, at 200,000 subjects):
+
+\tabular{lr}{
+  Interventional direct effect (IDE) \tab 0.075 \cr
+  Interventional indirect effect (IIE) \tab 0.071 \cr
+  Total effect (TE) \tab 0.155 \cr
+  Mediated-interaction residual (TE \eqn{-} overall) \tab 0.009 \cr
+}
+
+The two pathways are deliberately of comparable size, and the residual is
+deliberately non-zero, so that the decomposition and its non-additivity are
+both visible in a worked example.
 
 Two consequences for model specification:
 \itemize{
