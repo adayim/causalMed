@@ -141,30 +141,28 @@ subject per time point.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"nonsurvivaldata"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">nonsurvivaldata</span>, <span class="fl">10</span><span class="op">)</span></span>
-<span><span class="co">#&gt;        id  time         V           L1    L2     A           M    Y_cont Y_bin</span></span>
-<span><span class="co">#&gt;     &lt;num&gt; &lt;num&gt;     &lt;num&gt;        &lt;num&gt; &lt;num&gt; &lt;num&gt;       &lt;num&gt;     &lt;num&gt; &lt;num&gt;</span></span>
-<span><span class="co">#&gt;  1:     1     0 0.5218287  0.552784243     0     1 -0.21967591        NA    NA</span></span>
-<span><span class="co">#&gt;  2:     1     1 0.5218287 -0.175805742     1     1  0.47192720        NA    NA</span></span>
-<span><span class="co">#&gt;  3:     1     2 0.5218287  0.590332001     0     1 -0.22377223        NA    NA</span></span>
-<span><span class="co">#&gt;  4:     1     3 0.5218287  1.317409776     0     1  0.38782689        NA    NA</span></span>
-<span><span class="co">#&gt;  5:     1     4 0.5218287  0.797477545     0     1 -0.41632904 0.1348551     0</span></span>
-<span><span class="co">#&gt;  6:     2     0 0.4066671  0.549200095     1     1  1.05809977        NA    NA</span></span>
-<span><span class="co">#&gt;  7:     2     1 0.4066671  0.427872915     1     1 -0.07225413        NA    NA</span></span>
-<span><span class="co">#&gt;  8:     2     2 0.4066671  0.738161034     1     1  1.38211221        NA    NA</span></span>
-<span><span class="co">#&gt;  9:     2     3 0.4066671 -0.002468347     0     0 -0.30093080        NA    NA</span></span>
-<span><span class="co">#&gt; 10:     2     4 0.4066671  1.058167173     0     1  0.69489534 0.2214175     0</span></span>
-<span><span class="co">#&gt;     lag1_A      lag1_L1 lag1_L2      lag1_M</span></span>
-<span><span class="co">#&gt;      &lt;num&gt;        &lt;num&gt;   &lt;num&gt;       &lt;num&gt;</span></span>
-<span><span class="co">#&gt;  1:     NA           NA      NA          NA</span></span>
-<span><span class="co">#&gt;  2:      1  0.552784243       0 -0.21967591</span></span>
-<span><span class="co">#&gt;  3:      1 -0.175805742       1  0.47192720</span></span>
-<span><span class="co">#&gt;  4:      1  0.590332001       0 -0.22377223</span></span>
-<span><span class="co">#&gt;  5:      1  1.317409776       0  0.38782689</span></span>
-<span><span class="co">#&gt;  6:     NA           NA      NA          NA</span></span>
-<span><span class="co">#&gt;  7:      1  0.549200095       1  1.05809977</span></span>
-<span><span class="co">#&gt;  8:      1  0.427872915       1 -0.07225413</span></span>
-<span><span class="co">#&gt;  9:      1  0.738161034       1  1.38211221</span></span>
-<span><span class="co">#&gt; 10:      0 -0.002468347       0 -0.30093080</span></span></code></pre></div>
+<span><span class="co">#&gt;    id time          V         L1 L2 A          M     Y_cont Y_bin lag1_A</span></span>
+<span><span class="co">#&gt; 1   1    0  0.4365731  0.7601565  0 1  0.3825810         NA    NA     NA</span></span>
+<span><span class="co">#&gt; 2   1    1  0.4365731  0.1041467  1 1  1.2635708         NA    NA      1</span></span>
+<span><span class="co">#&gt; 3   1    2  0.4365731  0.8956876  0 1  0.6277357         NA    NA      1</span></span>
+<span><span class="co">#&gt; 4   1    3  0.4365731  1.6316564  0 1  1.2583611         NA    NA      1</span></span>
+<span><span class="co">#&gt; 5   1    4  0.4365731  1.1148361  0 1  0.4602865 0.18880757     1      1</span></span>
+<span><span class="co">#&gt; 6   2    0 -1.8666578 -0.3374623  0 1  0.3350378         NA    NA     NA</span></span>
+<span><span class="co">#&gt; 7   2    1 -1.8666578 -0.7691214  0 1 -1.0494745         NA    NA      1</span></span>
+<span><span class="co">#&gt; 8   2    2 -1.8666578 -0.7474494  0 0 -0.1559896         NA    NA      1</span></span>
+<span><span class="co">#&gt; 9   2    3 -1.8666578 -1.4090944  1 0 -1.7178189         NA    NA      0</span></span>
+<span><span class="co">#&gt; 10  2    4 -1.8666578 -0.3208144  1 1 -0.3123113 0.03748698     0      0</span></span>
+<span><span class="co">#&gt;       lag1_L1 lag1_L2     lag1_M</span></span>
+<span><span class="co">#&gt; 1          NA      NA         NA</span></span>
+<span><span class="co">#&gt; 2   0.7601565       0  0.3825810</span></span>
+<span><span class="co">#&gt; 3   0.1041467       1  1.2635708</span></span>
+<span><span class="co">#&gt; 4   0.8956876       0  0.6277357</span></span>
+<span><span class="co">#&gt; 5   1.6316564       0  1.2583611</span></span>
+<span><span class="co">#&gt; 6          NA      NA         NA</span></span>
+<span><span class="co">#&gt; 7  -0.3374623       0  0.3350378</span></span>
+<span><span class="co">#&gt; 8  -0.7691214       0 -1.0494745</span></span>
+<span><span class="co">#&gt; 9  -0.7474494       0 -0.1559896</span></span>
+<span><span class="co">#&gt; 10 -1.4090944       1 -1.7178189</span></span></code></pre></div>
 <p>The <code>nonsurvivaldata</code> dataset contains 3 000 subjects
 observed at five time points (0, 1, 2, 3, 4), 15 000 rows in total:</p>
 <table class="table">
@@ -471,18 +469,18 @@ natural course, always treat, never treat.</p>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">fit_bin</span><span class="op">$</span><span class="va">effect_size</span>   <span class="co"># mean outcome under each strategy</span></span>
-<span><span class="co">#&gt;    Intervention        Est</span></span>
-<span><span class="co">#&gt;          &lt;fctr&gt;      &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:      natural 0.14127646</span></span>
-<span><span class="co">#&gt; 2: always_treat 0.15108576</span></span>
-<span><span class="co">#&gt; 3:  never_treat 0.08564992</span></span>
+<span><span class="co">#&gt;    Intervention       Est</span></span>
+<span><span class="co">#&gt;          &lt;fctr&gt;     &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1:      natural 0.2349247</span></span>
+<span><span class="co">#&gt; 2: always_treat 0.2522388</span></span>
+<span><span class="co">#&gt; 3:  never_treat 0.1066566</span></span>
 <span><span class="va">fit_bin</span><span class="op">$</span><span class="va">estimate</span>      <span class="co"># risk difference / ratio vs the natural course</span></span>
-<span><span class="co">#&gt;              Intervention  Risk_type     Estimate</span></span>
-<span><span class="co">#&gt;                    &lt;char&gt;     &lt;char&gt;        &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1: always_treat - natural Difference  0.009809296</span></span>
-<span><span class="co">#&gt; 2: always_treat / natural      Ratio  1.069433333</span></span>
-<span><span class="co">#&gt; 3:  never_treat - natural Difference -0.055626547</span></span>
-<span><span class="co">#&gt; 4:  never_treat / natural      Ratio  0.606257502</span></span></code></pre></div>
+<span><span class="co">#&gt;              Intervention  Risk_type    Estimate</span></span>
+<span><span class="co">#&gt;                    &lt;char&gt;     &lt;char&gt;       &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1: always_treat - natural Difference  0.01731407</span></span>
+<span><span class="co">#&gt; 2: always_treat / natural      Ratio  1.07370051</span></span>
+<span><span class="co">#&gt; 3:  never_treat - natural Difference -0.12826810</span></span>
+<span><span class="co">#&gt; 4:  never_treat / natural      Ratio  0.45400334</span></span></code></pre></div>
 <p>That is the whole workflow: models, interventions, one call. Survival
 outcomes, dynamic (rule-based) interventions, the Keil et al. (2014)
 GvHD replication, bootstrap confidence intervals, extracting fitted
@@ -534,12 +532,12 @@ identifiable when confounders are affected by the exposure:</p>
 <span><span class="va">fit_ide</span><span class="op">$</span><span class="va">estimate</span></span>
 <span><span class="co">#&gt;                                   Effect           RD       RR</span></span>
 <span><span class="co">#&gt;                                   &lt;char&gt;        &lt;num&gt;    &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:                       Indirect effect 0.0061281325 1.042095</span></span>
-<span><span class="co">#&gt; 2:                         Direct effect 0.0607837461 1.716825</span></span>
-<span><span class="co">#&gt; 3:                          Total effect 0.0671865531 1.793071</span></span>
-<span><span class="co">#&gt; 4:              TE - (Direct + Indirect) 0.0002746745       NA</span></span>
-<span><span class="co">#&gt; 5:                  Mediation Proportion 9.5298935864       NA</span></span>
-<span><span class="co">#&gt; 6: Mediation Proportion (multiplicative) 9.1585121678       NA</span></span></code></pre></div>
+<span><span class="co">#&gt; 1:                       Indirect effect  0.068268280 1.413236</span></span>
+<span><span class="co">#&gt; 2:                         Direct effect  0.087924817 2.137753</span></span>
+<span><span class="co">#&gt; 3:                          Total effect  0.161254808 2.678705</span></span>
+<span><span class="co">#&gt; 4:              TE - (Direct + Indirect)  0.005061711       NA</span></span>
+<span><span class="co">#&gt; 5:                  Mediation Proportion 45.474607398       NA</span></span>
+<span><span class="co">#&gt; 6: Mediation Proportion (multiplicative) 43.707616415       NA</span></span></code></pre></div>
 <p>The <code>estimate</code> table is the decomposition: the direct
 effect, the indirect effect (through <code>M</code>), the total effect,
 a mediated-interaction residual row, and the proportion mediated. A

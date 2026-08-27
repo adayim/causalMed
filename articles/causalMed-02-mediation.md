@@ -186,16 +186,26 @@ present.
 data("survivaldata")
 dat <- as.data.table(survivaldata)
 head(dat, 8)
-#>       id  time         V     A         L     M     Y lag1_A lag1_M    lag1_L
-#>    <int> <int>     <num> <int>     <num> <num> <int>  <int>  <num>     <num>
-#> 1:     1     0 0.4528886     1 0.6372004     1     1      0      0 0.0000000
-#> 2:     2     0 0.6211870     1 0.7814770     1     1      0      0 0.0000000
-#> 3:     3     0 0.5418330     1 1.0665595     1     1      0      0 0.0000000
-#> 4:     4     0 0.5628616     1 0.8975717     0     0      0      0 0.0000000
-#> 5:     4     1 0.5628616     1 1.1214325     1     1      1      0 0.8975717
-#> 6:     5     0 0.5246275     0 0.4891121     1     0      0      0 0.0000000
-#> 7:     5     1 0.5246275     0 0.6388336     1     0      0      1 0.4891121
-#> 8:     5     2 0.5246275     1 1.0670677     0     0      0      1 0.6388336
+#>       id  time          V     A           L     M     Y     C lag1_A lag1_M
+#>    <int> <int>      <num> <int>       <num> <num> <int> <int>  <int>  <num>
+#> 1:     1     0 -0.9422279     1  0.10013047     0     0     0      0      0
+#> 2:     1     1 -0.9422279     0 -0.05257470     0     0     0      1      0
+#> 3:     1     2 -0.9422279     0  0.02384068     1     0     0      0      0
+#> 4:     1     3 -0.9422279     0  0.14223027     0     0     0      0      1
+#> 5:     1     4 -0.9422279     0  0.30567376     0     0     0      0      0
+#> 6:     2     0  2.4237402     1  2.16300892     1     0     0      0      0
+#> 7:     2     1  2.4237402     1  2.63056349     0     0     0      1      1
+#> 8:     2     2  2.4237402     1  2.95539778     1     0     0      1      0
+#>         lag1_L
+#>          <num>
+#> 1:  0.00000000
+#> 2:  0.10013047
+#> 3: -0.05257470
+#> 4:  0.02384068
+#> 5:  0.14223027
+#> 6:  0.00000000
+#> 7:  2.16300892
+#> 8:  2.63056349
 ```
 
 `survivaldata` contains 3 000 subjects followed over five periods
@@ -210,6 +220,7 @@ head(dat, 8)
 | `L`                          | Time-varying continuous confounder         |
 | `M`                          | Time-varying binary mediator               |
 | `Y`                          | Event indicator (1 = event in this period) |
+| `C`                          | Loss to follow-up in this period           |
 | `lag1_A`, `lag1_L`, `lag1_M` | Previous-period values                     |
 
 The data-generating ordering within each period is **A → L → M → Y**
@@ -239,10 +250,24 @@ models_surv <- list(
              var_type = "normal", mod_type = "covariate"),
   spec_model(M ~ V + A + L + lag1_M + time,
              var_type = "binary", mod_type = "mediator"),
+  spec_model(C ~ V + L + time,
+             var_type = "binary", mod_type = "censor"),    # loss to follow-up
   spec_model(Y ~ V + A + M + L + A:M + time,
              var_type = "binary", mod_type = "survival")   # discrete-time hazard
 )
 ```
+
+About 9% of subjects are lost to follow-up in `survivaldata`, so a
+`mod_type = "censor"` model is declared above. It is worth being precise
+about what that does. Under an intervention the package sets the
+censoring indicator to zero and accumulates the hazard over the full
+follow-up, so the estimand is the risk that *would* be seen if loss to
+follow-up were eliminated. Declaring the censoring model does not, in
+the g-computation path, alter the intervention-specific risks: with
+censoring independent of the counterfactual event process given the
+modelled history, the component models are already fitted without bias
+on the at-risk rows. The declaration documents the censoring process and
+is used by the targeted estimator (`estimator = "tmle"`).
 
 ``` r
 
@@ -271,11 +296,11 @@ fit_surv <- mediation(
 fit_surv$effect_size
 #>    Intervention       Est
 #>          <char>     <num>
-#> 1:         nat0 0.8369068
-#> 2:         nat1 0.9753288
-#> 3:        Phi00 0.8369122
-#> 4:        Phi10 0.9623516
-#> 5:        Phi11 0.9753319
+#> 1:         nat0 0.4111782
+#> 2:         nat1 0.7853884
+#> 3:        Phi00 0.4181072
+#> 4:        Phi10 0.5913585
+#> 5:        Phi11 0.7807899
 ```
 
 Each row is the simulated cumulative incidence under one intervention:
@@ -295,14 +320,14 @@ Each row is the simulated cumulative incidence under one intervention:
 ``` r
 
 fit_surv$estimate
-#>                                   Effect           RD       RR
-#>                                   <char>        <num>    <num>
-#> 1:                       Indirect effect 1.298035e-02 1.013488
-#> 2:                         Direct effect 1.254393e-01 1.149884
-#> 3:                          Total effect 1.384220e-01 1.165397
-#> 4:              TE - (Direct + Indirect) 2.329146e-06       NA
-#> 5:                  Mediation Proportion 9.379053e+00       NA
-#> 6: Mediation Proportion (multiplicative) 9.377529e+00       NA
+#>                                   Effect          RD       RR
+#>                                   <char>       <num>    <num>
+#> 1:                       Indirect effect  0.18943139 1.320333
+#> 2:                         Direct effect  0.17325126 1.414370
+#> 3:                          Total effect  0.37421016 1.910092
+#> 4:              TE - (Direct + Indirect)  0.01152751       NA
+#> 5:                  Mediation Proportion 53.70214941       NA
+#> 6: Mediation Proportion (multiplicative) 52.23061759       NA
 ```
 
 Row by row:
@@ -573,14 +598,14 @@ fit_cens <- mediation(
 )
 
 fit_cens$estimate
-#>                                   Effect            RD       RR
-#>                                   <char>         <num>    <num>
-#> 1:                       Indirect effect  1.496432e-02 1.015768
-#> 2:                         Direct effect  1.298705e-01 1.158545
-#> 3:                          Total effect  1.448257e-01 1.176800
-#> 4:              TE - (Direct + Indirect) -9.101517e-06       NA
-#> 5:                  Mediation Proportion  1.032636e+01       NA
-#> 6: Mediation Proportion (multiplicative)  1.033199e+01       NA
+#>                                   Effect          RD       RR
+#>                                   <char>       <num>    <num>
+#> 1:                       Indirect effect  0.18998326 1.340490
+#> 2:                         Direct effect  0.16553404 1.421811
+#> 3:                          Total effect  0.37043222 1.969298
+#> 4:              TE - (Direct + Indirect)  0.01491493       NA
+#> 5:                  Mediation Proportion 55.31327315       NA
+#> 6: Mediation Proportion (multiplicative) 53.43854201       NA
 ```
 
 In the simulation, censoring is **abolished** in every intervention (all
@@ -765,14 +790,6 @@ fit_tmle_s <- mediation(
 #> (2017) propose the randomized interventional analogues, available here as
 #> mediation_type = "I". This check reads the model formulas only and cannot
 #> verify the causal structure.
-#> TMLE L-step t=4: only 3 observation(s) follow the intervened regime at this node (practical positivity violation). Fluctuation skipped; the estimate relies on model extrapolation here.
-#>   [repeated 2 time(s)]
-#> =============
-#> TMLE R-step t=4: only 3 observation(s) follow the intervened regime at this node (practical positivity violation). Fluctuation skipped; the estimate relies on model extrapolation here.
-#>   [repeated 2 time(s)]
-#> =============
-#> TMLE Z-step t=4: only 3 observation(s) follow the intervened regime at this node (practical positivity violation). Fluctuation skipped; the estimate relies on model extrapolation here.
-#>   [repeated 2 time(s)]
 
 fit_tmle_s$estimate
 ```

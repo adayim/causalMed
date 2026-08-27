@@ -156,25 +156,25 @@ print(fit_bin)
 #> --- Mean outcome by intervention --- 
 #>    Intervention    Est     Sd 2.5%(pct) 97.5%(pct) 2.5%(norm) 97.5%(norm)
 #>          <fctr>  <num>  <num>     <num>      <num>      <num>       <num>
-#> 1:      natural 0.1413 0.0066    0.1297     0.1548     0.1282      0.1543
-#> 2: always_treat 0.1511 0.0075    0.1380     0.1659     0.1365      0.1657
-#> 3:  never_treat 0.0856 0.0136    0.0611     0.1145     0.0590      0.1123
-#>   Observed (nonparametric) mean of Y_bin at t = 4 (end of follow-up): 0.1407
+#> 1:      natural 0.2349 0.0081    0.2207     0.2487     0.2191      0.2508
+#> 2: always_treat 0.2522 0.0088    0.2375     0.2681     0.2349      0.2696
+#> 3:  never_treat 0.1067 0.0163    0.0790     0.1394     0.0748      0.1385
+#>   Observed (nonparametric) mean of Y_bin at t = 4 (end of follow-up): 0.2333
 #>   (informal model check: compare with the natural-course intervention)
 #> 
 #> --- Contrasts vs. reference intervention --- 
 #>              Intervention  Risk_type Estimate     Sd 2.5%(pct) 97.5%(pct)
 #>                    <char>     <char>    <num>  <num>     <num>      <num>
-#> 1: always_treat - natural Difference   0.0098 0.0024    0.0054     0.0142
-#> 2: always_treat / natural      Ratio   1.0694 0.0165    1.0394     1.1004
-#> 3:  never_treat - natural Difference  -0.0556 0.0130   -0.0768    -0.0266
-#> 4:  never_treat / natural      Ratio   0.6063 0.0910    0.4530     0.8081
+#> 1: always_treat - natural Difference   0.0173 0.0023    0.0125     0.0212
+#> 2: always_treat / natural      Ratio   1.0737 0.0097    1.0559     1.0922
+#> 3:  never_treat - natural Difference  -0.1283 0.0164   -0.1549    -0.0908
+#> 4:  never_treat / natural      Ratio   0.4540 0.0677    0.3431     0.5975
 #>    2.5%(norm) 97.5%(norm)
 #>         <num>       <num>
-#> 1:     0.0052      0.0145
-#> 2:     1.0370      1.1018
-#> 3:    -0.0811     -0.0302
-#> 4:     0.4279      0.7846
+#> 1:     0.0128      0.0219
+#> 2:     1.0546      1.0928
+#> 3:    -0.1604     -0.0961
+#> 4:     0.3213      0.5867
 #> 
 #>   95% CIs: percentile (pct) and normal approximation (norm) from 100 bootstrap replicates.
 ```
@@ -256,12 +256,12 @@ print(fit_med)
 #>   nat1/nat0 = E[Y(a=1)]/E[Y(a=0)]:  natural course (used for the total effect)
 #>    Intervention    Est     Sd 2.5%(pct) 97.5%(pct) 2.5%(norm) 97.5%(norm)
 #>          <char>  <num>  <num>     <num>      <num>      <num>       <num>
-#> 1:         nat0 0.0847 0.0135    0.0607     0.1128     0.0582      0.1112
-#> 2:         nat1 0.1519 0.0075    0.1383     0.1661     0.1371      0.1667
-#> 3:        Phi00 0.0848 0.0135    0.0608     0.1126     0.0584      0.1112
-#> 4:        Phi10 0.1456 0.0074    0.1329     0.1586     0.1312      0.1600
-#> 5:        Phi11 0.1517 0.0075    0.1389     0.1662     0.1370      0.1664
-#>   Observed (nonparametric) mean of Y_bin at t = 4 (end of follow-up): 0.1407
+#> 1:         nat0 0.0961 0.0151    0.0695     0.1262     0.0664      0.1257
+#> 2:         nat1 0.2573 0.0090    0.2400     0.2719     0.2396      0.2750
+#> 3:        Phi00 0.0773 0.0132    0.0547     0.1046     0.0514      0.1032
+#> 4:        Phi10 0.1652 0.0102    0.1501     0.1883     0.1453      0.1851
+#> 5:        Phi11 0.2335 0.0098    0.2157     0.2503     0.2143      0.2527
+#>   Observed (nonparametric) mean of Y_bin at t = 4 (end of follow-up): 0.2333
 #>   (informal benchmark; interventions fix the exposure, so exact agreement is not expected)
 #> 
 #> --- Effect decomposition --- 
@@ -272,27 +272,27 @@ print(fit_med)
 #>   TE - (Direct+Indirect)= mediated-interaction residual (TE - overall)
 #>   Mediation Prop.       = (Total - Direct) / Total  (percentage; RR not applicable)
 #>   RD = risk difference;  RR = risk ratio
-#>                                   Effect     RD     RR Sd(RD) RD 2.5%(pct)
-#>                                   <char>  <num>  <num>  <num>        <num>
-#> 1:                       Indirect effect 0.0061 1.0421 0.0021       0.0025
-#> 2:                         Direct effect 0.0608 1.7168 0.0150       0.0287
-#> 3:                          Total effect 0.0672 1.7931 0.0153       0.0323
-#> 4:              TE - (Direct + Indirect) 0.0003     NA 0.0004      -0.0009
-#> 5:                  Mediation Proportion 9.5299     NA 3.7089       4.0617
-#> 6: Mediation Proportion (multiplicative) 9.1585     NA 3.7171       4.0309
+#>                                   Effect      RD     RR Sd(RD) RD 2.5%(pct)
+#>                                   <char>   <num>  <num>  <num>        <num>
+#> 1:                       Indirect effect  0.0683 1.4132 0.0085       0.0521
+#> 2:                         Direct effect  0.0879 2.1378 0.0159       0.0571
+#> 3:                          Total effect  0.1613 2.6787 0.0179       0.1190
+#> 4:              TE - (Direct + Indirect)  0.0051     NA 0.0018      -0.0001
+#> 5:                  Mediation Proportion 45.4746     NA 5.6305      34.8497
+#> 6: Mediation Proportion (multiplicative) 43.7076     NA 5.9414      34.0057
 #>    RD 97.5%(pct) Sd(RR) RR 2.5%(pct) RR 97.5%(pct) RD 2.5%(norm) RD 97.5%(norm)
 #>            <num>  <num>        <num>         <num>         <num>          <num>
-#> 1:        0.0108 0.0149       1.0178        1.0732        0.0020         0.0103
-#> 2:        0.0856 0.2924       1.2632        2.3606        0.0313         0.0903
-#> 3:        0.0916 0.3076       1.2961        2.4283        0.0371         0.0973
-#> 4:        0.0007     NA           NA            NA       -0.0005         0.0011
-#> 5:       17.6448     NA           NA            NA        2.2606        16.7991
-#> 6:       17.7527     NA           NA            NA        1.8732        16.4438
+#> 1:        0.0819 0.0652       1.2857        1.5185        0.0516         0.0849
+#> 2:        0.1191 0.3897       1.5371        2.9167        0.0568         0.1190
+#> 3:        0.1872 0.4424       1.9739        3.6034        0.1261         0.1964
+#> 4:        0.0066     NA           NA            NA        0.0015         0.0086
+#> 5:       56.0160     NA           NA            NA       34.4391        56.5101
+#> 6:       55.8100     NA           NA            NA       32.0626        55.3526
 #>    RR 2.5%(norm) RR 97.5%(norm)
 #>            <num>          <num>
-#> 1:        1.0129         1.0713
-#> 2:        1.1437         2.2899
-#> 3:        1.1903         2.3959
+#> 1:        1.2854         1.5411
+#> 2:        1.3739         2.9016
+#> 3:        1.8117         3.5457
 #> 4:            NA             NA
 #> 5:            NA             NA
 #> 6:            NA             NA
@@ -424,22 +424,20 @@ package illustrates the required structure.
 
 data("nonsurvivaldata", package = "causalMed")
 head(nonsurvivaldata)
-#>       id  time         V         L1    L2     A          M    Y_cont Y_bin
-#>    <num> <num>     <num>      <num> <num> <num>      <num>     <num> <num>
-#> 1:     1     0 0.5218287  0.5527842     0     1 -0.2196759        NA    NA
-#> 2:     1     1 0.5218287 -0.1758057     1     1  0.4719272        NA    NA
-#> 3:     1     2 0.5218287  0.5903320     0     1 -0.2237722        NA    NA
-#> 4:     1     3 0.5218287  1.3174098     0     1  0.3878269        NA    NA
-#> 5:     1     4 0.5218287  0.7974775     0     1 -0.4163290 0.1348551     0
-#> 6:     2     0 0.4066671  0.5492001     1     1  1.0580998        NA    NA
-#>    lag1_A    lag1_L1 lag1_L2     lag1_M
-#>     <num>      <num>   <num>      <num>
-#> 1:     NA         NA      NA         NA
-#> 2:      1  0.5527842       0 -0.2196759
-#> 3:      1 -0.1758057       1  0.4719272
-#> 4:      1  0.5903320       0 -0.2237722
-#> 5:      1  1.3174098       0  0.3878269
-#> 6:     NA         NA      NA         NA
+#>   id time          V         L1 L2 A         M    Y_cont Y_bin lag1_A   lag1_L1
+#> 1  1    0  0.4365731  0.7601565  0 1 0.3825810        NA    NA     NA        NA
+#> 2  1    1  0.4365731  0.1041467  1 1 1.2635708        NA    NA      1 0.7601565
+#> 3  1    2  0.4365731  0.8956876  0 1 0.6277357        NA    NA      1 0.1041467
+#> 4  1    3  0.4365731  1.6316564  0 1 1.2583611        NA    NA      1 0.8956876
+#> 5  1    4  0.4365731  1.1148361  0 1 0.4602865 0.1888076     1      1 1.6316564
+#> 6  2    0 -1.8666578 -0.3374623  0 1 0.3350378        NA    NA     NA        NA
+#>   lag1_L2    lag1_M
+#> 1      NA        NA
+#> 2       0 0.3825810
+#> 3       1 1.2635708
+#> 4       0 0.6277357
+#> 5       0 1.2583611
+#> 6      NA        NA
 ```
 
 ## References

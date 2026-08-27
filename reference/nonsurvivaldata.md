@@ -73,7 +73,7 @@ variables:
 
 ## Source
 
-Simulated data generated for package examples.
+Simulated from the parametric process given under Details.
 
 ## Details
 
@@ -83,9 +83,46 @@ as: \$\$ A_t \leftarrow V, L1\_{t-1}, L2\_{t-1}, A\_{t-1}, t;\quad L1_t
 t;\quad M_t \leftarrow V, A_t, L1_t, L2_t, M\_{t-1}, t;\quad Y
 \leftarrow V, A_4, M_4, L1_4, L2_4, A_4\*M_4. \$\$ The exposure,
 mediator and confounders evolve at every time point, but the outcome is
-realised once, at the end of follow-up. The same outcome structure is
-used for both `Y_bin` and `Y_cont`, with the appropriate distribution
-specified for each.
+realised once, at the end of follow-up.
+
+The generating parameters are, with \\V \sim N(0, 1)\\ and all lagged
+terms set to zero at \\t = 0\\:
+
+
+      logit P(A_t = 1) =  1.25 + 0.50 V + 0.25 L1_{t-1} + 0.25 L2_{t-1}
+                               + 0.20 A_{t-1} + 0.01 t
+      E(L1_t)          =  0.02 + 0.50 V + 0.18 A_t + 0.35 L1_{t-1} + 0.02 t
+                         (Gaussian, SD 0.70)
+      logit P(L2_t = 1)= -0.10 + 0.40 V + 0.18 A_t + 0.35 L2_{t-1} + 0.02 t
+      E(M_t)           =  0.05 + 0.50 V + 0.45 A_t + 0.12 L1_t + 0.10 L2_t
+                               + 0.30 M_{t-1} + 0.02 t   (Gaussian, SD 0.50)
+      logit(pi)        = -2.60 + 0.50 V + 0.51 A_4 + 0.45 M_4
+                               + 0.25 L1_4 - 0.25 L2_4 + 0.30 A_4 M_4
+
+Both outcomes share that same \\\pi\\: `Y_bin` is
+\\\mathrm{Bernoulli}(\pi)\\ and `Y_cont` is \\\mathrm{Beta}(50\pi,\\
+50(1-\pi))\\. `Y_cont` therefore lies strictly in \\(0, 1)\\; fitting it
+with `var_type = "normal"` is a working approximation, not the
+generating distribution.
+
+The confounders \\L1\\ and \\L2\\ depend on current exposure, so
+exposure-affected confounding of the mediator-outcome relationship is
+present – the setting the interventional effects are designed for.
+
+**Large-sample true values** (risk differences, computed under the same
+permuted-pool construction the package uses for `mediation_type = "I"`,
+at 200,000 subjects):
+
+|                                                  |       |
+|--------------------------------------------------|-------|
+| Interventional direct effect (IDE)               | 0.075 |
+| Interventional indirect effect (IIE)             | 0.071 |
+| Total effect (TE)                                | 0.155 |
+| Mediated-interaction residual (TE \\-\\ overall) | 0.009 |
+
+The two pathways are deliberately of comparable size, and the residual
+is deliberately non-zero, so that the decomposition and its
+non-additivity are both visible in a worked example.
 
 Two consequences for model specification:
 

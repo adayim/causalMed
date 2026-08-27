@@ -163,20 +163,20 @@ assumed data-generating process.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Risk (mean outcome) under each strategy</span></span>
 <span><span class="va">fit_bin</span><span class="op">$</span><span class="va">effect_size</span></span>
-<span><span class="co">#&gt;    Intervention        Est</span></span>
-<span><span class="co">#&gt;          &lt;fctr&gt;      &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:      natural 0.14127646</span></span>
-<span><span class="co">#&gt; 2: always_treat 0.15108576</span></span>
-<span><span class="co">#&gt; 3:  never_treat 0.08564992</span></span>
+<span><span class="co">#&gt;    Intervention       Est</span></span>
+<span><span class="co">#&gt;          &lt;fctr&gt;     &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1:      natural 0.2349247</span></span>
+<span><span class="co">#&gt; 2: always_treat 0.2522388</span></span>
+<span><span class="co">#&gt; 3:  never_treat 0.1066566</span></span>
 <span></span>
 <span><span class="co"># Contrasts vs the reference (natural course)</span></span>
 <span><span class="va">fit_bin</span><span class="op">$</span><span class="va">estimate</span></span>
-<span><span class="co">#&gt;              Intervention  Risk_type     Estimate</span></span>
-<span><span class="co">#&gt;                    &lt;char&gt;     &lt;char&gt;        &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1: always_treat - natural Difference  0.009809296</span></span>
-<span><span class="co">#&gt; 2: always_treat / natural      Ratio  1.069433333</span></span>
-<span><span class="co">#&gt; 3:  never_treat - natural Difference -0.055626547</span></span>
-<span><span class="co">#&gt; 4:  never_treat / natural      Ratio  0.606257502</span></span></code></pre></div>
+<span><span class="co">#&gt;              Intervention  Risk_type    Estimate</span></span>
+<span><span class="co">#&gt;                    &lt;char&gt;     &lt;char&gt;       &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1: always_treat - natural Difference  0.01731407</span></span>
+<span><span class="co">#&gt; 2: always_treat / natural      Ratio  1.07370051</span></span>
+<span><span class="co">#&gt; 3:  never_treat - natural Difference -0.12826810</span></span>
+<span><span class="co">#&gt; 4:  never_treat / natural      Ratio  0.45400334</span></span></code></pre></div>
 <p>The <code>effect_size</code> table gives the estimated mean outcome
 under each intervention. The <code>estimate</code> table gives contrasts
 (risk difference and risk ratio) against the reference intervention.</p>
@@ -225,16 +225,16 @@ subject may be present (see <code><a href="../reference/survivaldata.html">?surv
 <span><span class="va">fit_surv</span><span class="op">$</span><span class="va">effect_size</span>   <span class="co"># Cumulative incidence by strategy</span></span>
 <span><span class="co">#&gt;    Intervention       Est</span></span>
 <span><span class="co">#&gt;          &lt;fctr&gt;     &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:      natural 0.9346531</span></span>
-<span><span class="co">#&gt; 2:        never 0.8372602</span></span>
-<span><span class="co">#&gt; 3:       always 0.9752552</span></span>
+<span><span class="co">#&gt; 1:      natural 0.6453720</span></span>
+<span><span class="co">#&gt; 2:        never 0.4012772</span></span>
+<span><span class="co">#&gt; 3:       always 0.7868445</span></span>
 <span><span class="va">fit_surv</span><span class="op">$</span><span class="va">estimate</span>      <span class="co"># Risk contrasts</span></span>
-<span><span class="co">#&gt;        Intervention  Risk_type    Estimate</span></span>
-<span><span class="co">#&gt;              &lt;char&gt;     &lt;char&gt;       &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:  never - natural Difference -0.09739292</span></span>
-<span><span class="co">#&gt; 2:  never / natural      Ratio  0.89579779</span></span>
-<span><span class="co">#&gt; 3: always - natural Difference  0.04060216</span></span>
-<span><span class="co">#&gt; 4: always / natural      Ratio  1.04344089</span></span></code></pre></div>
+<span><span class="co">#&gt;        Intervention  Risk_type   Estimate</span></span>
+<span><span class="co">#&gt;              &lt;char&gt;     &lt;char&gt;      &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1:  never - natural Difference -0.2440949</span></span>
+<span><span class="co">#&gt; 2:  never / natural      Ratio  0.6217765</span></span>
+<span><span class="co">#&gt; 3: always - natural Difference  0.1414724</span></span>
+<span><span class="co">#&gt; 4: always / natural      Ratio  1.2192106</span></span></code></pre></div>
 <hr>
 </div>
 <div class="section level2">
@@ -276,13 +276,13 @@ covariates:</p>
 <span><span class="va">fit_dyn</span><span class="op">$</span><span class="va">effect_size</span></span>
 <span><span class="co">#&gt;            Intervention       Est</span></span>
 <span><span class="co">#&gt;                  &lt;fctr&gt;     &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:              natural 0.1412765</span></span>
-<span><span class="co">#&gt; 2: treat_if_prev_L1_pos 0.1293880</span></span>
+<span><span class="co">#&gt; 1:              natural 0.2349247</span></span>
+<span><span class="co">#&gt; 2: treat_if_prev_L1_pos 0.2223531</span></span>
 <span><span class="va">fit_dyn</span><span class="op">$</span><span class="va">estimate</span></span>
 <span><span class="co">#&gt;                      Intervention  Risk_type    Estimate</span></span>
 <span><span class="co">#&gt;                            &lt;char&gt;     &lt;char&gt;       &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1: treat_if_prev_L1_pos - natural Difference -0.01188842</span></span>
-<span><span class="co">#&gt; 2: treat_if_prev_L1_pos / natural      Ratio  0.91584993</span></span></code></pre></div>
+<span><span class="co">#&gt; 1: treat_if_prev_L1_pos - natural Difference -0.01257164</span></span>
+<span><span class="co">#&gt; 2: treat_if_prev_L1_pos / natural      Ratio  0.94648651</span></span></code></pre></div>
 <p>Compound rules are fine too — any expression over in-scope columns
 works, e.g.
 <code>dyn_int(as.numeric(A &gt; 0 &amp; lag1_L1 &gt; median(lag1_L1)))</code>,
@@ -470,29 +470,29 @@ correlation structure.</p>
 <span><span class="va">fit_boot</span><span class="op">$</span><span class="va">effect_size</span></span>
 <span><span class="co">#&gt;    Intervention       Est          Sd perct_lcl perct_ucl  norm_lcl  norm_ucl</span></span>
 <span><span class="co">#&gt;          &lt;fctr&gt;     &lt;num&gt;       &lt;num&gt;     &lt;num&gt;     &lt;num&gt;     &lt;num&gt;     &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:      natural 0.1412765 0.006496919 0.1291990 0.1545634 0.1285427 0.1540102</span></span>
-<span><span class="co">#&gt; 2:       always 0.1510858 0.007331636 0.1375332 0.1664306 0.1367160 0.1654555</span></span>
+<span><span class="co">#&gt; 1:      natural 0.2349247 0.007879589 0.2182889 0.2468377 0.2194810 0.2503684</span></span>
+<span><span class="co">#&gt; 2:       always 0.2522388 0.008566108 0.2358453 0.2669507 0.2354495 0.2690280</span></span>
 <span><span class="va">fit_boot</span><span class="op">$</span><span class="va">estimate</span></span>
-<span><span class="co">#&gt;        Intervention  Risk_type    Estimate         Sd   perct_lcl  perct_ucl</span></span>
-<span><span class="co">#&gt;              &lt;char&gt;     &lt;char&gt;       &lt;num&gt;      &lt;num&gt;       &lt;num&gt;      &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1: always - natural Difference 0.009809296 0.00241638 0.005206897 0.01471026</span></span>
-<span><span class="co">#&gt; 2: always / natural      Ratio 1.069433333 0.01687404 1.038802128 1.10266501</span></span>
-<span><span class="co">#&gt;       norm_lcl   norm_ucl</span></span>
-<span><span class="co">#&gt;          &lt;num&gt;      &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1: 0.005073278 0.01454531</span></span>
-<span><span class="co">#&gt; 2: 1.036360814 1.10250585</span></span>
+<span><span class="co">#&gt;        Intervention  Risk_type   Estimate          Sd  perct_lcl perct_ucl</span></span>
+<span><span class="co">#&gt;              &lt;char&gt;     &lt;char&gt;      &lt;num&gt;       &lt;num&gt;      &lt;num&gt;     &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1: always - natural Difference 0.01731407 0.002329456 0.01294381 0.0224198</span></span>
+<span><span class="co">#&gt; 2: always / natural      Ratio 1.07370051 0.009868665 1.05635827 1.0949960</span></span>
+<span><span class="co">#&gt;      norm_lcl   norm_ucl</span></span>
+<span><span class="co">#&gt;         &lt;num&gt;      &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1: 0.01274842 0.02187972</span></span>
+<span><span class="co">#&gt; 2: 1.05435829 1.09304274</span></span>
 <span></span>
 <span><span class="co"># the individual per-replicate draws are retained in boot_estimates</span></span>
 <span><span class="co"># ($interventions and $contrasts), for custom intervals or diagnostics</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">fit_boot</span><span class="op">$</span><span class="va">boot_estimates</span><span class="op">$</span><span class="va">interventions</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    replicate Intervention       Est</span></span>
 <span><span class="co">#&gt;        &lt;int&gt;       &lt;fctr&gt;     &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:         1      natural 0.1349245</span></span>
-<span><span class="co">#&gt; 2:         1       always 0.1442259</span></span>
-<span><span class="co">#&gt; 3:         2      natural 0.1458343</span></span>
-<span><span class="co">#&gt; 4:         2       always 0.1533338</span></span>
-<span><span class="co">#&gt; 5:         3      natural 0.1380202</span></span>
-<span><span class="co">#&gt; 6:         3       always 0.1503631</span></span></code></pre></div>
+<span><span class="co">#&gt; 1:         1      natural 0.2373405</span></span>
+<span><span class="co">#&gt; 2:         1       always 0.2543564</span></span>
+<span><span class="co">#&gt; 3:         2      natural 0.2299337</span></span>
+<span><span class="co">#&gt; 4:         2       always 0.2511462</span></span>
+<span><span class="co">#&gt; 5:         3      natural 0.2310667</span></span>
+<span><span class="co">#&gt; 6:         3       always 0.2498870</span></span></code></pre></div>
 <p>Like the GvHD example, the bootstrap here runs for real at precompute
 time; on CRAN and CI the shipped vignette carries this captured output
 without re-running 200 replicates. Enable parallel bootstrap by
@@ -535,7 +535,7 @@ objects and their coefficients:</p>
 <span><span class="co"># Access a specific model's coefficients</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit_full</span><span class="op">$</span><span class="va">fitted_models</span><span class="op">$</span><span class="va">A</span><span class="op">)</span></span>
 <span><span class="co">#&gt; (Intercept)           V      lag1_A     lag1_L1     lag1_L2        time </span></span>
-<span><span class="co">#&gt;  0.82203265  0.82909389  0.17682472  0.19891771  0.24379756  0.03807842</span></span></code></pre></div>
+<span><span class="co">#&gt;  1.29379895  0.53935295  0.17102958  0.20813430  0.25822156  0.01266473</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="retrieving-the-simulated-data">Retrieving the simulated data<a class="anchor" aria-label="anchor" href="#retrieving-the-simulated-data"></a>

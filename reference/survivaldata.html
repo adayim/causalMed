@@ -56,9 +56,9 @@ g-formula and mediation functions under survival settings.</p>
 
     <div class="section level2">
     <h2 id="format">Format<a class="anchor" aria-label="anchor" href="#format"></a></h2>
-    <p>A data frame with 7113 rows and 10 variables, in long at-risk format
-  (one row per subject per time point while still at risk; 3000 subjects,
-  2799 events, no missing values):</p><dl><dt>id</dt>
+    <p>A data frame with 10,223 rows and 11 variables, in long at-risk
+  format (one row per subject per time point while still at risk; 3000
+  subjects, 1822 events, 283 censored, no missing values):</p><dl><dt>id</dt>
 <dd><p>Unique subject identifier (1-3000).</p></dd>
 
   <dt>time</dt>
@@ -74,11 +74,16 @@ g-formula and mediation functions under survival settings.</p>
 <dd><p>Time-varying binary exposure.</p></dd>
 
   <dt>M</dt>
-<dd><p>Time-varying mediator (continuous).</p></dd>
+<dd><p>Time-varying binary mediator.</p></dd>
 
   <dt>Y</dt>
 <dd><p>Event indicator at this time point (1 = event, 0 = still at
-    risk). There is no censoring in this dataset.</p></dd>
+    risk).</p></dd>
+
+  <dt>C</dt>
+<dd><p>Loss-to-follow-up indicator at this time point (1 = censored).
+    Censoring is drawn only among subjects who did not have the event at
+    that time, so <code>Y</code> and <code>C</code> are never both 1.</p></dd>
 
   <dt>lag1_A</dt>
 <dd><p>Exposure at the previous time point; 0 at <code>time == 0</code>.</p></dd>
@@ -93,7 +98,7 @@ g-formula and mediation functions under survival settings.</p>
 </dl></div>
     <div class="section level2">
     <h2 id="source">Source<a class="anchor" aria-label="anchor" href="#source"></a></h2>
-    <p>Simulated data generated for package examples.</p>
+    <p>Simulated from the parametric process given under Details.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -104,9 +109,36 @@ L_t \leftarrow V, A_t, L_{t-1}, t;\quad
 M_t \leftarrow V, A_t, L_t, M_{t-1}, t;\quad
 Y_t \leftarrow V, A_t, M_t, L_t, A_t*M_t, t.
 $$</p>
-<p>Events and follow-up observations are generated only while subjects remain at
-risk. Therefore, once <code>Y</code> becomes 1 at time \(t\), no observations are
-retained for that subject at subsequent time points \(t+1, t+2, \ldots\).</p>
+<p>The generating parameters are, with \(V \sim N(0, 1)\) and all lagged terms
+set to zero at \(t = 0\):</p>
+<div class="sourceCode"><pre><code>
+  logit P(A_t = 1) = -0.40 + 0.60 V + 0.40 L_{t-1} + 0.58 A_{t-1} + 0.05 t
+  E(L_t)           =  0.50 + 0.60 V + 0.30 A_t + 0.20 L_{t-1} + 0.05 t
+                      (Gaussian, SD 0.10)
+  logit P(M_t = 1) = -0.95 + 0.50 V + 1.50 A_t + 0.40 L_t
+                           + 0.20 M_{t-1} + 0.05 t
+  logit P(Y_t = 1) = -3.40 - 0.50 V + 0.25 A_t + 1.70 M_t + 0.30 L_t
+                           + 0.50 A_t M_t
+  logit P(C_t = 1) = -3.80 + 0.30 V + 0.30 L_t + 0.10 t
+</code></pre></div>
+
+<p>The hazard carries no time trend. The confounder \(L\) depends on current
+exposure, so exposure-affected confounding of the mediator-outcome
+relationship is present.</p>
+<p><strong>Large-sample true values</strong> (cumulative risk by the fifth period,
+computed under the same permuted-pool construction the package uses for
+<code>mediation_type = "I"</code>, at 200,000 subjects):</p>
+<table class="table table"><tr><td>Risk under no exposure</td><td>0.39</td></tr><tr><td>Risk under exposure</td><td>0.79</td></tr><tr><td>Interventional direct effect (IDE)</td><td>0.194</td></tr><tr><td>Interventional indirect effect (IIE)</td><td>0.191</td></tr><tr><td>Total effect (TE)</td><td>0.400</td></tr><tr><td>Mediated-interaction residual (TE \(-\) overall)</td><td>0.015</td></tr></table><p>Follow-up stops at the event or at loss to follow-up, whichever comes
+first, so no rows are retained for a subject after either. Of the 3000
+subjects, 1822 have the event, 283 are censored and the remaining 895 reach
+the end of the fifth period.</p>
+<p>Censoring depends on \(V\) and on the current confounder \(L\), so it is
+informative given the observed history and a censoring model is required for
+valid estimation: pass one as a <code>mod_type = "censor"</code> entry in
+<code>models</code>. Because censoring is independent of the counterfactual event
+process given that history, the target estimand – risk with censoring
+eliminated – is unchanged by its presence, so the true values below are the
+same as they would be without it.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

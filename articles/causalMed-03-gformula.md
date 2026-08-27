@@ -102,20 +102,20 @@ fit_bin <- gformula(
 
 # Risk (mean outcome) under each strategy
 fit_bin$effect_size
-#>    Intervention        Est
-#>          <fctr>      <num>
-#> 1:      natural 0.14127646
-#> 2: always_treat 0.15108576
-#> 3:  never_treat 0.08564992
+#>    Intervention       Est
+#>          <fctr>     <num>
+#> 1:      natural 0.2349247
+#> 2: always_treat 0.2522388
+#> 3:  never_treat 0.1066566
 
 # Contrasts vs the reference (natural course)
 fit_bin$estimate
-#>              Intervention  Risk_type     Estimate
-#>                    <char>     <char>        <num>
-#> 1: always_treat - natural Difference  0.009809296
-#> 2: always_treat / natural      Ratio  1.069433333
-#> 3:  never_treat - natural Difference -0.055626547
-#> 4:  never_treat / natural      Ratio  0.606257502
+#>              Intervention  Risk_type    Estimate
+#>                    <char>     <char>       <num>
+#> 1: always_treat - natural Difference  0.01731407
+#> 2: always_treat / natural      Ratio  1.07370051
+#> 3:  never_treat - natural Difference -0.12826810
+#> 4:  never_treat / natural      Ratio  0.45400334
 ```
 
 The `effect_size` table gives the estimated mean outcome under each
@@ -167,16 +167,16 @@ fit_surv <- gformula(
 fit_surv$effect_size   # Cumulative incidence by strategy
 #>    Intervention       Est
 #>          <fctr>     <num>
-#> 1:      natural 0.9346531
-#> 2:        never 0.8372602
-#> 3:       always 0.9752552
+#> 1:      natural 0.6453720
+#> 2:        never 0.4012772
+#> 3:       always 0.7868445
 fit_surv$estimate      # Risk contrasts
-#>        Intervention  Risk_type    Estimate
-#>              <char>     <char>       <num>
-#> 1:  never - natural Difference -0.09739292
-#> 2:  never / natural      Ratio  0.89579779
-#> 3: always - natural Difference  0.04060216
-#> 4: always / natural      Ratio  1.04344089
+#>        Intervention  Risk_type   Estimate
+#>              <char>     <char>      <num>
+#> 1:  never - natural Difference -0.2440949
+#> 2:  never / natural      Ratio  0.6217765
+#> 3: always - natural Difference  0.1414724
+#> 4: always / natural      Ratio  1.2192106
 ```
 
 ------------------------------------------------------------------------
@@ -222,13 +222,13 @@ fit_dyn <- gformula(
 fit_dyn$effect_size
 #>            Intervention       Est
 #>                  <fctr>     <num>
-#> 1:              natural 0.1412765
-#> 2: treat_if_prev_L1_pos 0.1293880
+#> 1:              natural 0.2349247
+#> 2: treat_if_prev_L1_pos 0.2223531
 fit_dyn$estimate
 #>                      Intervention  Risk_type    Estimate
 #>                            <char>     <char>       <num>
-#> 1: treat_if_prev_L1_pos - natural Difference -0.01188842
-#> 2: treat_if_prev_L1_pos / natural      Ratio  0.91584993
+#> 1: treat_if_prev_L1_pos - natural Difference -0.01257164
+#> 2: treat_if_prev_L1_pos / natural      Ratio  0.94648651
 ```
 
 Compound rules are fine too — any expression over in-scope columns
@@ -425,29 +425,29 @@ fit_boot <- gformula(
 fit_boot$effect_size
 #>    Intervention       Est          Sd perct_lcl perct_ucl  norm_lcl  norm_ucl
 #>          <fctr>     <num>       <num>     <num>     <num>     <num>     <num>
-#> 1:      natural 0.1412765 0.006496919 0.1291990 0.1545634 0.1285427 0.1540102
-#> 2:       always 0.1510858 0.007331636 0.1375332 0.1664306 0.1367160 0.1654555
+#> 1:      natural 0.2349247 0.007879589 0.2182889 0.2468377 0.2194810 0.2503684
+#> 2:       always 0.2522388 0.008566108 0.2358453 0.2669507 0.2354495 0.2690280
 fit_boot$estimate
-#>        Intervention  Risk_type    Estimate         Sd   perct_lcl  perct_ucl
-#>              <char>     <char>       <num>      <num>       <num>      <num>
-#> 1: always - natural Difference 0.009809296 0.00241638 0.005206897 0.01471026
-#> 2: always / natural      Ratio 1.069433333 0.01687404 1.038802128 1.10266501
-#>       norm_lcl   norm_ucl
-#>          <num>      <num>
-#> 1: 0.005073278 0.01454531
-#> 2: 1.036360814 1.10250585
+#>        Intervention  Risk_type   Estimate          Sd  perct_lcl perct_ucl
+#>              <char>     <char>      <num>       <num>      <num>     <num>
+#> 1: always - natural Difference 0.01731407 0.002329456 0.01294381 0.0224198
+#> 2: always / natural      Ratio 1.07370051 0.009868665 1.05635827 1.0949960
+#>      norm_lcl   norm_ucl
+#>         <num>      <num>
+#> 1: 0.01274842 0.02187972
+#> 2: 1.05435829 1.09304274
 
 # the individual per-replicate draws are retained in boot_estimates
 # ($interventions and $contrasts), for custom intervals or diagnostics
 head(fit_boot$boot_estimates$interventions)
 #>    replicate Intervention       Est
 #>        <int>       <fctr>     <num>
-#> 1:         1      natural 0.1349245
-#> 2:         1       always 0.1442259
-#> 3:         2      natural 0.1458343
-#> 4:         2       always 0.1533338
-#> 5:         3      natural 0.1380202
-#> 6:         3       always 0.1503631
+#> 1:         1      natural 0.2373405
+#> 2:         1       always 0.2543564
+#> 3:         2      natural 0.2299337
+#> 4:         2       always 0.2511462
+#> 5:         3      natural 0.2310667
+#> 6:         3       always 0.2498870
 ```
 
 Like the GvHD example, the bootstrap here runs for real at precompute
@@ -494,7 +494,7 @@ names(fit_full$fitted_models)
 # Access a specific model's coefficients
 coef(fit_full$fitted_models$A)
 #> (Intercept)           V      lag1_A     lag1_L1     lag1_L2        time 
-#>  0.82203265  0.82909389  0.17682472  0.19891771  0.24379756  0.03807842
+#>  1.29379895  0.53935295  0.17102958  0.20813430  0.25822156  0.01266473
 ```
 
 ### Retrieving the simulated data

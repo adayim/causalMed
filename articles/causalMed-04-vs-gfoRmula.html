@@ -478,11 +478,11 @@ process.</p>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">fit_cm</span><span class="op">$</span><span class="va">effect_size</span></span>
-<span><span class="co">#&gt;    Intervention        Est</span></span>
-<span><span class="co">#&gt;          &lt;fctr&gt;      &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:      natural 0.14062380</span></span>
-<span><span class="co">#&gt; 2:       always 0.15087156</span></span>
-<span><span class="co">#&gt; 3:        never 0.08641565</span></span></code></pre></div>
+<span><span class="co">#&gt;    Intervention       Est</span></span>
+<span><span class="co">#&gt;          &lt;fctr&gt;     &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1:      natural 0.2345816</span></span>
+<span><span class="co">#&gt; 2:       always 0.2550366</span></span>
+<span><span class="co">#&gt; 3:        never 0.1029334</span></span></code></pre></div>
 <p><strong>gfoRmula</strong></p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/message.html" class="external-link">suppressPackageStartupMessages</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"gfoRmula"</span><span class="op">)</span><span class="op">)</span></span>
@@ -515,9 +515,9 @@ process.</p>
 <span><span class="va">fit_gf</span><span class="op">$</span><span class="va">result</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"k"</span>, <span class="st">"g-form mean"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt;        k g-form mean</span></span>
 <span><span class="co">#&gt;    &lt;num&gt;       &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:     4  0.14107172</span></span>
-<span><span class="co">#&gt; 2:     4  0.15071907</span></span>
-<span><span class="co">#&gt; 3:     4  0.08655451</span></span></code></pre></div>
+<span><span class="co">#&gt; 1:     4   0.2365039</span></span>
+<span><span class="co">#&gt; 2:     4   0.2562084</span></span>
+<span><span class="co">#&gt; 3:     4   0.1047391</span></span></code></pre></div>
 <p><strong>Side-by-side at final time point</strong></p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">gf_res</span> <span class="op">&lt;-</span> <span class="va">fit_gf</span><span class="op">$</span><span class="va">result</span><span class="op">[</span><span class="va">k</span> <span class="op">==</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">fit_gf</span><span class="op">$</span><span class="va">result</span><span class="op">$</span><span class="va">k</span><span class="op">)</span>,</span>
@@ -531,9 +531,9 @@ process.</p>
 <span><span class="co">#&gt; Key: &lt;Intervention&gt;</span></span>
 <span><span class="co">#&gt;    Intervention causalMed Interv. gfoRmula</span></span>
 <span><span class="co">#&gt;          &lt;char&gt;     &lt;num&gt;   &lt;num&gt;    &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:       always    0.1509       1   0.1507</span></span>
-<span><span class="co">#&gt; 2:      natural    0.1406       0   0.1411</span></span>
-<span><span class="co">#&gt; 3:        never    0.0864       2   0.0866</span></span></code></pre></div>
+<span><span class="co">#&gt; 1:       always    0.2550       1   0.2562</span></span>
+<span><span class="co">#&gt; 2:      natural    0.2346       0   0.2365</span></span>
+<span><span class="co">#&gt; 3:        never    0.1029       2   0.1047</span></span></code></pre></div>
 <hr>
 </div>
 <div class="section level3">
@@ -574,9 +574,9 @@ process.</p>
 <span><span class="va">fit_cm_s</span><span class="op">$</span><span class="va">effect_size</span></span>
 <span><span class="co">#&gt;    Intervention       Est</span></span>
 <span><span class="co">#&gt;          &lt;fctr&gt;     &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:      natural 0.9340304</span></span>
-<span><span class="co">#&gt; 2:        never 0.8538016</span></span>
-<span><span class="co">#&gt; 3:       always 0.9702749</span></span></code></pre></div>
+<span><span class="co">#&gt; 1:      natural 0.6457796</span></span>
+<span><span class="co">#&gt; 2:        never 0.4036755</span></span>
+<span><span class="co">#&gt; 3:       always 0.7849632</span></span></code></pre></div>
 <p><strong>gfoRmula</strong></p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">T_max</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">dat_s</span><span class="op">$</span><span class="va">time</span><span class="op">)</span><span class="op">)</span></span>
@@ -609,9 +609,9 @@ process.</p>
 <span><span class="va">fit_gf_s</span><span class="op">$</span><span class="va">result</span><span class="op">[</span><span class="va">k</span> <span class="op">==</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">fit_gf_s</span><span class="op">$</span><span class="va">result</span><span class="op">$</span><span class="va">k</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Interv."</span>, <span class="st">"g-form risk"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt;    Interv. g-form risk</span></span>
 <span><span class="co">#&gt;      &lt;num&gt;       &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:       0   0.9090761</span></span>
-<span><span class="co">#&gt; 2:       1   0.8541680</span></span>
-<span><span class="co">#&gt; 3:       2   0.9703732</span></span></code></pre></div>
+<span><span class="co">#&gt; 1:       0   0.5671898</span></span>
+<span><span class="co">#&gt; 2:       1   0.4036602</span></span>
+<span><span class="co">#&gt; 3:       2   0.7849508</span></span></code></pre></div>
 <p><strong>Side-by-side at final time point</strong></p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">gf_s_res</span> <span class="op">&lt;-</span> <span class="va">fit_gf_s</span><span class="op">$</span><span class="va">result</span><span class="op">[</span><span class="va">k</span> <span class="op">==</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">fit_gf_s</span><span class="op">$</span><span class="va">result</span><span class="op">$</span><span class="va">k</span><span class="op">)</span>,</span>
@@ -626,9 +626,9 @@ process.</p>
 <span><span class="co">#&gt; Key: &lt;Intervention&gt;</span></span>
 <span><span class="co">#&gt;    Intervention causalMed Interv. gfoRmula</span></span>
 <span><span class="co">#&gt;          &lt;char&gt;     &lt;num&gt;   &lt;num&gt;    &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:       always    0.9703       2   0.9704</span></span>
-<span><span class="co">#&gt; 2:      natural    0.9340       0   0.9091</span></span>
-<span><span class="co">#&gt; 3:        never    0.8538       1   0.8542</span></span></code></pre></div>
+<span><span class="co">#&gt; 1:       always    0.7850       2   0.7850</span></span>
+<span><span class="co">#&gt; 2:      natural    0.6458       0   0.5672</span></span>
+<span><span class="co">#&gt; 3:        never    0.4037       1   0.4037</span></span></code></pre></div>
 <hr>
 </div>
 <div class="section level3">
@@ -661,13 +661,13 @@ each time step:</p>
 <span><span class="va">fit_dyn</span><span class="op">$</span><span class="va">effect_size</span></span>
 <span><span class="co">#&gt;       Intervention       Est</span></span>
 <span><span class="co">#&gt;             &lt;fctr&gt;     &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:         natural 0.1414215</span></span>
-<span><span class="co">#&gt; 2: treat_if_L1_pos 0.1324326</span></span>
+<span><span class="co">#&gt; 1:         natural 0.2348336</span></span>
+<span><span class="co">#&gt; 2: treat_if_L1_pos 0.2303614</span></span>
 <span><span class="va">fit_dyn</span><span class="op">$</span><span class="va">estimate</span></span>
-<span><span class="co">#&gt;                 Intervention  Risk_type    Estimate</span></span>
-<span><span class="co">#&gt;                       &lt;char&gt;     &lt;char&gt;       &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1: treat_if_L1_pos - natural Difference -0.00898884</span></span>
-<span><span class="co">#&gt; 2: treat_if_L1_pos / natural      Ratio  0.93643936</span></span></code></pre></div>
+<span><span class="co">#&gt;                 Intervention  Risk_type     Estimate</span></span>
+<span><span class="co">#&gt;                       &lt;char&gt;     &lt;char&gt;        &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1: treat_if_L1_pos - natural Difference -0.004472208</span></span>
+<span><span class="co">#&gt; 2: treat_if_L1_pos / natural      Ratio  0.980955847</span></span></code></pre></div>
 <p><strong>gfoRmula</strong> — user-supplied function passed as an
 argument:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
@@ -740,8 +740,8 @@ divergence.</p>
 <span>  Difference   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">cm_vals</span> <span class="op">-</span> <span class="va">gf_vals</span><span class="op">)</span>, <span class="fl">5</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt;   Intervention causalMed gfoRmula Difference</span></span>
-<span><span class="co">#&gt; 1      natural   0.14120  0.14120      0e+00</span></span>
-<span><span class="co">#&gt; 2       always   0.15073  0.15072      1e-05</span></span></code></pre></div>
+<span><span class="co">#&gt; 1      natural   0.23445  0.23507    0.00062</span></span>
+<span><span class="co">#&gt; 2       always   0.25441  0.25448    0.00007</span></span></code></pre></div>
 <p>On this example the differences are within 0.0001. The package’s test
 suite runs the same comparison against <code>gfoRmula</code> on a binary
 end-of-follow-up outcome, a survival outcome and a dynamic intervention,
@@ -791,7 +791,7 @@ survival outcomes. <em>Journal of Causal Inference</em>, 5(2).</p></li>
 <span><span class="co">#&gt; [1] stats     graphics  grDevices utils     datasets  methods   base     </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; other attached packages:</span></span>
-<span><span class="co">#&gt; [1] data.table_1.18.4 causalMed_0.1.0  </span></span>
+<span><span class="co">#&gt; [1] data.table_1.18.6.1 causalMed_0.1.0    </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; loaded via a namespace (and not attached):</span></span>
 <span><span class="co">#&gt;  [1] future.apply_1.20.2 gtable_0.3.6        jsonlite_2.0.0     </span></span>

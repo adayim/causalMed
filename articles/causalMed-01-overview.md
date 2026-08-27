@@ -57,30 +57,28 @@ point.
 
 data("nonsurvivaldata")
 head(nonsurvivaldata, 10)
-#>        id  time         V           L1    L2     A           M    Y_cont Y_bin
-#>     <num> <num>     <num>        <num> <num> <num>       <num>     <num> <num>
-#>  1:     1     0 0.5218287  0.552784243     0     1 -0.21967591        NA    NA
-#>  2:     1     1 0.5218287 -0.175805742     1     1  0.47192720        NA    NA
-#>  3:     1     2 0.5218287  0.590332001     0     1 -0.22377223        NA    NA
-#>  4:     1     3 0.5218287  1.317409776     0     1  0.38782689        NA    NA
-#>  5:     1     4 0.5218287  0.797477545     0     1 -0.41632904 0.1348551     0
-#>  6:     2     0 0.4066671  0.549200095     1     1  1.05809977        NA    NA
-#>  7:     2     1 0.4066671  0.427872915     1     1 -0.07225413        NA    NA
-#>  8:     2     2 0.4066671  0.738161034     1     1  1.38211221        NA    NA
-#>  9:     2     3 0.4066671 -0.002468347     0     0 -0.30093080        NA    NA
-#> 10:     2     4 0.4066671  1.058167173     0     1  0.69489534 0.2214175     0
-#>     lag1_A      lag1_L1 lag1_L2      lag1_M
-#>      <num>        <num>   <num>       <num>
-#>  1:     NA           NA      NA          NA
-#>  2:      1  0.552784243       0 -0.21967591
-#>  3:      1 -0.175805742       1  0.47192720
-#>  4:      1  0.590332001       0 -0.22377223
-#>  5:      1  1.317409776       0  0.38782689
-#>  6:     NA           NA      NA          NA
-#>  7:      1  0.549200095       1  1.05809977
-#>  8:      1  0.427872915       1 -0.07225413
-#>  9:      1  0.738161034       1  1.38211221
-#> 10:      0 -0.002468347       0 -0.30093080
+#>    id time          V         L1 L2 A          M     Y_cont Y_bin lag1_A
+#> 1   1    0  0.4365731  0.7601565  0 1  0.3825810         NA    NA     NA
+#> 2   1    1  0.4365731  0.1041467  1 1  1.2635708         NA    NA      1
+#> 3   1    2  0.4365731  0.8956876  0 1  0.6277357         NA    NA      1
+#> 4   1    3  0.4365731  1.6316564  0 1  1.2583611         NA    NA      1
+#> 5   1    4  0.4365731  1.1148361  0 1  0.4602865 0.18880757     1      1
+#> 6   2    0 -1.8666578 -0.3374623  0 1  0.3350378         NA    NA     NA
+#> 7   2    1 -1.8666578 -0.7691214  0 1 -1.0494745         NA    NA      1
+#> 8   2    2 -1.8666578 -0.7474494  0 0 -0.1559896         NA    NA      1
+#> 9   2    3 -1.8666578 -1.4090944  1 0 -1.7178189         NA    NA      0
+#> 10  2    4 -1.8666578 -0.3208144  1 1 -0.3123113 0.03748698     0      0
+#>       lag1_L1 lag1_L2     lag1_M
+#> 1          NA      NA         NA
+#> 2   0.7601565       0  0.3825810
+#> 3   0.1041467       1  1.2635708
+#> 4   0.8956876       0  0.6277357
+#> 5   1.6316564       0  1.2583611
+#> 6          NA      NA         NA
+#> 7  -0.3374623       0  0.3350378
+#> 8  -0.7691214       0 -1.0494745
+#> 9  -0.7474494       0 -0.1559896
+#> 10 -1.4090944       1 -1.7178189
 ```
 
 The `nonsurvivaldata` dataset contains 3 000 subjects observed at five
@@ -305,18 +303,18 @@ fit_bin <- gformula(
 )
 
 fit_bin$effect_size   # mean outcome under each strategy
-#>    Intervention        Est
-#>          <fctr>      <num>
-#> 1:      natural 0.14127646
-#> 2: always_treat 0.15108576
-#> 3:  never_treat 0.08564992
+#>    Intervention       Est
+#>          <fctr>     <num>
+#> 1:      natural 0.2349247
+#> 2: always_treat 0.2522388
+#> 3:  never_treat 0.1066566
 fit_bin$estimate      # risk difference / ratio vs the natural course
-#>              Intervention  Risk_type     Estimate
-#>                    <char>     <char>        <num>
-#> 1: always_treat - natural Difference  0.009809296
-#> 2: always_treat / natural      Ratio  1.069433333
-#> 3:  never_treat - natural Difference -0.055626547
-#> 4:  never_treat / natural      Ratio  0.606257502
+#>              Intervention  Risk_type    Estimate
+#>                    <char>     <char>       <num>
+#> 1: always_treat - natural Difference  0.01731407
+#> 2: always_treat / natural      Ratio  1.07370051
+#> 3:  never_treat - natural Difference -0.12826810
+#> 4:  never_treat / natural      Ratio  0.45400334
 ```
 
 That is the whole workflow: models, interventions, one call. Survival
@@ -372,12 +370,12 @@ fit_ide <- mediation(
 fit_ide$estimate
 #>                                   Effect           RD       RR
 #>                                   <char>        <num>    <num>
-#> 1:                       Indirect effect 0.0061281325 1.042095
-#> 2:                         Direct effect 0.0607837461 1.716825
-#> 3:                          Total effect 0.0671865531 1.793071
-#> 4:              TE - (Direct + Indirect) 0.0002746745       NA
-#> 5:                  Mediation Proportion 9.5298935864       NA
-#> 6: Mediation Proportion (multiplicative) 9.1585121678       NA
+#> 1:                       Indirect effect  0.068268280 1.413236
+#> 2:                         Direct effect  0.087924817 2.137753
+#> 3:                          Total effect  0.161254808 2.678705
+#> 4:              TE - (Direct + Indirect)  0.005061711       NA
+#> 5:                  Mediation Proportion 45.474607398       NA
+#> 6: Mediation Proportion (multiplicative) 43.707616415       NA
 ```
 
 The `estimate` table is the decomposition: the direct effect, the

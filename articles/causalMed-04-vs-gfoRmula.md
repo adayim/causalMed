@@ -315,11 +315,11 @@ fit_cm <- causalMed::gformula(
 )
 
 fit_cm$effect_size
-#>    Intervention        Est
-#>          <fctr>      <num>
-#> 1:      natural 0.14062380
-#> 2:       always 0.15087156
-#> 3:        never 0.08641565
+#>    Intervention       Est
+#>          <fctr>     <num>
+#> 1:      natural 0.2345816
+#> 2:       always 0.2550366
+#> 3:        never 0.1029334
 ```
 
 **gfoRmula**
@@ -356,9 +356,9 @@ fit_gf <- gfoRmula::gformula(
 fit_gf$result[, c("k", "g-form mean")]
 #>        k g-form mean
 #>    <num>       <num>
-#> 1:     4  0.14107172
-#> 2:     4  0.15071907
-#> 3:     4  0.08655451
+#> 1:     4   0.2365039
+#> 2:     4   0.2562084
+#> 3:     4   0.1047391
 ```
 
 **Side-by-side at final time point**
@@ -376,9 +376,9 @@ merge(cm_res, gf_res, by = "Intervention")
 #> Key: <Intervention>
 #>    Intervention causalMed Interv. gfoRmula
 #>          <char>     <num>   <num>    <num>
-#> 1:       always    0.1509       1   0.1507
-#> 2:      natural    0.1406       0   0.1411
-#> 3:        never    0.0864       2   0.0866
+#> 1:       always    0.2550       1   0.2562
+#> 2:      natural    0.2346       0   0.2365
+#> 3:        never    0.1029       2   0.1047
 ```
 
 ------------------------------------------------------------------------
@@ -422,9 +422,9 @@ fit_cm_s <- causalMed::gformula(
 fit_cm_s$effect_size
 #>    Intervention       Est
 #>          <fctr>     <num>
-#> 1:      natural 0.9340304
-#> 2:        never 0.8538016
-#> 3:       always 0.9702749
+#> 1:      natural 0.6457796
+#> 2:        never 0.4036755
+#> 3:       always 0.7849632
 ```
 
 **gfoRmula**
@@ -461,9 +461,9 @@ fit_gf_s <- gfoRmula::gformula(
 fit_gf_s$result[k == max(fit_gf_s$result$k), c("Interv.", "g-form risk")]
 #>    Interv. g-form risk
 #>      <num>       <num>
-#> 1:       0   0.9090761
-#> 2:       1   0.8541680
-#> 3:       2   0.9703732
+#> 1:       0   0.5671898
+#> 2:       1   0.4036602
+#> 3:       2   0.7849508
 ```
 
 **Side-by-side at final time point**
@@ -482,9 +482,9 @@ merge(cm_s_res, gf_s_res, by = "Intervention")
 #> Key: <Intervention>
 #>    Intervention causalMed Interv. gfoRmula
 #>          <char>     <num>   <num>    <num>
-#> 1:       always    0.9703       2   0.9704
-#> 2:      natural    0.9340       0   0.9091
-#> 3:        never    0.8538       1   0.8542
+#> 1:       always    0.7850       2   0.7850
+#> 2:      natural    0.6458       0   0.5672
+#> 3:        never    0.4037       1   0.4037
 ```
 
 ------------------------------------------------------------------------
@@ -522,13 +522,13 @@ fit_dyn <- causalMed::gformula(
 fit_dyn$effect_size
 #>       Intervention       Est
 #>             <fctr>     <num>
-#> 1:         natural 0.1414215
-#> 2: treat_if_L1_pos 0.1324326
+#> 1:         natural 0.2348336
+#> 2: treat_if_L1_pos 0.2303614
 fit_dyn$estimate
-#>                 Intervention  Risk_type    Estimate
-#>                       <char>     <char>       <num>
-#> 1: treat_if_L1_pos - natural Difference -0.00898884
-#> 2: treat_if_L1_pos / natural      Ratio  0.93643936
+#>                 Intervention  Risk_type     Estimate
+#>                       <char>     <char>        <num>
+#> 1: treat_if_L1_pos - natural Difference -0.004472208
+#> 2: treat_if_L1_pos / natural      Ratio  0.980955847
 ```
 
 **gfoRmula** — user-supplied function passed as an argument:
@@ -606,8 +606,8 @@ data.frame(
   Difference   = round(abs(cm_vals - gf_vals), 5)
 )
 #>   Intervention causalMed gfoRmula Difference
-#> 1      natural   0.14120  0.14120      0e+00
-#> 2       always   0.15073  0.15072      1e-05
+#> 1      natural   0.23445  0.23507    0.00062
+#> 2       always   0.25441  0.25448    0.00007
 ```
 
 On this example the differences are within 0.0001. The package’s test
@@ -662,7 +662,7 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] data.table_1.18.4 causalMed_0.1.0  
+#> [1] data.table_1.18.6.1 causalMed_0.1.0    
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] future.apply_1.20.2 gtable_0.3.6        jsonlite_2.0.0     
