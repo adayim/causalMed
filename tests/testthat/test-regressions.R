@@ -862,7 +862,7 @@ testthat::test_that("documented dataset conventions hold", {
   testthat::expect_true(all(is.na(n$lag1_A[n$time == 0])))
 
   # ?survivaldata: at-risk format, no missing values, lags 0-filled at t = 0.
-  testthat::expect_equal(nrow(s), 7113L)
+  testthat::expect_equal(nrow(s), 10223L)
   testthat::expect_equal(length(unique(s$id)), 3000L)
   testthat::expect_false(anyNA(s))
   testthat::expect_true(all(s$lag1_A[s$time == 0] == 0))

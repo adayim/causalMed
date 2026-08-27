@@ -186,6 +186,7 @@ head(dat, 8)
 | `L` | Time-varying continuous confounder |
 | `M` | Time-varying binary mediator |
 | `Y` | Event indicator (1 = event in this period) |
+| `C` | Loss to follow-up in this period |
 | `lag1_A`, `lag1_L`, `lag1_M` | Previous-period values |
 
 The data-generating ordering within each period is **A → L → M → Y**
@@ -211,10 +212,23 @@ models_surv <- list(
              var_type = "normal", mod_type = "covariate"),
   spec_model(M ~ V + A + L + lag1_M + time,
              var_type = "binary", mod_type = "mediator"),
+  spec_model(C ~ V + L + time,
+             var_type = "binary", mod_type = "censor"),    # loss to follow-up
   spec_model(Y ~ V + A + M + L + A:M + time,
              var_type = "binary", mod_type = "survival")   # discrete-time hazard
 )
 ```
+
+About 9% of subjects are lost to follow-up in `survivaldata`, so a
+`mod_type = "censor"` model is declared above. It is worth being precise about
+what that does. Under an intervention the package sets the censoring indicator
+to zero and accumulates the hazard over the full follow-up, so the estimand is
+the risk that *would* be seen if loss to follow-up were eliminated. Declaring
+the censoring model does not, in the g-computation path, alter the
+intervention-specific risks: with censoring independent of the counterfactual
+event process given the modelled history, the component models are already
+fitted without bias on the at-risk rows. The declaration documents the censoring
+process and is used by the targeted estimator (`estimator = "tmle"`).
 
 ```{r fit-single}
 fit_surv <- mediation(

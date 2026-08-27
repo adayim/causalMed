@@ -50,7 +50,7 @@ The shared vocabulary — long-format data, `spec_model()`, the `var_type` /
 `vignette("causalMed-01-overview")` and not repeated here. For mediation
 (direct/indirect decomposition) see `vignette("causalMed-02-mediation")`.
 
-```{r load}
+```{r load, warning=FALSE}
 library(causalMed)
 library(data.table)
 ```
