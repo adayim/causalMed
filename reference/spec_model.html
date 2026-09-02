@@ -108,9 +108,17 @@ By default, values are simulated via:</p><ul><li><p><code>"binary"</code>: Berno
 
 <dt id="arg-mod-type">mod_type<a class="anchor" aria-label="anchor" href="#arg-mod-type"></a></dt>
 <dd><p>Character. The role of this model in the data-generating
-process: <code>"covariate"</code> (the default), <code>"exposure"</code>,
-<code>"mediator"</code>, <code>"outcome"</code>, <code>"censor"</code>, or
-<code>"survival"</code>.</p></dd>
+  process: <code>"covariate"</code> (the default), <code>"exposure"</code>,
+  <code>"mediator"</code>, <code>"outcome"</code>, <code>"censor"</code>, or
+  <code>"survival"</code>.</p>
+<p><code>"censor"</code> declares a discrete-time censoring process. Its role is
+  narrower than it looks: under every intervention the censoring indicator
+  is set to zero, so the target is the risk under eliminated loss to
+  follow-up, and with <code>estimator = "gcomp"</code> the censoring model does
+  not alter the intervention-specific risks. It is used in the
+  natural-course simulation of <code><a href="gformula.html">gformula</a></code> and in the targeted
+  estimator (<code>estimator = "tmle"</code>). Only <code>var_type = "binary"</code>
+  is accepted for <code>"censor"</code> and <code>"survival"</code>.</p></dd>
 
 
 <dt id="arg-custom-fit">custom_fit<a class="anchor" aria-label="anchor" href="#arg-custom-fit"></a></dt>

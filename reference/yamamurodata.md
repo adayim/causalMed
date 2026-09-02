@@ -88,16 +88,16 @@ process, making single-dataset estimates informative.
 computed from the data-generating process at \\n = 10^7\\; Monte Carlo
 SE in parentheses):
 
-|                                                  |                   |
-|--------------------------------------------------|-------------------|
-| Total effect (TE = \\E\[Y_1\] - E\[Y_0\]\\)      | \\-6.36\\ (0.011) |
-| Interventional direct effect (IDE)               | \\-3.20\\ (0.013) |
-| Interventional indirect effect via M1            | \\-2.29\\ (0.011) |
-| Interventional indirect effect via M2            | \\-0.97\\ (0.009) |
-| Mediated-interaction residual (TE \\-\\ overall) | \\0.10\\ (0.016)  |
+|                                             |                   |
+|---------------------------------------------|-------------------|
+| Total effect (TE = \\E\[Y_1\] - E\[Y_0\]\\) | \\-6.36\\ (0.011) |
+| Interventional direct effect (IDE)          | \\-3.20\\ (0.013) |
+| Interventional indirect effect via M1       | \\-2.29\\ (0.011) |
+| Interventional indirect effect via M2       | \\-0.97\\ (0.009) |
+| Decomposition residual (TE \\-\\ overall)   | \\0.10\\ (0.016)  |
 
-The mediated-interaction residual is non-zero because the reported total
-effect is a natural-course contrast while the direct and indirect
-effects are interventional; see the *Mediator pool* section of
+The decomposition residual is non-zero because the reported total effect
+is a natural-course contrast while the direct and indirect effects are
+interventional; see the *Mediator pool* section of
 [`mediation`](https://adayim.github.io/causalMed/reference/mediation.md)
 for how the mediator draws are constructed.

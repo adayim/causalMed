@@ -63,9 +63,9 @@
 <p><code>causalMed</code> implements the <strong>parametric g-formula</strong> for total effect estimation and extends it with the <strong>survival mediational g-formula</strong> to decompose causal effects into direct and indirect components. The package supports:</p>
 <ul>
 <li>
-<strong>Interventional direct and indirect effects</strong> (IDE/IIE) — Lin et al. (2017)</li>
+<strong>Interventional direct and indirect effects</strong> (IDE/IIE): Lin et al. (2017)</li>
 <li>
-<strong>Natural direct and indirect effects</strong> (NDE/NIE) — Zheng &amp; van der Laan (2017)</li>
+<strong>Natural direct and indirect effects</strong> (NDE/NIE): Zheng &amp; van der Laan (2017)</li>
 </ul>
 <p>Both approaches handle time-varying exposures, mediators, and confounders in longitudinal data, including survival outcomes. The standard g-formula component (total effect estimation) is cross-validated against the <code>gfoRmula</code> CRAN package.</p>
 <div class="section level2">
@@ -88,15 +88,15 @@
 <strong>Two mediation estimands</strong>:
 <ul>
 <li>
-<code>mediation_type = "I"</code>: interventional IDE/IIE (VanderWeele &amp; Tchetgen Tchetgen 2017; Lin et al. 2017; Yamamuro et al. 2021) — cross-world mediator drawn as a <strong>joint M(1:T) trajectory</strong> by row-permuting the reference (a*) cohort, matching the SAS <code>mGFORMULA</code> macro and the algorithm of Yamamuro et al. 2021. Does not require cross-world independence. <strong>Multiple mediator models</strong> are supported under this estimand (Yamamuro 2021 §4); per-mediator IIE(M_k) is reported alongside the overall IDE/TE. On what a non-zero interventional indirect effect does and does not establish, see Miles (2023).</li>
+<code>mediation_type = "I"</code>: interventional IDE/IIE (VanderWeele &amp; Tchetgen Tchetgen 2017; Lin et al. 2017; Yamamuro et al. 2021). The cross-world mediator is drawn as a <strong>joint M(1:T) trajectory</strong> by row-permuting the reference (a*) cohort, matching the SAS <code>mGFORMULA</code> macro and the algorithm of Yamamuro et al. 2021. Does not require cross-world independence. <strong>Multiple mediator models</strong> are supported under this estimand (Yamamuro 2021 §4); per-mediator IIE(M_k) is reported alongside the overall IDE/TE. On what a non-zero interventional indirect effect does and does not establish, see Miles (2023).</li>
 <li>
-<code>mediation_type = "N"</code>: natural NDE/NIE (Zheng &amp; van der Laan 2017) — conditional mediator distribution with exposure swapping; requires stronger assumptions (single mediator only). Natural effects are <strong>not identifiable</strong> when a confounder of the mediator–outcome relationship is itself affected by the exposure (Avin, Shpitser &amp; Pearl 2005; VanderWeele &amp; Tchetgen Tchetgen 2017); <code><a href="reference/mediation.html">mediation()</a></code> detects this, warns, and repeats the caveat in <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code>. VanderWeele &amp; Tchetgen Tchetgen (2017) propose the interventional estimand for that setting.</li>
+<code>mediation_type = "N"</code>: natural NDE/NIE (Zheng &amp; van der Laan 2017), using the conditional mediator distribution with exposure swapping; requires stronger assumptions (single mediator only). Natural effects are <strong>not identifiable</strong> when a confounder of the mediator–outcome relationship is itself affected by the exposure (Avin, Shpitser &amp; Pearl 2005; VanderWeele &amp; Tchetgen Tchetgen 2017); <code><a href="reference/mediation.html">mediation()</a></code> detects this, warns, and repeats the caveat in <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code>. VanderWeele &amp; Tchetgen Tchetgen (2017) propose the interventional estimand for that setting.</li>
 </ul>
 </li>
 <li>
-<strong>Two estimators for natural effects</strong>: the parametric g-formula plug-in (<code>estimator = "gcomp"</code>, the default) or a <strong>targeted maximum likelihood estimator</strong> (<code>estimator = "tmle"</code>, Zheng &amp; van der Laan 2017 §4.3), for which that paper establishes multiple robustness — consistency when only certain subsets of the nuisance models are correct — with Wald confidence intervals from the efficient influence curve, so no bootstrap is needed. Available for <code>mediation_type = "N"</code> only.</li>
+<strong>Two estimators for natural effects</strong>: the parametric g-formula plug-in (<code>estimator = "gcomp"</code>, the default) or a <strong>targeted maximum likelihood estimator</strong> (<code>estimator = "tmle"</code>, Zheng &amp; van der Laan 2017 §4.3), for which that paper establishes multiple robustness, meaning consistency when only certain subsets of the nuisance models are correct, with Wald confidence intervals from the efficient influence curve, so no bootstrap is needed. Available for <code>mediation_type = "N"</code> only.</li>
 <li>
-<strong>Flexible model specification</strong>: logistic regression (binary), linear regression (normal), multinomial logistic (categorical), and custom simulation functions. Numeric draws are clipped to the observed range of the response by default; use <code>spec_model(truncate = FALSE)</code> to draw from the untruncated fitted distribution.</li>
+<strong>Model specification</strong>: logistic regression (binary), linear regression (normal), multinomial logistic (categorical), and custom simulation functions. Numeric draws are clipped to the observed range of the response by default; use <code>spec_model(truncate = FALSE)</code> to draw from the untruncated fitted distribution.</li>
 <li>
 <strong>Recode hooks</strong> (<code>init_recode</code>, <code>in_recode</code>, <code>out_recode</code>) for lag creation, cumulative variables, and other within-loop transformations</li>
 <li>
@@ -126,7 +126,7 @@
 <span>                   lag1_L2 <span class="op">=</span> <span class="va">L2</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Specify models in temporal order: A → L1 → L2 → Y (exposure first,</span></span>
-<span><span class="co"># current A in the confounder models — matching the documented DGP)</span></span>
+<span><span class="co"># current A in the confounder models, matching the documented DGP)</span></span>
 <span><span class="va">m_A</span>  <span class="op">&lt;-</span> <span class="fu"><a href="reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">A</span>     <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">lag1_A</span> <span class="op">+</span> <span class="va">lag1_L1</span> <span class="op">+</span> <span class="va">lag1_L2</span> <span class="op">+</span> <span class="va">time</span>,</span>
 <span>                   var_type <span class="op">=</span> <span class="st">"binary"</span>,  mod_type <span class="op">=</span> <span class="st">"exposure"</span><span class="op">)</span></span>
 <span><span class="va">m_L1</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">L1</span>    <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">A</span> <span class="op">+</span> <span class="va">lag1_L1</span> <span class="op">+</span> <span class="va">time</span>,</span>
@@ -204,7 +204,7 @@
 <span><span class="co">#&gt; 4:     0.3213      0.5867</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;   95% CIs: percentile (pct) and normal approximation (norm) from 100 bootstrap replicates.</span></span></code></pre></div>
-<p>The list order must match your assumed data-generating process — here the exposure is decided first within each period and the confounders respond to it, as documented in <code><a href="reference/nonsurvivaldata.html">?nonsurvivaldata</a></code>.</p>
+<p>The list order must match your assumed data-generating process. Here the exposure is decided first within each period and the confounders respond to it, as documented in <code><a href="reference/nonsurvivaldata.html">?nonsurvivaldata</a></code>.</p>
 </div>
 <div class="section level3">
 <h3 id="mediation-analysis-interventional-ideiie-lin-et-al-2017">Mediation analysis: interventional IDE/IIE (Lin et al. 2017)<a class="anchor" aria-label="anchor" href="#mediation-analysis-interventional-ideiie-lin-et-al-2017"></a>
@@ -291,7 +291,7 @@
 <span><span class="co">#&gt;   Indirect effect (IIE) = Phi11 - Phi10   (sequential per mediator when N&gt;=2)</span></span>
 <span><span class="co">#&gt;   IDE + IIE             = Phi11 - Phi00    (interventional overall effect)</span></span>
 <span><span class="co">#&gt;   Total effect (TE)     = nat1 - nat0      (natural plug-in g-formula)</span></span>
-<span><span class="co">#&gt;   TE - (Direct+Indirect)= mediated-interaction residual (TE - overall)</span></span>
+<span><span class="co">#&gt;   TE - (Direct+Indirect)= natural TE minus interventional overall effect</span></span>
 <span><span class="co">#&gt;   Mediation Prop.       = (Total - Direct) / Total  (percentage; RR not applicable)</span></span>
 <span><span class="co">#&gt;   RD = risk difference;  RR = risk ratio</span></span>
 <span><span class="co">#&gt;                                   Effect      RD     RR Sd(RD) RD 2.5%(pct)</span></span>
@@ -345,7 +345,7 @@
 </tr>
 <tr>
 <td>TE − (Direct + Indirect)</td>
-<td>mediated-interaction residual (interventional only; exactly 0, and omitted, for natural effects)</td>
+<td>decomposition residual (interventional only; exactly 0, and omitted, for natural effects)</td>
 </tr>
 <tr>
 <td>Mediation Proportion</td>
@@ -359,7 +359,7 @@
 </table>
 <p>With <code>R &gt; 1</code>, <code>estimate</code> additionally carries bootstrap SEs and percentile/normal CIs on the RD and RR scales, and the returned object gains <code>boot_estimates</code> (the per-replicate draws), <code>data_summary</code>, and an <code>observed</code> nonparametric benchmark that <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> displays next to the simulated means.</p>
 <p>For <code>mediation_type = "I"</code>, Q(a₁, a₂) is the mean outcome when exposure is set to a₁ and each mediator is a <strong>stochastic draw</strong> from its marginal distribution under exposure a₂. The direct and indirect effects then sum to the <em>interventional overall effect</em> Q(1,1) − Q(0,0), which generally differs from the total effect; their gap is the residual row. For <code>mediation_type = "N"</code> the references use each subject’s own mediator and the decomposition sums exactly to the total effect (no residual row).</p>
-<p>Under <code>mediation_type = "I"</code>, the mediators in <strong>every</strong> intervention — the references Q(0,0) and Q(1,1) as well as the cross-world Q(1,0) — are drawn as <strong>joint trajectories</strong>: a natural-course cohort is simulated under each a*, and the intervention assigns each subject the full M(1:T) of a randomly permuted reference-cohort individual (each mediator permuted independently). This matches the SAS <code>mGFORMULA</code> macro (Lin et al. 2017, eAppendix) and Yamamuro et al. 2021 (Figure 3, step 3). Mediator values are not survival-weighted; the full reference cohort is used. See <code><a href="reference/mediation.html">?mediation</a></code> for details.</p>
+<p>Under <code>mediation_type = "I"</code>, the mediators in <strong>every</strong> intervention (the references Q(0,0) and Q(1,1) as well as the cross-world Q(1,0)) are drawn as <strong>joint trajectories</strong>: a natural-course cohort is simulated under each a*, and the intervention assigns each subject the full M(1:T) of a randomly permuted reference-cohort individual (each mediator permuted independently). This matches the SAS <code>mGFORMULA</code> macro (Lin et al. 2017, eAppendix) and Yamamuro et al. 2021 (Figure 3, step 3). Mediator values are not survival-weighted; the full reference cohort is used. See <code><a href="reference/mediation.html">?mediation</a></code> for details.</p>
 </div>
 <div class="section level3">
 <h3 id="natural-ndenie-zheng--van-der-laan-2017">Natural NDE/NIE (Zheng &amp; van der Laan 2017)<a class="anchor" aria-label="anchor" href="#natural-ndenie-zheng--van-der-laan-2017"></a>
@@ -370,7 +370,7 @@
 <span>  <span class="va">...</span>,                     <span class="co"># same arguments as above</span></span>
 <span>  mediation_type <span class="op">=</span> <span class="st">"N"</span>    <span class="co"># natural NDE/NIE (Zheng &amp; van der Laan 2017)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Natural effects condition the mediator model on the individual’s own covariate history but evaluate it at the alternative exposure level (exposure swapping). They require stronger sequential no-unmeasured-confounding assumptions than interventional effects. In particular, natural direct and indirect effects are <strong>not identifiable</strong> when a mediator–outcome confounder is itself affected by prior exposure (Avin, Shpitser &amp; Pearl 2005; VanderWeele &amp; Tchetgen Tchetgen 2017). <code><a href="reference/mediation.html">mediation()</a></code> scans the model formulas for covariates modelled as exposure-affected, warns at run time, and restates the caveat under the decomposition when you <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> the result — that scan cannot verify the causal structure, and its silence does not establish that no such confounder exists. VanderWeele &amp; Tchetgen Tchetgen (2017) propose the randomized interventional analogues (<code>mediation_type = "I"</code>) for that setting.</p>
+<p>Natural effects condition the mediator model on the individual’s own covariate history but evaluate it at the alternative exposure level (exposure swapping). They require stronger sequential no-unmeasured-confounding assumptions than interventional effects. In particular, natural direct and indirect effects are <strong>not identifiable</strong> when a mediator–outcome confounder is itself affected by prior exposure (Avin, Shpitser &amp; Pearl 2005; VanderWeele &amp; Tchetgen Tchetgen 2017). <code><a href="reference/mediation.html">mediation()</a></code> scans the model formulas for covariates modelled as exposure-affected, warns at run time, and restates the caveat under the decomposition when you <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> the result. That scan cannot verify the causal structure, and its silence does not establish that no such confounder exists. VanderWeele &amp; Tchetgen Tchetgen (2017) propose the randomized interventional analogues (<code>mediation_type = "I"</code>) for that setting.</p>
 <div class="section level4">
 <h4 id="targeted-estimation-tmle">Targeted estimation (TMLE)<a class="anchor" aria-label="anchor" href="#targeted-estimation-tmle"></a>
 </h4>
@@ -379,9 +379,9 @@
 <code class="sourceCode R"><span><span class="va">fit_tmle</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/mediation.html">mediation</a></span><span class="op">(</span></span>
 <span>  <span class="va">...</span>,                     <span class="co"># same arguments as above</span></span>
 <span>  mediation_type <span class="op">=</span> <span class="st">"N"</span>,</span>
-<span>  estimator      <span class="op">=</span> <span class="st">"tmle"</span>  <span class="co"># multiply robust; EIC Wald CIs, no bootstrap</span></span>
+<span>  estimator      <span class="op">=</span> <span class="st">"tmle"</span>  <span class="co"># EIC Wald CIs, no bootstrap</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>It runs backward targeted regressions instead of forward simulation. Zheng &amp; van der Laan (2017) establish multiple robustness for this estimator — consistency when only certain subsets of the nuisance models are correct — and it reports Wald CIs from the efficient influence curve, so <code>R</code> and <code>mc_sample</code> are ignored. Note that those results are stated for correctly specified nuisance models, and this implementation builds its targeted sequential regressions as additive main-effects working models; see <code><a href="reference/mediation.html">?mediation</a></code> for the detail. It requires an exposure model, a binary outcome, and lag-style recodes only (<code>recodes(lag_A = A)</code>; exposure lags must be first-order); derived recodes such as splines or cumulative counts need <code>estimator = "gcomp"</code>. Inspect any positivity warnings it reports before trusting the affected quantities.</p>
+<p>It runs backward targeted regressions instead of forward simulation. Zheng &amp; van der Laan (2017) establish multiple robustness for this estimator, meaning consistency when only certain subsets of the nuisance models are correct, and it reports Wald CIs from the efficient influence curve, so <code>R</code> and <code>mc_sample</code> are ignored. Note that those results are stated for correctly specified nuisance models, and this implementation builds its targeted sequential regressions as additive main-effects working models; see <code><a href="reference/mediation.html">?mediation</a></code> for the detail. It requires an exposure model, a binary outcome, and lag-style recodes only (<code>recodes(lag_A = A)</code>; exposure lags must be first-order); derived recodes such as splines or cumulative counts need <code>estimator = "gcomp"</code>. Inspect any positivity warnings it reports before trusting the affected quantities.</p>
 </div>
 </div>
 <div class="section level3">

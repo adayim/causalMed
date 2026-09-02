@@ -73,19 +73,18 @@
 <p><code><a href="../reference/mediation.html">mediation()</a></code> decomposes the total effect of a
 time-varying exposure into a <strong>direct</strong> component (not
 through the mediator) and an <strong>indirect</strong> component
-(through the mediator), for time-varying mediators and confounders —
+(through the mediator), for time-varying mediators and confounders,
 including confounders affected by prior exposure, the setting the
 mediational g-formula was developed for (Lin et al. 2017; VanderWeele
-&amp; Tchetgen Tchetgen 2017). This vignette is the full mediation
-story:</p>
+&amp; Tchetgen Tchetgen 2017). This vignette covers:</p>
 <ol style="list-style-type: decimal">
-<li>the two estimands — interventional and natural effects — and how to
+<li>the two estimands (interventional and natural effects) and how to
 choose,</li>
 <li>requirements and defaults,</li>
 <li>a worked single-mediator analysis on a survival outcome, reading
 every row of the output, and the <code>n_vw</code> permutation-averaging
 parameter,</li>
-<li>multiple mediators — replicating the Yamamuro et al. (2021)
+<li>multiple mediators, replicating the Yamamuro et al. (2021)
 simulation, with estimates checked against documented true values,</li>
 <li>censoring,</li>
 <li>restricting models with <code>subset</code> (absorbing states),</li>
@@ -140,8 +139,7 @@ which generally differs from the natural total effect
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mo stretchy="false" form="prefix">[</mo><msub><mi>Y</mi><mn>1</mn></msub><mo stretchy="false" form="postfix">]</mo><mo>−</mo><mi>E</mi><mo stretchy="false" form="prefix">[</mo><msub><mi>Y</mi><mn>0</mn></msub><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">E[Y_1] - E[Y_0]</annotation></semantics></math>.
 <code><a href="../reference/mediation.html">mediation()</a></code> therefore reports the total effect from a
 separate natural-course pass and adds a row
-<code>TE - (Direct + Indirect)</code> — the mediated-interaction
-residual
+<code>TE - (Direct + Indirect)</code>, the decomposition residual
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mi>E</mi></mrow><annotation encoding="application/x-tex">TE</annotation></semantics></math>
 minus the overall effect). For natural effects that residual is exactly
 zero and the row is omitted.</p>
@@ -187,8 +185,8 @@ zero and the row is omitted.</p>
 </table>
 <p>The identifiability row is the practical decision point: natural
 effects are <strong>not point-identified</strong> when a confounder of
-the mediator–outcome relationship is itself affected by the exposure —
-an <em>intermediate confounder</em> (Avin, Shpitser &amp; Pearl 2005;
+the mediator–outcome relationship is itself affected by the exposure, an
+<em>intermediate confounder</em> (Avin, Shpitser &amp; Pearl 2005;
 VanderWeele &amp; Tchetgen Tchetgen 2017). <code><a href="../reference/mediation.html">mediation()</a></code>
 warns when a covariate model carries the exposure on its right-hand
 side, i.e. when a covariate is <em>modelled as</em> exposure-affected.
@@ -211,19 +209,19 @@ with an informative error if other values are found.</p>
 <p><strong>One or more mediators.</strong> At least one
 <code>mod_type = "mediator"</code> model is required. Multiple mediators
 are supported for <code>mediation_type = "I"</code> (Yamamuro et
-al. 2021) — list them in temporal order;
+al. 2021); list them in temporal order.
 <code>mediation_type = "N"</code> is single-mediator only.</p>
 <p><strong>Temporal ordering.</strong> The list order determines the
 simulation sequence. Two orderings are common:</p>
 <ul>
 <li>
-<code>A → L → M → S</code> — confounders at time <em>t</em> are not
+<code>A → L → M → S</code>: confounders at time <em>t</em> are not
 affected by the mediator at time <em>t</em> (mediator conditions on L;
 outcome conditions on A, M, L).</li>
 <li>
-<code>A → M → L → S</code> — confounders at time <em>t</em> are
-affected by both exposure and mediator (Lin et al. 2017 DAG). This is
-the setting where standard regression fails.</li>
+<code>A → M → L → S</code>: confounders at time <em>t</em> are
+affected by both exposure and mediator (the DAG of Lin et
+al. 2017).</li>
 </ul>
 <p>The function checks that exposure precedes the mediator and that the
 mediator precedes the outcome, and warns if either is violated.</p>
@@ -235,13 +233,13 @@ and every individual’s full mediator trajectory
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>M</mi><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>:</mo><mi>T</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">M(1{:}T)</annotation></semantics></math>
 is stored in a pool. Each intervention that fixes a mediator to its
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>a</mi><mo>*</mo></msup><annotation encoding="application/x-tex">a^*</annotation></semantics></math>
-value — <strong>including the reference interventions</strong>
+value, <strong>including the reference interventions</strong>
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="normal">Φ</mi><mn>00</mn></msub><mo>=</mo><mi>E</mi><mo stretchy="false" form="prefix">[</mo><msub><mi>Y</mi><mrow><mn>0</mn><mo>,</mo><msub><mi>G</mi><mn>0</mn></msub></mrow></msub><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">\Phi_{00} = E[Y_{0,G_0}]</annotation></semantics></math>
 and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="normal">Φ</mi><mn>11</mn></msub><mo>=</mo><mi>E</mi><mo stretchy="false" form="prefix">[</mo><msub><mi>Y</mi><mrow><mn>1</mn><mo>,</mo><msub><mi>G</mi><mn>1</mn></msub></mrow></msub><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">\Phi_{11} = E[Y_{1,G_1}]</annotation></semantics></math>,
-not only the cross-world
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi mathvariant="normal">Φ</mi><mn>10</mn></msub><annotation encoding="application/x-tex">\Phi_{10}</annotation></semantics></math>
-— permutes the relevant pool once and assigns subject
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="normal">Φ</mi><mn>11</mn></msub><mo>=</mo><mi>E</mi><mo stretchy="false" form="prefix">[</mo><msub><mi>Y</mi><mrow><mn>1</mn><mo>,</mo><msub><mi>G</mi><mn>1</mn></msub></mrow></msub><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">\Phi_{11} = E[Y_{1,G_1}]</annotation></semantics></math>
+and not only the cross-world
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi mathvariant="normal">Φ</mi><mn>10</mn></msub><annotation encoding="application/x-tex">\Phi_{10}</annotation></semantics></math>,
+permutes the relevant pool once and assigns subject
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
 the <em>entire</em> trajectory of one randomly chosen pool individual
 (each mediator permuted independently). This is the joint-trajectory
@@ -258,7 +256,7 @@ replicates) are shown once with a count.</p>
 <p><strong>Outcome types.</strong> <code><a href="../reference/mediation.html">mediation()</a></code> handles
 binary end-of-follow-up outcomes (<code>mod_type = "outcome"</code>) and
 survival outcomes (<code>mod_type = "survival"</code>, with optional
-censoring) through the same interface — the outcome model’s
+censoring) through the same interface; the outcome model’s
 <code>mod_type</code> is the only difference. This vignette’s worked
 examples use a survival outcome, the setting the mediational g-formula
 was developed for (Lin et al. 2017); a compact binary-outcome example is
@@ -276,8 +274,8 @@ hazard</strong>: at each time point, a binary model with
 event among those still at risk. The simulation accumulates these
 hazards into a cumulative incidence,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><msub><mo>∏</mo><mi>t</mi></msub><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>h</mi><mi>t</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">1 - \prod_t (1 - h_t)</annotation></semantics></math>,
-so all reported quantities — the per-intervention estimates and the
-effect decomposition — are <strong>risks of the event by the end of
+so all reported quantities, both the per-intervention estimates and the
+effect decomposition, are <strong>risks of the event by the end of
 follow-up</strong>.</p>
 <p>The data must be in long format with one row per subject per period
 <strong>at risk</strong>: once the event occurs, no later rows for that
@@ -384,8 +382,8 @@ include exposure–mediator interaction terms.</p>
 <span><span class="op">)</span></span></code></pre></div>
 <p>About 9% of subjects are lost to follow-up in
 <code>survivaldata</code>, so a <code>mod_type = "censor"</code> model
-is declared above. It is worth being precise about what that does. Under
-an intervention the package sets the censoring indicator to zero and
+is declared above. Its role is narrower than it may appear. Under an
+intervention the package sets the censoring indicator to zero and
 accumulates the hazard over the full follow-up, so the estimand is the
 risk that <em>would</em> be seen if loss to follow-up were eliminated.
 Declaring the censoring model does not, in the g-computation path, alter
@@ -427,20 +425,20 @@ estimator (<code>estimator = "tmle"</code>).</p>
 intervention:</p>
 <ul>
 <li>
-<strong><code>nat0</code> / <code>nat1</code></strong> — exposure
+<strong><code>nat0</code> / <code>nat1</code></strong>: exposure
 fixed to 0 / 1, mediator following its fitted model given each
 individual’s own history. Their contrast is the natural plug-in
 <strong>total effect</strong>.</li>
 <li>
-<strong><code>Phi00</code> / <code>Phi11</code></strong> — exposure
+<strong><code>Phi00</code> / <code>Phi11</code></strong>: exposure
 fixed to 0 / 1, mediator drawn from the <em>permuted marginal pool</em>
 collected under that same exposure level
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mo stretchy="false" form="prefix">[</mo><msub><mi>Y</mi><mrow><mn>0</mn><mo>,</mo><msub><mi>G</mi><mn>0</mn></msub></mrow></msub><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">E[Y_{0,G_0}]</annotation></semantics></math>,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mo stretchy="false" form="prefix">[</mo><msub><mi>Y</mi><mrow><mn>1</mn><mo>,</mo><msub><mi>G</mi><mn>1</mn></msub></mrow></msub><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">E[Y_{1,G_1}]</annotation></semantics></math>).
 These are the interventional references.</li>
 <li>
-<strong><code>Phi10</code></strong> — the cross-world intervention:
-exposure fixed to 1, mediator drawn from the a = 0 pool
+<strong><code>Phi10</code></strong>: the cross-world intervention.
+Exposure fixed to 1, mediator drawn from the a = 0 pool
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mo stretchy="false" form="prefix">[</mo><msub><mi>Y</mi><mrow><mn>1</mn><mo>,</mo><msub><mi>G</mi><mn>0</mn></msub></mrow></msub><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">E[Y_{1,G_0}]</annotation></semantics></math>).</li>
 </ul>
 </div>
@@ -505,13 +503,13 @@ the data.</p>
 <p>Every intervention that draws its mediators from a permuted pool does
 so by randomly permuting the pool of simulated mediator trajectories.
 Under <code>mediation_type = "I"</code> that is the <em>whole</em>
-decomposition — the references
+decomposition (the references
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi mathvariant="normal">Φ</mi><mn>00</mn></msub><annotation encoding="application/x-tex">\Phi_{00}</annotation></semantics></math>
 and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi mathvariant="normal">Φ</mi><mn>11</mn></msub><annotation encoding="application/x-tex">\Phi_{11}</annotation></semantics></math>
 as well as the cross-world
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi mathvariant="normal">Φ</mi><mn>10</mn></msub><annotation encoding="application/x-tex">\Phi_{10}</annotation></semantics></math>
-— but not the natural-course interventions
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi mathvariant="normal">Φ</mi><mn>10</mn></msub><annotation encoding="application/x-tex">\Phi_{10}</annotation></semantics></math>),
+but not the natural-course interventions
 <code>nat0</code>/<code>nat1</code>, whose mediators come from their own
 fitted models. <code>n_vw</code> controls how many independent
 permutations are averaged per intervention (default <code>2</code>,
@@ -540,7 +538,7 @@ agree.</p>
 be analysed by supplying several <code>mod_type = "mediator"</code>
 models <strong>in temporal order</strong>. We demonstrate this on
 <code>yamamurodata</code>, a dataset simulated from the data-generating
-process of the Yamamuro et al. (2021) simulation study — a time-varying
+process of the Yamamuro et al. (2021) simulation study: a time-varying
 treatment <code>A</code>, a confounder <code>L</code>, two sequential
 mediators <code>M1</code> and <code>M2</code>, and a survival outcome
 over three visits, ordered <strong>A → L → M1 → M2 → Y</strong> within
@@ -569,7 +567,7 @@ so the estimates below can be checked against the truth.</p>
 <span><span class="co">#&gt; 4:   0.0000    0.000 24.95263 188.5737 6593.398</span></span>
 <span><span class="co">#&gt; 5: 188.5737 6593.398 24.95263 188.5737 6593.398</span></span>
 <span><span class="co">#&gt; 6: 141.9657 6196.278 24.95263 188.5737 6593.398</span></span></code></pre></div>
-<p>Three specification details are worth noting:</p>
+<p>Three specification details matter here:</p>
 <ul>
 <li>
 <strong>Visit indicators.</strong> The published models give each
@@ -671,15 +669,15 @@ Each mediator’s pool is permuted independently.</p>
 <span><span class="co">#&gt; 5: TE - (Direct + Indirect)  0.10  0.1343338</span></span></code></pre></div>
 <p>The estimates reproduce the structure of the truth: all signs and the
 relative magnitudes (IDE &gt; IIE via M1 &gt; IIE via M2, small positive
-residual) are recovered, and the two indirect effects are estimated
-closely. The total and direct effects deviate by roughly 1–1.5
-percentage points. The <code>True</code> column is a large-sample value
-computed from the data-generating process, whereas the estimate comes
-from one finite dataset simulated a finite number of times, so it
-carries both sampling error and Monte Carlo error; the run above is a
-single point estimate with neither quantified. A bootstrap
-(<code>R &gt; 1</code>) is what supplies that uncertainty in applied
-use.</p>
+residual) are recovered. The two indirect effects land within 0.05
+percentage points of their true values, while the total and direct
+effects are both about 1.4 percentage points further from zero than the
+truth. The <code>True</code> column is a large-sample value computed
+from the data-generating process, whereas the estimate comes from one
+finite dataset simulated a finite number of times, so it carries both
+sampling error and Monte Carlo error; the run above is a single point
+estimate with neither quantified. A bootstrap (<code>R &gt; 1</code>) is
+what supplies that uncertainty in applied use.</p>
 <p>Because the decomposition is sequential, the <em>order</em> of the
 mediator models matters: it must reflect the assumed temporal/causal
 ordering among the mediators. Multiple mediators are not available for
@@ -754,7 +752,7 @@ right-censoring described by Robins (1986) and Westreich et al. (2012).
 The censoring model’s role is to let the hazard model be fitted on data
 where censoring depends on measured covariates. Whether these estimates
 recover the full-data ones depends on censoring being independent of the
-outcome given the modelled covariates — an assumption about your data,
+outcome given the modelled covariates, an assumption about your data,
 not something the package can check. Compare the two tables here to see
 how they came out in this constructed example.</p>
 <hr>
@@ -764,10 +762,10 @@ how they came out in this constructed example.</p>
 </h2>
 <p><code>spec_model(subset = ...)</code> fits and simulates a model only
 on rows meeting a condition. The classic use is an <strong>absorbing
-state</strong> — for example, in the GvHD analysis of Keil et al. (2014)
-the exposure can only switch on once, so its model is estimated among
-the not-yet-exposed and the value is carried forward deterministically
-afterwards:</p>
+state</strong>. In the GvHD analysis of Keil et al. (2014), for
+instance, the exposure can only switch on once, so its model is
+estimated among the not-yet-exposed and the value is carried forward
+deterministically afterwards:</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># exposure can occur only while gvhdm1 == 0 …</span></span>
 <span><span class="fu"><a href="../reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">gvhd</span> <span class="op">~</span> <span class="va">all</span> <span class="op">+</span> <span class="va">cmv</span> <span class="op">+</span> <span class="va">male</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">...</span>,</span>
@@ -780,8 +778,8 @@ afterwards:</p>
 step, so the <code>out_recode</code> carry-forward completes the
 absorbing behaviour. The package ships the <code>gvhd</code> dataset
 (see <code><a href="../reference/gvhd.html">?gvhd</a></code>) used in that paper, and a complete total-effect
-g-formula analysis on it — three absorbing states, a censoring model,
-and restricted cubic splines — is walked through in
+g-formula analysis on it (three absorbing states, a censoring model, and
+restricted cubic splines) is walked through in
 <code><a href="../articles/causalMed-03-gformula.html">vignette("causalMed-03-gformula")</a></code> (Keil et al. 2014
 describe the analysis in full, including the spline knots).</p>
 <hr>
@@ -791,8 +789,8 @@ describe the analysis in full, including the spline knots).</p>
 </h2>
 <p>As elsewhere in the package, set <code>R &gt; 1</code> for
 subject-level bootstrap CIs and optionally register a parallel plan
-first (the general bootstrap mechanics — percentile versus normal
-intervals, parallel plans — are covered in
+first (the general bootstrap mechanics, percentile versus normal
+intervals and parallel plans, are covered in
 <code><a href="../articles/causalMed-03-gformula.html">vignette("causalMed-03-gformula")</a></code>):</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://future.futureverse.org" class="external-link">future</a></span><span class="op">)</span></span>
@@ -829,8 +827,8 @@ intervals, parallel plans — are covered in
 </h2>
 <p><code>mediation_type = "N"</code> (Zheng &amp; van der Laan 2017) is
 also defined for survival outcomes. However, in this dataset the
-confounder <code>L</code> is affected by the current exposure — an
-<em>intermediate confounder</em> — and natural direct and indirect
+confounder <code>L</code> is affected by the current exposure, an
+<em>intermediate confounder</em>, and natural direct and indirect
 effects are <strong>not identifiable</strong> in that setting (see the
 estimands section above). <code><a href="../reference/mediation.html">mediation()</a></code> finds the exposure on
 the right-hand side of a covariate model and warns:</p>
@@ -864,7 +862,7 @@ the right-hand side of a covariate model and warns:</p>
 intermediate confounding, and VanderWeele &amp; Tchetgen Tchetgen (2017)
 propose them for exactly this setting; that is why <code>"I"</code> is
 the package default. The choice between the two estimands is a
-substantive one — see Miles (2023) on what a non-zero interventional
+substantive one; see Miles (2023) on what a non-zero interventional
 indirect effect does and does not establish.</p>
 <div class="section level3">
 <h3 id="a-targeted-tmle-estimator-for-natural-effects">A targeted (TMLE) estimator for natural effects<a class="anchor" aria-label="anchor" href="#a-targeted-tmle-estimator-for-natural-effects"></a>
@@ -877,10 +875,10 @@ likelihood estimator from the same reference (Zheng &amp; van der Laan
 of simulating forward, it runs backward iterated regressions with
 targeted fluctuation steps, weighting by inverse treatment <em>and</em>
 censoring probabilities. Zheng &amp; van der Laan (2017) establish
-multiple robustness for it — consistency when certain subsets of the
-nuisance models are correct — and it reports Wald CIs from the efficient
-influence curve, so no bootstrap is required (<code>R</code> and
-<code>mc_sample</code> are ignored). Those results are stated for
+multiple robustness for it, meaning consistency when certain subsets of
+the nuisance models are correct, and it reports Wald CIs from the
+efficient influence curve, so no bootstrap is required (<code>R</code>
+and <code>mc_sample</code> are ignored). Those results are stated for
 correctly specified nuisance models; this implementation builds its
 targeted sequential regressions as additive main-effects working models,
 so transformations and interactions written into your formulas are not
@@ -920,12 +918,12 @@ copy a single column (as <code>init_s</code>/<code>in_s</code> do here),
 lags of the exposure must copy the exposure itself (chained lags like
 <code>lag2_A = lag_A</code> are rejected), <code>init_recode</code>
 entries must be a constant or a column name, and <code>out_recode</code>
-is not supported. Derived recodes — splines, cumulative counts,
-carry-forward flags, such as the absorbing-state pattern shown earlier —
+is not supported. Derived recodes (splines, cumulative counts,
+carry-forward flags such as the absorbing-state pattern shown earlier)
 and deeper exposure history require <code>estimator = "gcomp"</code>.
 Violations raise an error rather than being silently dropped, so a
 distorted TMLE cannot reach you unnoticed.</p>
-<p>Two caveats, stated plainly:</p>
+<p>Two caveats:</p>
 <ul>
 <li>
 <strong>The identification warning still applies.</strong> The TMLE
@@ -942,20 +940,20 @@ estimand.</li>
 <strong>Positivity warnings deserve attention.</strong> If few
 subjects follow an intervened regime (e.g., never treated at every time
 point), the affected targeting steps are skipped with a collected
-warning and the corresponding functional leans on model extrapolation —
+warning and the corresponding functional leans on model extrapolation,
 exactly as the plug-in does, but with the sparse support made visible
 instead of silent. Neither estimator can conjure information the data do
 not contain; the TMLE tells you when that is happening, where the
 plug-in produces a seemingly precise answer by extrapolating from its
 parametric models. When the two estimators disagree materially, the
 first things to inspect are these positivity warnings and the model
-specifications. Relatedly, the influence-curve Wald CIs can be somewhat
-anti-conservative for functionals under positivity strain: in our
+specifications. Relatedly, the influence-curve Wald CIs can be
+anti-conservative for functionals under positivity strain: in a
 replication of the reference paper’s heavily censored simulation,
-coverage for the never-treat functionals was about 87% (rather than 95%)
-even at n = 4000, while the treated functionals covered at nominal
-rates. Interpret CIs for sparsely supported regimes with corresponding
-caution.</li>
+coverage for the never-treat functionals was about 87% rather than the
+nominal 95% even at n = 4000, while the treated functionals covered at
+nominal rates. Interpret CIs for sparsely supported regimes with
+corresponding caution.</li>
 </ul>
 <p>The per-subject influence-curve values are returned in
 <code>fit_tmle_s$tmle_diag$eic</code> (one column per functional) for
@@ -963,11 +961,12 @@ custom contrasts or diagnostics;
 <code>fit_tmle_s$tmle_diag$eic_mean</code> should be near zero for
 well-supported functionals.</p>
 <p>In simulations replicating the survival design of Zheng &amp; van der
-Laan (2017, Section 5), this implementation reproduces the published
-true value of the cross-world functional and shows the expected bias
-reduction from targeting, with the caveat that its GLM-based sequential
-regressions are coarser than the Super Learner fits used in the
-paper.</p>
+Laan (2017, Section 5), this implementation recovers that paper’s
+reported value for the cross-world functional,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>J</mi><mrow><mn>1</mn><mo>,</mo><mn>0</mn></mrow></msup><mo>≈</mo><mn>0.912</mn></mrow><annotation encoding="application/x-tex">J^{1,0} \approx 0.912</annotation></semantics></math>.
+Its sequential regressions are GLMs rather than the Super Learner fits
+used there, so the efficiency results reported in the paper do not carry
+over to it unchanged.</p>
 <hr>
 </div>
 </div>

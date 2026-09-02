@@ -76,6 +76,16 @@ spec_model(
   `"covariate"` (the default), `"exposure"`, `"mediator"`, `"outcome"`,
   `"censor"`, or `"survival"`.
 
+  `"censor"` declares a discrete-time censoring process. Its role is
+  narrower than it looks: under every intervention the censoring
+  indicator is set to zero, so the target is the risk under eliminated
+  loss to follow-up, and with `estimator = "gcomp"` the censoring model
+  does not alter the intervention-specific risks. It is used in the
+  natural-course simulation of
+  [`gformula`](https://adayim.github.io/causalMed/reference/gformula.md)
+  and in the targeted estimator (`estimator = "tmle"`). Only
+  `var_type = "binary"` is accepted for `"censor"` and `"survival"`.
+
 - custom_fit:
 
   Optional. A model fitting function, used **only** when

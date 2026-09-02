@@ -17,7 +17,7 @@
     either **interventional** direct/indirect effects (Lin et al. 2017)
     or **natural** direct/indirect effects (Zheng & van der Laan 2017).
 
-Both handle time-varying exposures, mediators, and confounders —
+Both handle time-varying exposures, mediators, and confounders,
 including confounders that are themselves affected by prior exposure.
 This is the setting the g-formula was introduced for (Robins 1986), and
 the one in which natural direct and indirect effects are not
@@ -32,7 +32,7 @@ own vignettes:
 | Vignette | Contents |
 |----|----|
 | [`vignette("causalMed-02-mediation")`](https://adayim.github.io/causalMed/articles/causalMed-02-mediation.md) | Mediation: estimands, reading the decomposition, multiple mediators, censoring, natural effects, and the targeted (TMLE) estimator. |
-| [`vignette("causalMed-03-gformula")`](https://adayim.github.io/causalMed/articles/causalMed-03-gformula.md) | Total effects: binary and survival outcomes, dynamic interventions, a published replication (Keil et al. 2014), bootstrap CIs, results handling, custom distributions. |
+| [`vignette("causalMed-03-gformula")`](https://adayim.github.io/causalMed/articles/causalMed-03-gformula.md) | Total effects: binary and survival outcomes, dynamic interventions, a published replication (Keil et al. 2014), bootstrap CIs, and results handling. |
 | [`vignette("causalMed-04-vs-gfoRmula")`](https://adayim.github.io/causalMed/articles/causalMed-04-vs-gfoRmula.md) | How the total-effect engine compares with the CRAN reference implementation `gfoRmula`. |
 
 ``` r
@@ -122,9 +122,10 @@ spec_model(
 )
 ```
 
-### `var_type` — how to draw simulated values
+### `var_type`: how to draw simulated values
 
-The four built-in `var_type` values cover the most common cases:
+[`spec_model()`](https://adayim.github.io/causalMed/reference/spec_model.md)
+has four built-in `var_type` values:
 
 | `var_type` | Distribution |
 |----|----|
@@ -140,16 +141,16 @@ draw from the untruncated fitted distribution instead (this also stops
 the clipping being applied to `custom_sim` output). Which of the two is
 appropriate depends on the variable being simulated.
 
-For distributions still not covered — **truncated normal**,
-**zero-inflated normal**, **absorbing states** — use
+For distributions still not covered (**truncated normal**,
+**zero-inflated normal**, **absorbing states**) use
 `var_type = "custom"` with the `custom_fit` and `custom_sim` arguments
 to
 [`spec_model()`](https://adayim.github.io/causalMed/reference/spec_model.md).
 The example below implements a **zero-inflated normal** (a point mass at
-zero, Gaussian otherwise — e.g. a biomarker that is exactly zero for
-part of the population) as a two-part model. The object returned by
-`custom_fit` can be *any* structure — here a plain list holding two fits
-— as long as `custom_sim` knows how to use it:
+zero, Gaussian otherwise, e.g. a biomarker that is exactly zero for part
+of the population) as a two-part model. The object returned by
+`custom_fit` can be *any* structure, here a plain list holding two fits,
+as long as `custom_sim` knows how to use it:
 
 ``` r
 
@@ -182,11 +183,11 @@ m_zin <- spec_model(
 `custom_fit(formula, data, ...)` is called once during model fitting and
 must return an object that `custom_sim` knows how to predict from.
 `custom_sim(model, newdt, ...)` is called at each simulation step and
-must return a vector of simulated values of length `nrow(newdt)`. (A
-plain bounded normal needs no custom type at all — that is
-`var_type = "normal"`’s default clipping behaviour, as described above)
+must return a vector of simulated values of length `nrow(newdt)`. A
+plain bounded normal needs no custom type at all: that is
+`var_type = "normal"`’s default clipping behaviour, described above.
 
-### `mod_type` — causal role
+### `mod_type`: causal role
 
 | Value | Description |
 |----|----|
@@ -197,7 +198,7 @@ plain bounded normal needs no custom type at all — that is
 | `"survival"` | Discrete-time event indicator (hazard model) |
 | `"censor"` | Right-censoring indicator |
 
-### Temporal ordering is critical
+### Temporal ordering
 
 The list order determines the simulation sequence at each time step, and
 it must follow your assumed data-generating mechanism. Confounders at
@@ -233,8 +234,8 @@ in_rc   <- recodes(lag1_A  = A,   # At each subsequent step, copy current values
 
 The hooks are required even when the lag columns already exist in your
 data. The Monte Carlo cohort is built from `id_var` and `base_vars`
-only, so any column a model references that is neither of those — every
-lag column included — has to be created by `init_recode` at the first
+only, so any column a model references that is neither of those, every
+lag column included, has to be created by `init_recode` at the first
 time point and maintained by `in_recode` thereafter. Without them the
 run stops with `object 'lag1_A' not found`. Listing lag columns in
 `base_vars` is not a substitute: they are not time-fixed, and
@@ -270,7 +271,7 @@ for the trade-offs.
 ## Quick start: a total effect with `gformula()`
 
 Models in temporal order (**A → L1 → L2 → Y**, matching the documented
-data-generating process — exposure first, current `A` in the confounder
+data-generating process: exposure first, current `A` in the confounder
 models), then three strategies: the natural course, always treat, never
 treat.
 
@@ -379,10 +380,10 @@ fit_ide$estimate
 ```
 
 The `estimate` table is the decomposition: the direct effect, the
-indirect effect (through `M`), the total effect, a mediated-interaction
-residual row, and the proportion mediated. A second estimand —
+indirect effect (through `M`), the total effect, a decomposition
+residual row, and the proportion mediated. A second estimand,
 **natural** direct/indirect effects (`mediation_type = "N"`), with an
-optional targeted maximum likelihood estimator (`estimator = "tmle"`) —
+optional targeted maximum likelihood estimator (`estimator = "tmle"`),
 needs stronger assumptions and is not identified when a confounder
 responds to the exposure (as `L1`/`L2` do here).
 
@@ -426,7 +427,7 @@ assumption is required:
 ## References
 
 - Robins, J. M. (1986). A new approach to causal inference in mortality
-  studies with a sustained exposure period — application to control of
+  studies with a sustained exposure period: application to control of
   the healthy worker survivor effect. *Mathematical Modelling*, 7(9–12),
   1393–1512.
 - Westreich, D., Cole, S. R., Young, J. G., et al. (2012). The

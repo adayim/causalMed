@@ -13,7 +13,7 @@ This vignette describes:
 2.  Their common lineage in the GFORMULA-SAS reference macro
 3.  What `gfoRmula` offers that `causalMed` currently does not
 4.  The mediation extension that motivated `causalMed`
-5.  Side-by-side total-effect estimates confirming numerical equivalence
+5.  Side-by-side total-effect estimates from the two packages
 6.  Guidance on when to use each package
 
 ``` r
@@ -53,7 +53,7 @@ and bootstrap over subjects for confidence intervals. The `causalMed`
 regression tests cross-check total-effect estimates against `gfoRmula`
 (the R twin of the SAS macro) to Monte Carlo noise.
 
-Two clarifications are worth keeping in mind:
+Two points of clarification:
 
 - **GFORMULA-SAS estimates total effects only.** It contains no mediator
   decomposition. The direct/indirect machinery in `causalMed` (see the
@@ -68,12 +68,11 @@ Two clarifications are worth keeping in mind:
   cubic splines via `ptype`), several packaged intervention types
   (threshold, increment, sampling from the observed distribution),
   competing-event handling, and additional end-of-follow-up outcome
-  models. `causalMed` covers the same modelling *power* through a
-  smaller surface — model formulas plus
+  models. `causalMed` exposes a smaller surface: model formulas plus
   `recode`/[`dyn_int()`](https://adayim.github.io/causalMed/reference/dyn_int.md)
-  expressions and `custom_fit`/`custom_sim` — but several of these
-  conveniences must be coded by hand rather than requested by keyword.
-  The specific gaps are itemised below.
+  expressions and `custom_fit`/`custom_sim`. Part of what the macro
+  requests by keyword can be written by hand through that surface, and
+  part is not implemented at all. The specific gaps are itemised below.
 
 ------------------------------------------------------------------------
 
@@ -122,7 +121,7 @@ and `causalMed` does not. `causalMed`’s `custom_fit` and `custom_sim`
 arguments to
 [`spec_model()`](https://adayim.github.io/causalMed/reference/spec_model.md)
 allow a user-supplied fitting function and sampler, which shifts the
-responsibility for the distributional choice — and for validating it —
+responsibility for the distributional choice, and for validating it,
 onto the user.
 
 ### Competing events
@@ -140,8 +139,8 @@ parameter values at each step. This gives more control for complex
 multi-variable interventions. `causalMed` offers
 [`dyn_int()`](https://adayim.github.io/causalMed/reference/dyn_int.md),
 which captures an R expression evaluated inside the simulated dataset at
-each step. The current time step is in scope — the `time_var` column is
-refreshed before every step — so a rule may reference it directly
+each step. The current time step is in scope (the `time_var` column is
+refreshed before every step), so a rule may reference it directly
 (e.g. `dyn_int(as.numeric(A > 0 & time >= 2))`), and history-dependent
 rules can be built by maintaining lagged columns through the recode
 mechanism (`in_recode` / `out_recode`). The practical difference is that
@@ -151,8 +150,8 @@ logic is expressed instead through recodes plus the captured expression.
 
 ### CRAN stability and community support
 
-`gfoRmula` is an established CRAN package with comprehensive
-documentation, a dedicated publication (McGrath et al. 2020), and
+`gfoRmula` is an established CRAN package with a dedicated publication
+(McGrath et al. 2020), reference documentation and vignettes, and
 ongoing development by the CausalAB group at Harvard. `causalMed` is a
 development-stage package and should be used with appropriate caution.
 
@@ -168,24 +167,26 @@ indirect components. `gfoRmula` does not support mediation analysis.
 `causalMed` offers two mediation estimands, selected via
 `mediation_type`:
 
-- **`"I"` — Interventional IDE/IIE** (Lin et al. 2017): the mediator
+- **`"I"`, interventional IDE/IIE** (Lin et al. 2017): the mediator
   distribution is marginalised over confounders by randomly permuting
   mediator values simulated under the reference exposure. Does not
   require the cross-world independence assumption.
 
-- **`"N"` — Natural NDE/NIE** (Zheng & van der Laan 2017): the mediator
+- **`"N"`, natural NDE/NIE** (Zheng & van der Laan 2017): the mediator
   model is evaluated at the alternative exposure level while keeping the
   individual’s own covariate history. Requires stronger sequential
-  no-unmeasured-confounding assumptions — in particular, natural effects
+  no-unmeasured-confounding assumptions. In particular, natural effects
   are not identifiable when a mediator–outcome confounder is affected by
   prior exposure.
 
 For natural effects, two estimators are available: the parametric
 g-formula plug-in (`estimator = "gcomp"`, the default, with bootstrap
 CIs) and a targeted maximum likelihood estimator (`estimator = "tmle"`,
-Zheng & van der Laan 2017 §4.3) that is multiply robust and reports Wald
-CIs from the efficient influence curve without bootstrapping. `gfoRmula`
-offers neither, since it does not do mediation.
+Zheng & van der Laan 2017 §4.3), for which that paper establishes
+multiple robustness under correctly specified nuisance models, and which
+reports Wald CIs from the efficient influence curve without
+bootstrapping. `gfoRmula` offers neither, since it does not do
+mediation.
 
 ``` r
 
@@ -224,9 +225,9 @@ The `estimate` table returns the indirect effect, direct effect, total
 effect, and proportion mediated on both the risk-difference and
 risk-ratio scales. See
 [`vignette("causalMed-02-mediation")`](https://adayim.github.io/causalMed/articles/causalMed-02-mediation.md)
-for the full mediation story — the estimands, reading the decomposition,
-survival outcomes, multiple mediators, censoring, natural effects, and
-the targeted (TMLE) estimator.
+for the rest: the estimands, reading the decomposition, survival
+outcomes, multiple mediators, censoring, natural effects, and the
+targeted (TMLE) estimator.
 
 ------------------------------------------------------------------------
 
@@ -495,7 +496,7 @@ Both packages support dynamic (rule-based) interventions. Here we
 estimate the risk under “treat only if L1 \> 0”. The syntax differs
 between packages but the estimand is the same.
 
-**causalMed** —
+**causalMed**:
 [`dyn_int()`](https://adayim.github.io/causalMed/reference/dyn_int.md)
 captures the rule as an unevaluated expression evaluated inside the
 simulated dataset at each time step:
@@ -531,7 +532,7 @@ fit_dyn$estimate
 #> 2: treat_if_L1_pos / natural      Ratio  0.980955847
 ```
 
-**gfoRmula** — user-supplied function passed as an argument:
+**gfoRmula**: user-supplied function passed as an argument:
 
 ``` r
 
@@ -560,12 +561,13 @@ recode-plus-expression pattern.
 
 ------------------------------------------------------------------------
 
-## High-Precision Numerical Cross-Validation
+## Large-Sample Numerical Cross-Validation
 
-With 50,000 Monte Carlo replicates and the same random seed, the two
-packages are expected to agree to within 0.0001. The differences shown
-below reflect Monte Carlo sampling variability only, not algorithmic
-divergence.
+The comparison below repeats Example 1 with 50,000 Monte Carlo
+replicates rather than 10,000, which shrinks the Monte Carlo component
+of the difference. Both packages fit the same models to the same data
+and implement the same estimator, so what remains is Monte Carlo
+sampling variability rather than algorithmic divergence.
 
 ``` r
 
@@ -610,12 +612,13 @@ data.frame(
 #> 2       always   0.25441  0.25448    0.00007
 ```
 
-On this example the differences are within 0.0001. The package’s test
-suite runs the same comparison against `gfoRmula` on a binary
+The `Difference` column above is what this run produced. The package’s
+test suite runs the same comparison against `gfoRmula` on a binary
 end-of-follow-up outcome, a survival outcome and a dynamic intervention,
-so the agreement shown here is not a one-off; it is established on those
-data-generating processes, at those model specifications, and does not
-by itself extend to settings the comparison does not cover.
+asserting agreement at a tolerance of 0.005, so what is shown here is
+not a one-off. That agreement is established on those data-generating
+processes, at those model specifications, and does not by itself extend
+to settings the comparison does not cover.
 
 ------------------------------------------------------------------------
 
@@ -682,6 +685,6 @@ sessionInfo()
 #> [43] lifecycle_1.0.5     vctrs_0.7.3         evaluate_1.0.5     
 #> [46] glue_1.8.1          listenv_1.0.0       farver_2.1.2       
 #> [49] codetools_0.2-20    ragg_1.5.2          parallelly_1.48.0  
-#> [52] rmarkdown_2.31      tools_4.6.1         pkgconfig_2.0.3    
+#> [52] rmarkdown_2.32      tools_4.6.1         pkgconfig_2.0.3    
 #> [55] htmltools_0.5.9
 ```

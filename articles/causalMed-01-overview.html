@@ -85,7 +85,7 @@ the mediator), using either <strong>interventional</strong>
 direct/indirect effects (Lin et al. 2017) or <strong>natural</strong>
 direct/indirect effects (Zheng &amp; van der Laan 2017).</p></li>
 </ol>
-<p>Both handle time-varying exposures, mediators, and confounders —
+<p>Both handle time-varying exposures, mediators, and confounders,
 including confounders that are themselves affected by prior exposure.
 This is the setting the g-formula was introduced for (Robins 1986), and
 the one in which natural direct and indirect effects are not
@@ -113,8 +113,8 @@ censoring, natural effects, and the targeted (TMLE) estimator.</td>
 <tr class="even">
 <td><code><a href="../articles/causalMed-03-gformula.html">vignette("causalMed-03-gformula")</a></code></td>
 <td>Total effects: binary and survival outcomes, dynamic interventions,
-a published replication (Keil et al. 2014), bootstrap CIs, results
-handling, custom distributions.</td>
+a published replication (Keil et al. 2014), bootstrap CIs, and results
+handling.</td>
 </tr>
 <tr class="odd">
 <td><code><a href="../articles/causalMed-04-vs-gfoRmula.html">vignette("causalMed-04-vs-gfoRmula")</a></code></td>
@@ -229,10 +229,10 @@ simulated</strong>.</p>
 <span><span class="op">)</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="var_type-how-to-draw-simulated-values">
-<code>var_type</code> — how to draw simulated values<a class="anchor" aria-label="anchor" href="#var_type-how-to-draw-simulated-values"></a>
+<code>var_type</code>: how to draw simulated values<a class="anchor" aria-label="anchor" href="#var_type-how-to-draw-simulated-values"></a>
 </h3>
-<p>The four built-in <code>var_type</code> values cover the most common
-cases:</p>
+<p><code><a href="../reference/spec_model.html">spec_model()</a></code> has four built-in <code>var_type</code>
+values:</p>
 <table class="table">
 <colgroup>
 <col width="50%">
@@ -269,17 +269,17 @@ rule by default, through its <code>sim_trunc</code> argument. Pass
 fitted distribution instead (this also stops the clipping being applied
 to <code>custom_sim</code> output). Which of the two is appropriate
 depends on the variable being simulated.</p>
-<p>For distributions still not covered — <strong>truncated
+<p>For distributions still not covered (<strong>truncated
 normal</strong>, <strong>zero-inflated normal</strong>,
-<strong>absorbing states</strong> — use <code>var_type = "custom"</code>
+<strong>absorbing states</strong>) use <code>var_type = "custom"</code>
 with the <code>custom_fit</code> and <code>custom_sim</code> arguments
 to <code><a href="../reference/spec_model.html">spec_model()</a></code>. The example below implements a
 <strong>zero-inflated normal</strong> (a point mass at zero, Gaussian
-otherwise — e.g. a biomarker that is exactly zero for part of the
+otherwise, e.g. a biomarker that is exactly zero for part of the
 population) as a two-part model. The object returned by
-<code>custom_fit</code> can be <em>any</em> structure — here a plain
-list holding two fits — as long as <code>custom_sim</code> knows how to
-use it:</p>
+<code>custom_fit</code> can be <em>any</em> structure, here a plain list
+holding two fits, as long as <code>custom_sim</code> knows how to use
+it:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Part 1: is the response positive?  Part 2: its level, among the positives.</span></span>
 <span><span class="va">zin_fit</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">formula</span>, <span class="va">data</span>, <span class="va">...</span><span class="op">)</span> <span class="op">{</span></span>
@@ -309,13 +309,13 @@ use it:</p>
 model fitting and must return an object that <code>custom_sim</code>
 knows how to predict from. <code>custom_sim(model, newdt, ...)</code> is
 called at each simulation step and must return a vector of simulated
-values of length <code>nrow(newdt)</code>. (A plain bounded normal needs
-no custom type at all — that is <code>var_type = "normal"</code>’s
-default clipping behaviour, as described above)</p>
+values of length <code>nrow(newdt)</code>. A plain bounded normal needs
+no custom type at all: that is <code>var_type = "normal"</code>’s
+default clipping behaviour, described above.</p>
 </div>
 <div class="section level3">
 <h3 id="mod_type-causal-role">
-<code>mod_type</code> — causal role<a class="anchor" aria-label="anchor" href="#mod_type-causal-role"></a>
+<code>mod_type</code>: causal role<a class="anchor" aria-label="anchor" href="#mod_type-causal-role"></a>
 </h3>
 <table class="table">
 <thead><tr class="header">
@@ -351,7 +351,7 @@ default clipping behaviour, as described above)</p>
 </table>
 </div>
 <div class="section level3">
-<h3 id="temporal-ordering-is-critical">Temporal ordering is critical<a class="anchor" aria-label="anchor" href="#temporal-ordering-is-critical"></a>
+<h3 id="temporal-ordering">Temporal ordering<a class="anchor" aria-label="anchor" href="#temporal-ordering"></a>
 </h3>
 <p>The list order determines the simulation sequence at each time step,
 and it must follow your assumed data-generating mechanism. Confounders
@@ -407,7 +407,7 @@ evaluated inside the simulated dataset at each step.</p>
 <p>The hooks are required even when the lag columns already exist in
 your data. The Monte Carlo cohort is built from <code>id_var</code> and
 <code>base_vars</code> only, so any column a model references that is
-neither of those — every lag column included — has to be created by
+neither of those, every lag column included, has to be created by
 <code>init_recode</code> at the first time point and maintained by
 <code>in_recode</code> thereafter. Without them the run stops with
 <code>object 'lag1_A' not found</code>. Listing lag columns in
@@ -438,7 +438,7 @@ trade-offs.</p>
 <h2 id="quick-start-a-total-effect-with-gformula">Quick start: a total effect with <code>gformula()</code><a class="anchor" aria-label="anchor" href="#quick-start-a-total-effect-with-gformula"></a>
 </h2>
 <p>Models in temporal order (<strong>A → L1 → L2 → Y</strong>, matching
-the documented data-generating process — exposure first, current
+the documented data-generating process: exposure first, current
 <code>A</code> in the confounder models), then three strategies: the
 natural course, always treat, never treat.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
@@ -540,10 +540,10 @@ identifiable when confounders are affected by the exposure:</p>
 <span><span class="co">#&gt; 6: Mediation Proportion (multiplicative) 43.707616415       NA</span></span></code></pre></div>
 <p>The <code>estimate</code> table is the decomposition: the direct
 effect, the indirect effect (through <code>M</code>), the total effect,
-a mediated-interaction residual row, and the proportion mediated. A
-second estimand — <strong>natural</strong> direct/indirect effects
+a decomposition residual row, and the proportion mediated. A second
+estimand, <strong>natural</strong> direct/indirect effects
 (<code>mediation_type = "N"</code>), with an optional targeted maximum
-likelihood estimator (<code>estimator = "tmle"</code>) — needs stronger
+likelihood estimator (<code>estimator = "tmle"</code>), needs stronger
 assumptions and is not identified when a confounder responds to the
 exposure (as <code>L1</code>/<code>L2</code> do here).</p>
 <p>What the decomposition rows mean, the choice between the two
@@ -592,7 +592,7 @@ assumption (VanderWeele &amp; Tchetgen Tchetgen 2017).</li>
 </h2>
 <ul>
 <li>Robins, J. M. (1986). A new approach to causal inference in
-mortality studies with a sustained exposure period — application to
+mortality studies with a sustained exposure period: application to
 control of the healthy worker survivor effect. <em>Mathematical
 Modelling</em>, 7(9–12), 1393–1512.</li>
 <li>Westreich, D., Cole, S. R., Young, J. G., et al. (2012). The

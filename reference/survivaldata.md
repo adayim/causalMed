@@ -94,14 +94,14 @@ mediator-outcome relationship is present.
 computed under the same permuted-pool construction the package uses for
 `mediation_type = "I"`, at 200,000 subjects):
 
-|                                                  |       |
-|--------------------------------------------------|-------|
-| Risk under no exposure                           | 0.39  |
-| Risk under exposure                              | 0.79  |
-| Interventional direct effect (IDE)               | 0.194 |
-| Interventional indirect effect (IIE)             | 0.191 |
-| Total effect (TE)                                | 0.400 |
-| Mediated-interaction residual (TE \\-\\ overall) | 0.015 |
+|                                           |       |
+|-------------------------------------------|-------|
+| Risk under no exposure                    | 0.39  |
+| Risk under exposure                       | 0.79  |
+| Interventional direct effect (IDE)        | 0.194 |
+| Interventional indirect effect (IIE)      | 0.191 |
+| Total effect (TE)                         | 0.400 |
+| Decomposition residual (TE \\-\\ overall) | 0.015 |
 
 Follow-up stops at the event or at loss to follow-up, whichever comes
 first, so no rows are retained for a subject after either. Of the 3000

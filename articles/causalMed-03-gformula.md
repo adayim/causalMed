@@ -4,7 +4,7 @@
 
 [`gformula()`](https://adayim.github.io/causalMed/reference/gformula.md)
 estimates the counterfactual mean outcome had everyone followed a given
-exposure strategy — the **total effect** of the strategy — using the
+exposure strategy, the **total effect** of the strategy, using the
 standard parametric g-formula (Westreich et al. 2012; McGrath et
 al. 2020): fit a parametric model for every time-varying variable, then
 Monte Carlo simulate each subject forward in time under the intervention
@@ -15,17 +15,19 @@ This vignette is the full total-effect story:
 1.  a binary end-of-follow-up outcome,
 2.  a survival (time-to-event) outcome,
 3.  dynamic (rule-based) interventions,
-4.  a published replication — the GvHD analysis of Keil et al. (2014),
+4.  a published replication, the GvHD analysis of Keil et al. (2014),
     which combines absorbing states, censoring, and spline recodes,
-5.  bootstrap confidence intervals and parallel execution,
-6.  extracting fitted models and simulated data, and
-7.  custom covariate distributions.
+5.  bootstrap confidence intervals and parallel execution, and
+6.  extracting fitted models and simulated data.
 
-The shared vocabulary — long-format data,
+Custom covariate distributions (`var_type = "custom"`) are covered in
+[`vignette("causalMed-01-overview")`](https://adayim.github.io/causalMed/articles/causalMed-01-overview.md).
+
+The shared vocabulary (long-format data,
 [`spec_model()`](https://adayim.github.io/causalMed/reference/spec_model.md),
 the `var_type` / `mod_type` tables, and the
 [`recodes()`](https://adayim.github.io/causalMed/reference/recodes.md)
-lag hooks — is introduced in
+lag hooks) is introduced in
 [`vignette("causalMed-01-overview")`](https://adayim.github.io/causalMed/articles/causalMed-01-overview.md)
 and not repeated here. For mediation (direct/indirect decomposition) see
 [`vignette("causalMed-02-mediation")`](https://adayim.github.io/causalMed/articles/causalMed-02-mediation.md).
@@ -43,13 +45,13 @@ library(data.table)
 
 ------------------------------------------------------------------------
 
-## Example 1 — Binary end-of-follow-up outcome
+## Example 1: binary end-of-follow-up outcome
 
 `nonsurvivaldata` (see the overview vignette and
 [`?nonsurvivaldata`](https://adayim.github.io/causalMed/reference/nonsurvivaldata.md))
-follows 1 000 subjects over five time points; within each period the
+follows 3 000 subjects over five time points; within each period the
 data-generating ordering is **A → L**: the exposure is decided first and
-the confounders respond to it. The model list mirrors that ordering —
+the confounders respond to it. The model list mirrors that ordering:
 exposure model first, current `A` in each confounder model. In your own
 analyses, always match the list order and each model’s conditioning to
 *your* assumed data-generating process.
@@ -124,13 +126,13 @@ risk ratio) against the reference intervention.
 
 ------------------------------------------------------------------------
 
-## Example 2 — Survival (time-to-event) outcome
+## Example 2: survival (time-to-event) outcome
 
 For survival outcomes use `mod_type = "survival"`. The model estimates
 the discrete-time hazard at each time point; the package accumulates
 these into a cumulative incidence, $`1 - \prod_t (1 - h_t)`$, so the
 reported quantities are risks of the event by the end of follow-up. The
-data must contain one row per subject per period **at risk** — once the
+data must contain one row per subject per period **at risk**: once the
 event occurs, no later rows for that subject may be present (see
 [`?survivaldata`](https://adayim.github.io/causalMed/reference/survivaldata.md)).
 
@@ -192,7 +194,7 @@ step.
 One scoping rule to keep in mind: the rule runs at the exposure model’s
 position in the model list. Variables simulated *earlier* in the list
 (and the exposure’s own natural-course draw) hold their current-period
-values; variables simulated *later* — here `L1`, which responds to `A` —
+values; variables simulated *later*, here `L1`, which responds to `A`,
 still hold the previous period’s values. A rule for an exposure decided
 at the start of each period therefore conditions on the previous
 period’s covariates:
@@ -231,13 +233,13 @@ fit_dyn$estimate
 #> 2: treat_if_prev_L1_pos / natural      Ratio  0.94648651
 ```
 
-Compound rules are fine too — any expression over in-scope columns
-works, e.g. `dyn_int(as.numeric(A > 0 & lag1_L1 > median(lag1_L1)))`,
+Compound rules work too: any expression over in-scope columns is
+allowed, e.g. `dyn_int(as.numeric(A > 0 & lag1_L1 > median(lag1_L1)))`,
 where `A` is the natural-course draw the rule can override.
 
 ------------------------------------------------------------------------
 
-## A published example — preventing GvHD (Keil et al. 2014)
+## A published example: preventing GvHD (Keil et al. 2014)
 
 The toy examples above isolate one feature at a time. A realistic
 analysis usually combines several. The package ships `gvhd`, the
@@ -249,10 +251,11 @@ course.
 
 This single example exercises features the toy examples do not:
 
-- **five models** in temporal order — relapse → platelet recovery → GvHD
-  (exposure) → censoring → death (survival hazard); the covariates here
+- **five models** in temporal order: relapse → platelet recovery → GvHD
+  (exposure) → censoring → death (survival hazard). The covariates here
   are measured *before* the day’s exposure, so they precede it in the
-  list — the paper’s ordering, unlike the A-first examples above;
+  list, which is the paper’s ordering rather than the A-first ordering
+  of the examples above;
 - **absorbing states** via `subset =` (each state is modelled only among
   those not yet in it) plus an `out_recode` carry-forward that locks the
   state at 1 afterwards;
@@ -263,7 +266,7 @@ This single example exercises features the toy examples do not:
 
 The models follow Appendix 2 of the paper (see
 [`?gvhd`](https://adayim.github.io/causalMed/reference/gvhd.md)). First,
-the time-fixed baseline transforms — restricted cubic splines of age
+the time-fixed baseline transforms: restricted cubic splines of age
 (`agecurs1`/`agecurs2`, knots 17, 25.4, 30, 41.4) and of day
 (`daycurs1`/`daycurs2`, knots 83.6, 401.4, 947, 1862.2), plus
 `agesq`/`daysq`:
@@ -383,7 +386,7 @@ fit_gvhd$estimate
 
 The two rows above are the simulated 5-year risks of death under the
 natural course and under the “never GvHD” strategy, and their contrast.
-This reproduces the analysis specification of Keil et al. (2014) — read
+This reproduces the analysis specification of Keil et al. (2014). Read
 that paper for the substantive interpretation and for the assumptions it
 rests on; the purpose here is to show the machinery on a published
 example, not to draw a clinical conclusion.
@@ -453,9 +456,9 @@ head(fit_boot$boot_estimates$interventions)
 Like the GvHD example, the bootstrap here runs for real at precompute
 time; on CRAN and CI the shipped vignette carries this captured output
 without re-running 200 replicates. Enable parallel bootstrap by
-registering a `future` plan first —
-[`library(future); plan(multisession)`](https://future.futureverse.org)
-— before the call; see
+registering a `future` plan
+([`library(future); plan(multisession)`](https://future.futureverse.org))
+before the call; see
 [`vignette("causalMed-01-overview")`](https://adayim.github.io/causalMed/articles/causalMed-01-overview.md)
 for the parallel details.
 
@@ -503,7 +506,7 @@ Set `return_data = TRUE` to retrieve the simulated Monte Carlo dataset
 (can be large). It is the **end-of-follow-up snapshot**: one row per
 Monte Carlo subject per intervention, holding each variable at its final
 simulated time step together with the accumulated `Pred_Y`. It is not a
-row-per-time-point panel — the simulation overwrites each variable in
+row-per-time-point panel: the simulation overwrites each variable in
 place as it steps through time.
 
 ``` r

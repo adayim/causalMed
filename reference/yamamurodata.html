@@ -128,7 +128,7 @@ is one draw of \(n = 10000\) subjects (seed 2468) from the identical
 process, making single-dataset estimates informative.</p>
 <p><strong>Large-sample true values</strong> (risk differences in percentage points,
 computed from the data-generating process at \(n = 10^7\); Monte Carlo
-SE in parentheses):</p><table class="table table"><tr><td>Total effect (TE = \(E[Y_1] - E[Y_0]\))</td><td>\(-6.36\) (0.011)</td></tr><tr><td>Interventional direct effect (IDE)</td><td>\(-3.20\) (0.013)</td></tr><tr><td>Interventional indirect effect via M1</td><td>\(-2.29\) (0.011)</td></tr><tr><td>Interventional indirect effect via M2</td><td>\(-0.97\) (0.009)</td></tr><tr><td>Mediated-interaction residual (TE \(-\) overall)</td><td>\(0.10\) (0.016)</td></tr></table><p>The mediated-interaction residual is non-zero because the reported total
+SE in parentheses):</p><table class="table table"><tr><td>Total effect (TE = \(E[Y_1] - E[Y_0]\))</td><td>\(-6.36\) (0.011)</td></tr><tr><td>Interventional direct effect (IDE)</td><td>\(-3.20\) (0.013)</td></tr><tr><td>Interventional indirect effect via M1</td><td>\(-2.29\) (0.011)</td></tr><tr><td>Interventional indirect effect via M2</td><td>\(-0.97\) (0.009)</td></tr><tr><td>Decomposition residual (TE \(-\) overall)</td><td>\(0.10\) (0.016)</td></tr></table><p>The decomposition residual is non-zero because the reported total
 effect is a natural-course contrast while the direct and indirect effects
 are interventional; see the <em>Mediator pool</em> section of
 <code><a href="mediation.html">mediation</a></code> for how the mediator draws are constructed.</p>

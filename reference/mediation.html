@@ -291,7 +291,7 @@ distinct seeds to ensure independent bootstrap draws across analyses.</p></dd>
 <li><p><code>"Direct effect"</code>   = \(E[Y_{1,G_0}] - E[Y_{0,G_0}]\)</p></li>
 <li><p><code>"Total effect"</code>    = \(E[Y_1] - E[Y_0]\) (natural
                 plug-in g-formula; <em>not</em> the sum of the components)</p></li>
-<li><p><code>"TE - (Direct + Indirect)"</code> = the mediated-interaction
+<li><p><code>"TE - (Direct + Indirect)"</code> = the decomposition
                 residual \(TE - (IDE + IIE)\) = \(TE\) minus the
                 interventional overall effect \(E[Y_{1,G_1}] - E[Y_{0,G_0}]\)
                 (generally non-zero for interventional effects; this row is
@@ -383,6 +383,12 @@ Each element of <code>models</code> is created by <code><a href="spec_model.html
 Multiple mediator models are supported under <code>mediation_type = "I"</code>
 (Yamamuro et al. 2021); list them in temporal order. Multi-mediator
 analyses are not supported under <code>mediation_type = "N"</code>.</p>
+<p>A <code>"censor"</code> model declares a discrete-time censoring process. Under every
+intervention the censoring indicator is set to zero, so the estimand is the risk
+under eliminated loss to follow-up, and with the default <code>estimator = "gcomp"</code>
+the censoring model does not alter the intervention-specific risks; it is used by
+the targeted estimator (<code>estimator = "tmle"</code>) and by the natural course in
+<code><a href="gformula.html">gformula</a></code>.</p>
 <p>The list order determines the simulation sequence at each time step and must match
 your assumed data-generating process. A common ordering is
 <strong>A(t) -&gt; L(t) -&gt; M(t) -&gt; S(t)</strong> (confounders not affected by mediator) or
@@ -410,7 +416,7 @@ randomized interventional mediator distribution, as prescribed by Lin et al.
 natural plug-in total effect is obtained from separate natural-course interventions
 (<code>nat0</code>, <code>nat1</code>), so \(TE\) need not equal the sum of the
 interventional direct and indirect effects; their difference is reported as
-the mediated-interaction residual. The pool is not survival-weighted; the
+the decomposition residual. The pool is not survival-weighted; the
 full reference cohort is used, mirroring the reference SAS implementations.</p>
 <p>**Warnings**
 Warnings from model fitting (e.g., convergence, near-separation) are collected

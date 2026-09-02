@@ -83,8 +83,7 @@ total-effect estimation.</p>
 currently does not</li>
 <li>The mediation extension that motivated <code>causalMed</code>
 </li>
-<li>Side-by-side total-effect estimates confirming numerical
-equivalence</li>
+<li>Side-by-side total-effect estimates from the two packages</li>
 <li>Guidance on when to use each package</li>
 </ol>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
@@ -122,7 +121,7 @@ with censoring disabled under intervention, and bootstrap over subjects
 for confidence intervals. The <code>causalMed</code> regression tests
 cross-check total-effect estimates against <code>gfoRmula</code> (the R
 twin of the SAS macro) to Monte Carlo noise.</p>
-<p>Two clarifications are worth keeping in mind:</p>
+<p>Two points of clarification:</p>
 <ul>
 <li>
 <strong>GFORMULA-SAS estimates total effects only.</strong> It
@@ -140,12 +139,13 @@ types, keyword-driven functional forms of covariate history (lags,
 cumulative averages, restricted cubic splines via <code>ptype</code>),
 several packaged intervention types (threshold, increment, sampling from
 the observed distribution), competing-event handling, and additional
-end-of-follow-up outcome models. <code>causalMed</code> covers the same
-modelling <em>power</em> through a smaller surface — model formulas plus
+end-of-follow-up outcome models. <code>causalMed</code> exposes a
+smaller surface: model formulas plus
 <code>recode</code>/<code><a href="../reference/dyn_int.html">dyn_int()</a></code> expressions and
-<code>custom_fit</code>/<code>custom_sim</code> — but several of these
-conveniences must be coded by hand rather than requested by keyword. The
-specific gaps are itemised below.</li>
+<code>custom_fit</code>/<code>custom_sim</code>. Part of what the macro
+requests by keyword can be written by hand through that surface, and
+part is not implemented at all. The specific gaps are itemised
+below.</li>
 </ul>
 <hr>
 </div>
@@ -237,7 +237,7 @@ implements them and <code>causalMed</code> does not.
 <code>causalMed</code>’s <code>custom_fit</code> and
 <code>custom_sim</code> arguments to <code><a href="../reference/spec_model.html">spec_model()</a></code> allow a
 user-supplied fitting function and sampler, which shifts the
-responsibility for the distributional choice — and for validating it —
+responsibility for the distributional choice, and for validating it,
 onto the user.</p>
 </div>
 <div class="section level3">
@@ -257,8 +257,8 @@ time index, and all parameter values at each step. This gives more
 control for complex multi-variable interventions. <code>causalMed</code>
 offers <code><a href="../reference/dyn_int.html">dyn_int()</a></code>, which captures an R expression evaluated
 inside the simulated dataset at each step. The current time step is in
-scope — the <code>time_var</code> column is refreshed before every step
-— so a rule may reference it directly
+scope (the <code>time_var</code> column is refreshed before every step),
+so a rule may reference it directly
 (e.g. <code>dyn_int(as.numeric(A &gt; 0 &amp; time &gt;= 2))</code>),
 and history-dependent rules can be built by maintaining lagged columns
 through the recode mechanism (<code>in_recode</code> /
@@ -271,9 +271,9 @@ plus the captured expression.</p>
 <div class="section level3">
 <h3 id="cran-stability-and-community-support">CRAN stability and community support<a class="anchor" aria-label="anchor" href="#cran-stability-and-community-support"></a>
 </h3>
-<p><code>gfoRmula</code> is an established CRAN package with
-comprehensive documentation, a dedicated publication (McGrath et
-al. 2020), and ongoing development by the CausalAB group at Harvard.
+<p><code>gfoRmula</code> is an established CRAN package with a dedicated
+publication (McGrath et al. 2020), reference documentation and
+vignettes, and ongoing development by the CausalAB group at Harvard.
 <code>causalMed</code> is a development-stage package and should be used
 with appropriate caution.</p>
 <hr>
@@ -290,23 +290,24 @@ decomposing total effects into direct and indirect components.
 <p><code>causalMed</code> offers two mediation estimands, selected via
 <code>mediation_type</code>:</p>
 <ul>
-<li><p><strong><code>"I"</code> — Interventional IDE/IIE</strong> (Lin
-et al. 2017): the mediator distribution is marginalised over confounders
-by randomly permuting mediator values simulated under the reference
+<li><p><strong><code>"I"</code>, interventional IDE/IIE</strong> (Lin et
+al. 2017): the mediator distribution is marginalised over confounders by
+randomly permuting mediator values simulated under the reference
 exposure. Does not require the cross-world independence
 assumption.</p></li>
-<li><p><strong><code>"N"</code> — Natural NDE/NIE</strong> (Zheng &amp;
+<li><p><strong><code>"N"</code>, natural NDE/NIE</strong> (Zheng &amp;
 van der Laan 2017): the mediator model is evaluated at the alternative
 exposure level while keeping the individual’s own covariate history.
-Requires stronger sequential no-unmeasured-confounding assumptions — in
+Requires stronger sequential no-unmeasured-confounding assumptions. In
 particular, natural effects are not identifiable when a mediator–outcome
 confounder is affected by prior exposure.</p></li>
 </ul>
 <p>For natural effects, two estimators are available: the parametric
 g-formula plug-in (<code>estimator = "gcomp"</code>, the default, with
 bootstrap CIs) and a targeted maximum likelihood estimator
-(<code>estimator = "tmle"</code>, Zheng &amp; van der Laan 2017 §4.3)
-that is multiply robust and reports Wald CIs from the efficient
+(<code>estimator = "tmle"</code>, Zheng &amp; van der Laan 2017 §4.3),
+for which that paper establishes multiple robustness under correctly
+specified nuisance models, and which reports Wald CIs from the efficient
 influence curve without bootstrapping. <code>gfoRmula</code> offers
 neither, since it does not do mediation.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
@@ -342,9 +343,9 @@ neither, since it does not do mediation.</p>
 <p>The <code>estimate</code> table returns the indirect effect, direct
 effect, total effect, and proportion mediated on both the
 risk-difference and risk-ratio scales. See
-<code><a href="../articles/causalMed-02-mediation.html">vignette("causalMed-02-mediation")</a></code> for the full mediation
-story — the estimands, reading the decomposition, survival outcomes,
-multiple mediators, censoring, natural effects, and the targeted (TMLE)
+<code><a href="../articles/causalMed-02-mediation.html">vignette("causalMed-02-mediation")</a></code> for the rest: the
+estimands, reading the decomposition, survival outcomes, multiple
+mediators, censoring, natural effects, and the targeted (TMLE)
 estimator.</p>
 <hr>
 </div>
@@ -637,7 +638,7 @@ process.</p>
 <p>Both packages support dynamic (rule-based) interventions. Here we
 estimate the risk under “treat only if L1 &gt; 0”. The syntax differs
 between packages but the estimand is the same.</p>
-<p><strong>causalMed</strong> — <code><a href="../reference/dyn_int.html">dyn_int()</a></code> captures the rule
+<p><strong>causalMed</strong>: <code><a href="../reference/dyn_int.html">dyn_int()</a></code> captures the rule
 as an unevaluated expression evaluated inside the simulated dataset at
 each time step:</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
@@ -668,7 +669,7 @@ each time step:</p>
 <span><span class="co">#&gt;                       &lt;char&gt;     &lt;char&gt;        &lt;num&gt;</span></span>
 <span><span class="co">#&gt; 1: treat_if_L1_pos - natural Difference -0.004472208</span></span>
 <span><span class="co">#&gt; 2: treat_if_L1_pos / natural      Ratio  0.980955847</span></span></code></pre></div>
-<p><strong>gfoRmula</strong> — user-supplied function passed as an
+<p><strong>gfoRmula</strong>: user-supplied function passed as an
 argument:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">treat_if_L1_pos</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">newdf</span>, <span class="va">pool</span>, <span class="va">intvar</span>, <span class="va">intvals</span>, <span class="va">time_name</span>, <span class="va">t</span><span class="op">)</span> <span class="op">{</span></span>
@@ -696,12 +697,13 @@ recode-plus-expression pattern.</p>
 </div>
 </div>
 <div class="section level2">
-<h2 id="high-precision-numerical-cross-validation">High-Precision Numerical Cross-Validation<a class="anchor" aria-label="anchor" href="#high-precision-numerical-cross-validation"></a>
+<h2 id="large-sample-numerical-cross-validation">Large-Sample Numerical Cross-Validation<a class="anchor" aria-label="anchor" href="#large-sample-numerical-cross-validation"></a>
 </h2>
-<p>With 50,000 Monte Carlo replicates and the same random seed, the two
-packages are expected to agree to within 0.0001. The differences shown
-below reflect Monte Carlo sampling variability only, not algorithmic
-divergence.</p>
+<p>The comparison below repeats Example 1 with 50,000 Monte Carlo
+replicates rather than 10,000, which shrinks the Monte Carlo component
+of the difference. Both packages fit the same models to the same data
+and implement the same estimator, so what remains is Monte Carlo
+sampling variability rather than algorithmic divergence.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_cv_cm</span> <span class="op">&lt;-</span> <span class="fu">causalMed</span><span class="fu">::</span><span class="fu"><a href="../reference/gformula.html">gformula</a></span><span class="op">(</span></span>
 <span>  data         <span class="op">=</span> <span class="va">dat</span>, id_var <span class="op">=</span> <span class="st">"id"</span>, time_var <span class="op">=</span> <span class="st">"time"</span>, base_vars <span class="op">=</span> <span class="st">"V"</span>,</span>
@@ -742,12 +744,14 @@ divergence.</p>
 <span><span class="co">#&gt;   Intervention causalMed gfoRmula Difference</span></span>
 <span><span class="co">#&gt; 1      natural   0.23445  0.23507    0.00062</span></span>
 <span><span class="co">#&gt; 2       always   0.25441  0.25448    0.00007</span></span></code></pre></div>
-<p>On this example the differences are within 0.0001. The package’s test
-suite runs the same comparison against <code>gfoRmula</code> on a binary
-end-of-follow-up outcome, a survival outcome and a dynamic intervention,
-so the agreement shown here is not a one-off; it is established on those
-data-generating processes, at those model specifications, and does not
-by itself extend to settings the comparison does not cover.</p>
+<p>The <code>Difference</code> column above is what this run produced.
+The package’s test suite runs the same comparison against
+<code>gfoRmula</code> on a binary end-of-follow-up outcome, a survival
+outcome and a dynamic intervention, asserting agreement at a tolerance
+of 0.005, so what is shown here is not a one-off. That agreement is
+established on those data-generating processes, at those model
+specifications, and does not by itself extend to settings the comparison
+does not cover.</p>
 <hr>
 </div>
 <div class="section level2">
@@ -811,7 +815,7 @@ survival outcomes. <em>Journal of Causal Inference</em>, 5(2).</p></li>
 <span><span class="co">#&gt; [43] lifecycle_1.0.5     vctrs_0.7.3         evaluate_1.0.5     </span></span>
 <span><span class="co">#&gt; [46] glue_1.8.1          listenv_1.0.0       farver_2.1.2       </span></span>
 <span><span class="co">#&gt; [49] codetools_0.2-20    ragg_1.5.2          parallelly_1.48.0  </span></span>
-<span><span class="co">#&gt; [52] rmarkdown_2.31      tools_4.6.1         pkgconfig_2.0.3    </span></span>
+<span><span class="co">#&gt; [52] rmarkdown_2.32      tools_4.6.1         pkgconfig_2.0.3    </span></span>
 <span><span class="co">#&gt; [55] htmltools_0.5.9</span></span></code></pre></div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

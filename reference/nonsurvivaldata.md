@@ -113,12 +113,12 @@ present – the setting the interventional effects are designed for.
 permuted-pool construction the package uses for `mediation_type = "I"`,
 at 200,000 subjects):
 
-|                                                  |       |
-|--------------------------------------------------|-------|
-| Interventional direct effect (IDE)               | 0.075 |
-| Interventional indirect effect (IIE)             | 0.071 |
-| Total effect (TE)                                | 0.155 |
-| Mediated-interaction residual (TE \\-\\ overall) | 0.009 |
+|                                           |       |
+|-------------------------------------------|-------|
+| Interventional direct effect (IDE)        | 0.075 |
+| Interventional indirect effect (IIE)      | 0.071 |
+| Total effect (TE)                         | 0.155 |
+| Decomposition residual (TE \\-\\ overall) | 0.009 |
 
 The two pathways are deliberately of comparable size, and the residual
 is deliberately non-zero, so that the decomposition and its

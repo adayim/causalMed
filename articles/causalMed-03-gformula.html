@@ -76,25 +76,26 @@
 <h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
 </h2>
 <p><code><a href="../reference/gformula.html">gformula()</a></code> estimates the counterfactual mean outcome had
-everyone followed a given exposure strategy — the <strong>total
-effect</strong> of the strategy — using the standard parametric
-g-formula (Westreich et al. 2012; McGrath et al. 2020): fit a parametric
-model for every time-varying variable, then Monte Carlo simulate each
-subject forward in time under the intervention of interest.</p>
+everyone followed a given exposure strategy, the <strong>total
+effect</strong> of the strategy, using the standard parametric g-formula
+(Westreich et al. 2012; McGrath et al. 2020): fit a parametric model for
+every time-varying variable, then Monte Carlo simulate each subject
+forward in time under the intervention of interest.</p>
 <p>This vignette is the full total-effect story:</p>
 <ol style="list-style-type: decimal">
 <li>a binary end-of-follow-up outcome,</li>
 <li>a survival (time-to-event) outcome,</li>
 <li>dynamic (rule-based) interventions,</li>
-<li>a published replication — the GvHD analysis of Keil et al. (2014),
+<li>a published replication, the GvHD analysis of Keil et al. (2014),
 which combines absorbing states, censoring, and spline recodes,</li>
-<li>bootstrap confidence intervals and parallel execution,</li>
-<li>extracting fitted models and simulated data, and</li>
-<li>custom covariate distributions.</li>
+<li>bootstrap confidence intervals and parallel execution, and</li>
+<li>extracting fitted models and simulated data.</li>
 </ol>
-<p>The shared vocabulary — long-format data, <code><a href="../reference/spec_model.html">spec_model()</a></code>,
+<p>Custom covariate distributions (<code>var_type = "custom"</code>) are
+covered in <code><a href="../articles/causalMed-01-overview.html">vignette("causalMed-01-overview")</a></code>.</p>
+<p>The shared vocabulary (long-format data, <code><a href="../reference/spec_model.html">spec_model()</a></code>,
 the <code>var_type</code> / <code>mod_type</code> tables, and the
-<code><a href="../reference/recodes.html">recodes()</a></code> lag hooks — is introduced in
+<code><a href="../reference/recodes.html">recodes()</a></code> lag hooks) is introduced in
 <code><a href="../articles/causalMed-01-overview.html">vignette("causalMed-01-overview")</a></code> and not repeated here.
 For mediation (direct/indirect decomposition) see
 <code><a href="../articles/causalMed-02-mediation.html">vignette("causalMed-02-mediation")</a></code>.</p>
@@ -109,13 +110,13 @@ For mediation (direct/indirect decomposition) see
 <hr>
 </div>
 <div class="section level2">
-<h2 id="example-1-binary-end-of-follow-up-outcome">Example 1 — Binary end-of-follow-up outcome<a class="anchor" aria-label="anchor" href="#example-1-binary-end-of-follow-up-outcome"></a>
+<h2 id="example-1-binary-end-of-follow-up-outcome">Example 1: binary end-of-follow-up outcome<a class="anchor" aria-label="anchor" href="#example-1-binary-end-of-follow-up-outcome"></a>
 </h2>
 <p><code>nonsurvivaldata</code> (see the overview vignette and
-<code><a href="../reference/nonsurvivaldata.html">?nonsurvivaldata</a></code>) follows 1 000 subjects over five time
+<code><a href="../reference/nonsurvivaldata.html">?nonsurvivaldata</a></code>) follows 3 000 subjects over five time
 points; within each period the data-generating ordering is <strong>A →
 L</strong>: the exposure is decided first and the confounders respond to
-it. The model list mirrors that ordering — exposure model first, current
+it. The model list mirrors that ordering: exposure model first, current
 <code>A</code> in each confounder model. In your own analyses, always
 match the list order and each model’s conditioning to <em>your</em>
 assumed data-generating process.</p>
@@ -183,7 +184,7 @@ under each intervention. The <code>estimate</code> table gives contrasts
 <hr>
 </div>
 <div class="section level2">
-<h2 id="example-2-survival-time-to-event-outcome">Example 2 — Survival (time-to-event) outcome<a class="anchor" aria-label="anchor" href="#example-2-survival-time-to-event-outcome"></a>
+<h2 id="example-2-survival-time-to-event-outcome">Example 2: survival (time-to-event) outcome<a class="anchor" aria-label="anchor" href="#example-2-survival-time-to-event-outcome"></a>
 </h2>
 <p>For survival outcomes use <code>mod_type = "survival"</code>. The
 model estimates the discrete-time hazard at each time point; the package
@@ -191,7 +192,7 @@ accumulates these into a cumulative incidence,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><msub><mo>∏</mo><mi>t</mi></msub><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>h</mi><mi>t</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">1 - \prod_t (1 - h_t)</annotation></semantics></math>,
 so the reported quantities are risks of the event by the end of
 follow-up. The data must contain one row per subject per period
-<strong>at risk</strong> — once the event occurs, no later rows for that
+<strong>at risk</strong>: once the event occurs, no later rows for that
 subject may be present (see <code><a href="../reference/survivaldata.html">?survivaldata</a></code>).</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"survivaldata"</span><span class="op">)</span></span>
@@ -247,8 +248,8 @@ dataset at every time step.</p>
 <p>One scoping rule to keep in mind: the rule runs at the exposure
 model’s position in the model list. Variables simulated <em>earlier</em>
 in the list (and the exposure’s own natural-course draw) hold their
-current-period values; variables simulated <em>later</em> — here
-<code>L1</code>, which responds to <code>A</code> — still hold the
+current-period values; variables simulated <em>later</em>, here
+<code>L1</code>, which responds to <code>A</code>, still hold the
 previous period’s values. A rule for an exposure decided at the start of
 each period therefore conditions on the previous period’s
 covariates:</p>
@@ -283,15 +284,15 @@ covariates:</p>
 <span><span class="co">#&gt;                            &lt;char&gt;     &lt;char&gt;       &lt;num&gt;</span></span>
 <span><span class="co">#&gt; 1: treat_if_prev_L1_pos - natural Difference -0.01257164</span></span>
 <span><span class="co">#&gt; 2: treat_if_prev_L1_pos / natural      Ratio  0.94648651</span></span></code></pre></div>
-<p>Compound rules are fine too — any expression over in-scope columns
-works, e.g.
+<p>Compound rules work too: any expression over in-scope columns is
+allowed, e.g.
 <code>dyn_int(as.numeric(A &gt; 0 &amp; lag1_L1 &gt; median(lag1_L1)))</code>,
 where <code>A</code> is the natural-course draw the rule can
 override.</p>
 <hr>
 </div>
 <div class="section level2">
-<h2 id="a-published-example-preventing-gvhd-keil-et-al--2014">A published example — preventing GvHD (Keil et al. 2014)<a class="anchor" aria-label="anchor" href="#a-published-example-preventing-gvhd-keil-et-al--2014"></a>
+<h2 id="a-published-example-preventing-gvhd-keil-et-al--2014">A published example: preventing GvHD (Keil et al. 2014)<a class="anchor" aria-label="anchor" href="#a-published-example-preventing-gvhd-keil-et-al--2014"></a>
 </h2>
 <p>The toy examples above isolate one feature at a time. A realistic
 analysis usually combines several. The package ships <code>gvhd</code>,
@@ -303,11 +304,11 @@ versus the natural course.</p>
 <p>This single example exercises features the toy examples do not:</p>
 <ul>
 <li>
-<strong>five models</strong> in temporal order — relapse → platelet
-recovery → GvHD (exposure) → censoring → death (survival hazard); the
+<strong>five models</strong> in temporal order: relapse → platelet
+recovery → GvHD (exposure) → censoring → death (survival hazard). The
 covariates here are measured <em>before</em> the day’s exposure, so they
-precede it in the list — the paper’s ordering, unlike the A-first
-examples above;</li>
+precede it in the list, which is the paper’s ordering rather than the
+A-first ordering of the examples above;</li>
 <li>
 <strong>absorbing states</strong> via <code>subset =</code> (each
 state is modelled only among those not yet in it) plus an
@@ -321,7 +322,7 @@ counters, built through the three recode hooks working together;</li>
 <li>real daily-scale survival data (137 subjects, 1 825 days).</li>
 </ul>
 <p>The models follow Appendix 2 of the paper (see <code><a href="../reference/gvhd.html">?gvhd</a></code>).
-First, the time-fixed baseline transforms — restricted cubic splines of
+First, the time-fixed baseline transforms: restricted cubic splines of
 age (<code>agecurs1</code>/<code>agecurs2</code>, knots 17, 25.4, 30,
 41.4) and of day (<code>daycurs1</code>/<code>daycurs2</code>, knots
 83.6, 401.4, 947, 1862.2), plus
@@ -429,7 +430,7 @@ it from day one:</p>
 <span><span class="co">#&gt; 2: never / natural      Ratio  0.96066816</span></span></code></pre></div>
 <p>The two rows above are the simulated 5-year risks of death under the
 natural course and under the “never GvHD” strategy, and their contrast.
-This reproduces the analysis specification of Keil et al. (2014) — read
+This reproduces the analysis specification of Keil et al. (2014). Read
 that paper for the substantive interpretation and for the assumptions it
 rests on; the purpose here is to show the machinery on a published
 example, not to draw a clinical conclusion.</p>
@@ -496,8 +497,8 @@ correlation structure.</p>
 <p>Like the GvHD example, the bootstrap here runs for real at precompute
 time; on CRAN and CI the shipped vignette carries this captured output
 without re-running 200 replicates. Enable parallel bootstrap by
-registering a <code>future</code> plan first —
-<code><a href="https://future.futureverse.org" class="external-link">library(future); plan(multisession)</a></code> — before the call; see
+registering a <code>future</code> plan
+(<code><a href="https://future.futureverse.org" class="external-link">library(future); plan(multisession)</a></code>) before the call; see
 <code><a href="../articles/causalMed-01-overview.html">vignette("causalMed-01-overview")</a></code> for the parallel
 details.</p>
 <hr>
@@ -544,7 +545,7 @@ objects and their coefficients:</p>
 Carlo dataset (can be large). It is the <strong>end-of-follow-up
 snapshot</strong>: one row per Monte Carlo subject per intervention,
 holding each variable at its final simulated time step together with the
-accumulated <code>Pred_Y</code>. It is not a row-per-time-point panel —
+accumulated <code>Pred_Y</code>. It is not a row-per-time-point panel:
 the simulation overwrites each variable in place as it steps through
 time.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">

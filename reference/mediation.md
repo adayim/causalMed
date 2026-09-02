@@ -265,9 +265,9 @@ An object of class `"gformula"` with components:
   - `"Total effect"` = \\E\[Y_1\] - E\[Y_0\]\\ (natural plug-in
     g-formula; *not* the sum of the components)
 
-  - `"TE - (Direct + Indirect)"` = the mediated-interaction residual
-    \\TE - (IDE + IIE)\\ = \\TE\\ minus the interventional overall
-    effect \\E\[Y\_{1,G_1}\] - E\[Y\_{0,G_0}\]\\ (generally non-zero for
+  - `"TE - (Direct + Indirect)"` = the decomposition residual \\TE -
+    (IDE + IIE)\\ = \\TE\\ minus the interventional overall effect
+    \\E\[Y\_{1,G_1}\] - E\[Y\_{0,G_0}\]\\ (generally non-zero for
     interventional effects; this row is *absent* for
     `mediation_type = "N"`, where the decomposition sums exactly to
     \\TE\\).
@@ -360,6 +360,14 @@ mediator models are supported under `mediation_type = "I"` (Yamamuro et
 al. 2021); list them in temporal order. Multi-mediator analyses are not
 supported under `mediation_type = "N"`.
 
+A `"censor"` model declares a discrete-time censoring process. Under
+every intervention the censoring indicator is set to zero, so the
+estimand is the risk under eliminated loss to follow-up, and with the
+default `estimator = "gcomp"` the censoring model does not alter the
+intervention-specific risks; it is used by the targeted estimator
+(`estimator = "tmle"`) and by the natural course in
+[`gformula`](https://adayim.github.io/causalMed/reference/gformula.md).
+
 The list order determines the simulation sequence at each time step and
 must match your assumed data-generating process. A common ordering is
 **A(t) -\> L(t) -\> M(t) -\> S(t)** (confounders not affected by
@@ -392,9 +400,9 @@ Yamamuro et al. (2021, Figure 3 step 3), and as implemented by the SAS
 mGFORMULA macro. The natural plug-in total effect is obtained from
 separate natural-course interventions (`nat0`, `nat1`), so \\TE\\ need
 not equal the sum of the interventional direct and indirect effects;
-their difference is reported as the mediated-interaction residual. The
-pool is not survival-weighted; the full reference cohort is used,
-mirroring the reference SAS implementations.
+their difference is reported as the decomposition residual. The pool is
+not survival-weighted; the full reference cohort is used, mirroring the
+reference SAS implementations.
 
 \*\*Warnings\*\* Warnings from model fitting (e.g., convergence,
 near-separation) are collected during the run and printed as a
