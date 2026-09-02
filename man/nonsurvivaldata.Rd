@@ -84,7 +84,7 @@ permuted-pool construction the package uses for
   Interventional direct effect (IDE) \tab 0.075 \cr
   Interventional indirect effect (IIE) \tab 0.071 \cr
   Total effect (TE) \tab 0.155 \cr
-  Mediated-interaction residual (TE \eqn{-} overall) \tab 0.009 \cr
+  Decomposition residual (TE \eqn{-} overall) \tab 0.009 \cr
 }
 
 The two pathways are deliberately of comparable size, and the residual is

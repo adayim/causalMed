@@ -190,7 +190,7 @@ print.gformula <- function(x,
         "  Indirect effect (IIE) = Phi11 - Phi10   (sequential per mediator when N>=2)\n",
         "  IDE + IIE             = Phi11 - Phi00    (interventional overall effect)\n",
         "  Total effect (TE)     = nat1 - nat0      (natural plug-in g-formula)\n",
-        "  TE - (Direct+Indirect)= mediated-interaction residual (TE - overall)\n",
+        "  TE - (Direct+Indirect)= natural TE minus interventional overall effect\n",
         "  Mediation Prop.       = (Total - Direct) / Total  (percentage; RR not applicable)\n",
         "  RD = risk difference;  RR = risk ratio\n"
       )

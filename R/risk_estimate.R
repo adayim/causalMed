@@ -139,7 +139,7 @@ pm_from_phi <- function(phi, risk) {
 # OE is the interventional overall effect. The reported TOTAL effect is the
 # natural plug-in contrast nat1 - nat0, and an extra row
 #   "TE - (Direct + Indirect)" = TE - OE
-# reports the (generally non-zero) mediated-interaction residual
+# reports the (generally non-zero) decomposition residual
 # (Lin et al. 2017; VanderWeele & Tchetgen Tchetgen 2017; Yamamuro et al. 2021).
 #
 # NATURAL path (nat0/nat1 absent, mediation_type = "N"): Phi00/Phi11 are the

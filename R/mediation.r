@@ -26,6 +26,13 @@
 #' (Yamamuro et al. 2021); list them in temporal order. Multi-mediator
 #' analyses are not supported under \code{mediation_type = "N"}.
 #'
+#' A \code{"censor"} model declares a discrete-time censoring process. Under every
+#' intervention the censoring indicator is set to zero, so the estimand is the risk
+#' under eliminated loss to follow-up, and with the default \code{estimator = "gcomp"}
+#' the censoring model does not alter the intervention-specific risks; it is used by
+#' the targeted estimator (\code{estimator = "tmle"}) and by the natural course in
+#' \code{\link{gformula}}.
+#'
 #' The list order determines the simulation sequence at each time step and must match
 #' your assumed data-generating process. A common ordering is
 #' \strong{A(t) -> L(t) -> M(t) -> S(t)} (confounders not affected by mediator) or
@@ -55,7 +62,7 @@
 #' natural plug-in total effect is obtained from separate natural-course interventions
 #' (\code{nat0}, \code{nat1}), so \eqn{TE} need not equal the sum of the
 #' interventional direct and indirect effects; their difference is reported as
-#' the mediated-interaction residual. The pool is not survival-weighted; the
+#' the decomposition residual. The pool is not survival-weighted; the
 #' full reference cohort is used, mirroring the reference SAS implementations.
 #'
 #' **Warnings**
@@ -196,7 +203,7 @@
   #'           \item \code{"Direct effect"}   = \eqn{E[Y_{1,G_0}] - E[Y_{0,G_0}]}
   #'           \item \code{"Total effect"}    = \eqn{E[Y_1] - E[Y_0]} (natural
   #'                 plug-in g-formula; \emph{not} the sum of the components)
-  #'           \item \code{"TE - (Direct + Indirect)"} = the mediated-interaction
+  #'           \item \code{"TE - (Direct + Indirect)"} = the decomposition
   #'                 residual \eqn{TE - (IDE + IIE)} = \eqn{TE} minus the
   #'                 interventional overall effect \eqn{E[Y_{1,G_1}] - E[Y_{0,G_0}]}
   #'                 (generally non-zero for interventional effects; this row is

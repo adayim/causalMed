@@ -66,7 +66,7 @@ is_intervention_spec <- function(x) inherits(x, "causalMed_intervention")
 # from the separate natural-course interventions
 #   nat0 : treatment 0, mediators NATURAL  = E[Y_0]
 #   nat1 : treatment 1, mediators NATURAL  = E[Y_1]
-# so that TE = nat1 - nat0 and the mediated-interaction residual TE - OE is
+# so that TE = nat1 - nat0 and the decomposition residual TE - OE is
 # generally non-zero (matching the SAS mGFORMULA macro / Yamamuro Table 3).
 #
 # ---- Natural effects (mediation_type = "N") ---------------------------------

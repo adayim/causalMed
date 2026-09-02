@@ -73,7 +73,7 @@ computed under the same permuted-pool construction the package uses for
   Interventional direct effect (IDE) \tab 0.194 \cr
   Interventional indirect effect (IIE) \tab 0.191 \cr
   Total effect (TE) \tab 0.400 \cr
-  Mediated-interaction residual (TE \eqn{-} overall) \tab 0.015 \cr
+  Decomposition residual (TE \eqn{-} overall) \tab 0.015 \cr
 }
 
 Follow-up stops at the event or at loss to follow-up, whichever comes
