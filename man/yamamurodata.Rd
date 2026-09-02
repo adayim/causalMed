@@ -65,9 +65,9 @@ SE in parentheses):
   Interventional direct effect (IDE) \tab \eqn{-3.20} (0.013) \cr
   Interventional indirect effect via M1 \tab \eqn{-2.29} (0.011) \cr
   Interventional indirect effect via M2 \tab \eqn{-0.97} (0.009) \cr
-  Mediated-interaction residual (TE \eqn{-} overall) \tab \eqn{0.10} (0.016) \cr
+  Decomposition residual (TE \eqn{-} overall) \tab \eqn{0.10} (0.016) \cr
 }
-The mediated-interaction residual is non-zero because the reported total
+The decomposition residual is non-zero because the reported total
 effect is a natural-course contrast while the direct and indirect effects
 are interventional; see the \emph{Mediator pool} section of
 \code{\link{mediation}} for how the mediator draws are constructed.

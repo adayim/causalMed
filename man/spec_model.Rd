@@ -50,9 +50,18 @@ By default, values are simulated via:
 }}
 
 \item{mod_type}{Character. The role of this model in the data-generating
-process: \code{"covariate"} (the default), \code{"exposure"},
-\code{"mediator"}, \code{"outcome"}, \code{"censor"}, or
-\code{"survival"}.}
+  process: \code{"covariate"} (the default), \code{"exposure"},
+  \code{"mediator"}, \code{"outcome"}, \code{"censor"}, or
+  \code{"survival"}.
+
+  \code{"censor"} declares a discrete-time censoring process. Its role is
+  narrower than it looks: under every intervention the censoring indicator
+  is set to zero, so the target is the risk under eliminated loss to
+  follow-up, and with \code{estimator = "gcomp"} the censoring model does
+  not alter the intervention-specific risks. It is used in the
+  natural-course simulation of \code{\link{gformula}} and in the targeted
+  estimator (\code{estimator = "tmle"}). Only \code{var_type = "binary"}
+  is accepted for \code{"censor"} and \code{"survival"}.}
 
 \item{custom_fit}{Optional. A model fitting function, used \strong{only}
   when \code{var_type = "custom"} (it is ignored, with a warning, for the

@@ -18,9 +18,9 @@ estimation and extends it with the **survival mediational g-formula** to
 decompose causal effects into direct and indirect components. The
 package supports:
 
-- **Interventional direct and indirect effects** (IDE/IIE) — Lin et
+- **Interventional direct and indirect effects** (IDE/IIE): Lin et
   al. (2017)
-- **Natural direct and indirect effects** (NDE/NIE) — Zheng & van der
+- **Natural direct and indirect effects** (NDE/NIE): Zheng & van der
   Laan (2017)
 
 Both approaches handle time-varying exposures, mediators, and
@@ -46,8 +46,8 @@ devtools::install_github("adayim/causalMed")
   mediator–outcome confounders
 - **Two mediation estimands**:
   - `mediation_type = "I"`: interventional IDE/IIE (VanderWeele &
-    Tchetgen Tchetgen 2017; Lin et al. 2017; Yamamuro et al. 2021) —
-    cross-world mediator drawn as a **joint M(1:T) trajectory** by
+    Tchetgen Tchetgen 2017; Lin et al. 2017; Yamamuro et al. 2021). The
+    cross-world mediator is drawn as a **joint M(1:T) trajectory** by
     row-permuting the reference (a\*) cohort, matching the SAS
     `mGFORMULA` macro and the algorithm of Yamamuro et al. 2021. Does
     not require cross-world independence. **Multiple mediator models**
@@ -55,24 +55,24 @@ devtools::install_github("adayim/causalMed")
     IIE(M_k) is reported alongside the overall IDE/TE. On what a
     non-zero interventional indirect effect does and does not establish,
     see Miles (2023).
-  - `mediation_type = "N"`: natural NDE/NIE (Zheng & van der Laan 2017)
-    — conditional mediator distribution with exposure swapping; requires
-    stronger assumptions (single mediator only). Natural effects are
-    **not identifiable** when a confounder of the mediator–outcome
-    relationship is itself affected by the exposure (Avin, Shpitser &
-    Pearl 2005; VanderWeele & Tchetgen Tchetgen 2017); `mediation()`
-    detects this, warns, and repeats the caveat in `print()`.
-    VanderWeele & Tchetgen Tchetgen (2017) propose the interventional
-    estimand for that setting.
+  - `mediation_type = "N"`: natural NDE/NIE (Zheng & van der Laan 2017),
+    using the conditional mediator distribution with exposure swapping;
+    requires stronger assumptions (single mediator only). Natural
+    effects are **not identifiable** when a confounder of the
+    mediator–outcome relationship is itself affected by the exposure
+    (Avin, Shpitser & Pearl 2005; VanderWeele & Tchetgen Tchetgen 2017);
+    `mediation()` detects this, warns, and repeats the caveat in
+    `print()`. VanderWeele & Tchetgen Tchetgen (2017) propose the
+    interventional estimand for that setting.
 - **Two estimators for natural effects**: the parametric g-formula
   plug-in (`estimator = "gcomp"`, the default) or a **targeted maximum
   likelihood estimator** (`estimator = "tmle"`, Zheng & van der Laan
-  2017 §4.3), for which that paper establishes multiple robustness —
-  consistency when only certain subsets of the nuisance models are
-  correct — with Wald confidence intervals from the efficient influence
-  curve, so no bootstrap is needed. Available for `mediation_type = "N"`
-  only.
-- **Flexible model specification**: logistic regression (binary), linear
+  2017 §4.3), for which that paper establishes multiple robustness,
+  meaning consistency when only certain subsets of the nuisance models
+  are correct, with Wald confidence intervals from the efficient
+  influence curve, so no bootstrap is needed. Available for
+  `mediation_type = "N"` only.
+- **Model specification**: logistic regression (binary), linear
   regression (normal), multinomial logistic (categorical), and custom
   simulation functions. Numeric draws are clipped to the observed range
   of the response by default; use `spec_model(truncate = FALSE)` to draw
@@ -105,7 +105,7 @@ in_rc   <- recodes(lag1_A  = A,   # At each subsequent step, copy current values
                    lag1_L2 = L2)
 
 # Specify models in temporal order: A → L1 → L2 → Y (exposure first,
-# current A in the confounder models — matching the documented DGP)
+# current A in the confounder models, matching the documented DGP)
 m_A  <- spec_model(A     ~ V + lag1_A + lag1_L1 + lag1_L2 + time,
                    var_type = "binary",  mod_type = "exposure")
 m_L1 <- spec_model(L1    ~ V + A + lag1_L1 + time,
@@ -185,9 +185,9 @@ print(fit_bin)
 #>   95% CIs: percentile (pct) and normal approximation (norm) from 100 bootstrap replicates.
 ```
 
-The list order must match your assumed data-generating process — here
-the exposure is decided first within each period and the confounders
-respond to it, as documented in `?nonsurvivaldata`.
+The list order must match your assumed data-generating process. Here the
+exposure is decided first within each period and the confounders respond
+to it, as documented in `?nonsurvivaldata`.
 
 ### Mediation analysis: interventional IDE/IIE (Lin et al. 2017)
 
@@ -273,7 +273,7 @@ print(fit_med)
 #>   Indirect effect (IIE) = Phi11 - Phi10   (sequential per mediator when N>=2)
 #>   IDE + IIE             = Phi11 - Phi00    (interventional overall effect)
 #>   Total effect (TE)     = nat1 - nat0      (natural plug-in g-formula)
-#>   TE - (Direct+Indirect)= mediated-interaction residual (TE - overall)
+#>   TE - (Direct+Indirect)= natural TE minus interventional overall effect
 #>   Mediation Prop.       = (Total - Direct) / Total  (percentage; RR not applicable)
 #>   RD = risk difference;  RR = risk ratio
 #>                                   Effect      RD     RR Sd(RD) RD 2.5%(pct)
@@ -311,7 +311,7 @@ The `estimate` component of `fit_med` contains:
 | Indirect effect | Q(1,1) − Q(1,0): effect through the mediator pathway |
 | Direct effect | Q(1,0) − Q(0,0): effect not through the mediator |
 | Total effect | natural plug-in g-formula contrast E\[Y₁\] − E\[Y₀\] |
-| TE − (Direct + Indirect) | mediated-interaction residual (interventional only; exactly 0, and omitted, for natural effects) |
+| TE − (Direct + Indirect) | decomposition residual (interventional only; exactly 0, and omitted, for natural effects) |
 | Mediation Proportion | (Total − Direct) / Total × 100% (additive) |
 | Mediation Proportion (multiplicative) | RR-scale proportion mediated (Lin et al. 2017, Table 2) |
 
@@ -330,8 +330,8 @@ For `mediation_type = "N"` the references use each subject’s own
 mediator and the decomposition sums exactly to the total effect (no
 residual row).
 
-Under `mediation_type = "I"`, the mediators in **every** intervention —
-the references Q(0,0) and Q(1,1) as well as the cross-world Q(1,0) — are
+Under `mediation_type = "I"`, the mediators in **every** intervention
+(the references Q(0,0) and Q(1,1) as well as the cross-world Q(1,0)) are
 drawn as **joint trajectories**: a natural-course cohort is simulated
 under each a\*, and the intervention assigns each subject the full
 M(1:T) of a randomly permuted reference-cohort individual (each mediator
@@ -360,8 +360,8 @@ when a mediator–outcome confounder is itself affected by prior exposure
 (Avin, Shpitser & Pearl 2005; VanderWeele & Tchetgen Tchetgen 2017).
 `mediation()` scans the model formulas for covariates modelled as
 exposure-affected, warns at run time, and restates the caveat under the
-decomposition when you `print()` the result — that scan cannot verify
-the causal structure, and its silence does not establish that no such
+decomposition when you `print()` the result. That scan cannot verify the
+causal structure, and its silence does not establish that no such
 confounder exists. VanderWeele & Tchetgen Tchetgen (2017) propose the
 randomized interventional analogues (`mediation_type = "I"`) for that
 setting.
@@ -376,14 +376,14 @@ targeted maximum likelihood estimator of Zheng & van der Laan (2017,
 fit_tmle <- mediation(
   ...,                     # same arguments as above
   mediation_type = "N",
-  estimator      = "tmle"  # multiply robust; EIC Wald CIs, no bootstrap
+  estimator      = "tmle"  # EIC Wald CIs, no bootstrap
 )
 ```
 
 It runs backward targeted regressions instead of forward simulation.
 Zheng & van der Laan (2017) establish multiple robustness for this
-estimator — consistency when only certain subsets of the nuisance models
-are correct — and it reports Wald CIs from the efficient influence
+estimator, meaning consistency when only certain subsets of the nuisance
+models are correct, and it reports Wald CIs from the efficient influence
 curve, so `R` and `mc_sample` are ignored. Note that those results are
 stated for correctly specified nuisance models, and this implementation
 builds its targeted sequential regressions as additive main-effects
