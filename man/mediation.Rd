@@ -329,12 +329,32 @@ mediator to its \eqn{a^*} value — \emph{including the reference interventions}
 \code{Phi00} (\eqn{a^* = 0}) and \code{Phi11} (\eqn{a^* = 1}) — permutes that
 pool once and assigns subject \eqn{i} the entire trajectory of
 pool individual \eqn{\pi(i)}: a joint, stochastic draw \eqn{G_{a^*}} from the
-simulated distribution of \eqn{M(1{:}T)}, independent of \eqn{i}'s own
-confounder history (and permuted independently across mediators). This makes
-\emph{all} interventions in the decomposition — references and cross-world alike — use the
-randomized interventional mediator distribution, as prescribed by Lin et al.
-(2017, Eq. 4), VanderWeele & Tchetgen Tchetgen (2017), and Yamamuro et al.
-(2021, Figure 3 step 3), and as implemented by the SAS mGFORMULA macro. The
+simulated distribution of \eqn{M(1{:}T)}. The permutation is uniform over the
+whole simulated cohort, so the draw is marginal over the baseline covariates as
+well as over \eqn{i}'s own confounder history (and is permuted independently
+across mediators). This makes \emph{all} interventions in the decomposition —
+references and cross-world alike — use the randomized interventional mediator
+distribution.
+
+The draw is \emph{marginal} over the whole covariate history, baseline
+included. VanderWeele and Tchetgen Tchetgen (2017), who introduced the
+mediational g-formula, define two forms: a draw from the distribution within
+the baseline-covariate stratum, \eqn{G_{a|v}}, and — as an explicit variation,
+with its own identifying formula — a draw from the entire population,
+\eqn{G_{a}}. This package targets the second. It is also the form that the
+fixed-endpoint mediational g-formula of Lin et al. (2017, \emph{Epidemiology})
+parameterizes: that algorithm estimates the joint mediator distribution
+"marginal over all other covariates" and permutes it across subjects, and
+averaging over several permutations (\code{n_vw}) is a step of it. Both
+reference SAS implementations — the mGFORMULA macro and the Yamamuro et al.
+(2021) supplement — permute the whole simulated cohort.
+
+Note for readers comparing notation: Yamamuro et al. (2021, Eq. 2) and the
+survival formula of Lin et al. (2017, \emph{Stat Med}, Eq. 4) are written for
+the conditional form, the latter also restricting the mediator factor to
+survivors. The two agree when the counterfactual mediator distribution does not
+depend on the baseline covariates, or when the outcome mean is additively
+separable in them and the mediator; otherwise they are different functionals. The
 natural plug-in total effect is obtained from separate natural-course interventions
 (\code{nat0}, \code{nat1}), so \eqn{TE} need not equal the sum of the
 interventional direct and indirect effects; their difference is reported as
