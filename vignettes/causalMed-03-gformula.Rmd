@@ -27,7 +27,7 @@ standard parametric g-formula (Westreich et al. 2012; McGrath et al. 2020):
 fit a parametric model for every time-varying variable, then Monte Carlo
 simulate each subject forward in time under the intervention of interest.
 
-This vignette is the full total-effect story:
+This vignette covers:
 
 1. a binary end-of-follow-up outcome,
 2. a survival (time-to-event) outcome,
@@ -37,12 +37,10 @@ This vignette is the full total-effect story:
 5. bootstrap confidence intervals and parallel execution, and
 6. extracting fitted models and simulated data.
 
-Custom covariate distributions (`var_type = "custom"`) are covered in
-`vignette("causalMed-01-overview")`.
-
 The shared vocabulary (long-format data, `spec_model()`, the `var_type` /
 `mod_type` tables, and the `recodes()` lag hooks) is introduced in
-`vignette("causalMed-01-overview")` and not repeated here. For mediation
+`vignette("causalMed-01-overview")` and not repeated here, and so are custom
+covariate distributions (`var_type = "custom"`). For mediation
 (direct/indirect decomposition) see `vignette("causalMed-02-mediation")`.
 
 
@@ -378,15 +376,15 @@ fit_gvhd <- gformula(gvhd,
   mc_sample = 20000, R = 1, quiet = TRUE, seed = 20260703)
 
 fit_gvhd$effect_size
-#>    Intervention       Est
-#>          <fctr>     <num>
-#> 1:      natural 0.6117630
-#> 2:        never 0.5877012
+#>    Intervention      Est
+#>          <fctr>    <num>
+#> 1:      natural 0.611763
+#> 2:        never 0.587719
 fit_gvhd$estimate
 #>       Intervention  Risk_type    Estimate
 #>             <char>     <char>       <num>
-#> 1: never - natural Difference -0.02406177
-#> 2: never / natural      Ratio  0.96066816
+#> 1: never - natural Difference -0.02404395
+#> 2: never / natural      Ratio  0.96069728
 ```
 
 The two rows above are the simulated 5-year risks of death under the natural

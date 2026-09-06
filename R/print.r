@@ -115,13 +115,13 @@ print.gformula <- function(x,
   seed_str <- if (is.null(args$seed)) "none" else as.character(args$seed)
   boot_str <- if (args$R <= 1L) "none" else as.character(args$R)
   if (is_tmle) {
-    cat("  Estimator    : TMLE (targeted maximum likelihood; Zheng & van der Laan 2017)\n")
+    cat("  Estimator    : TMLE (targeted minimum loss-based; Zheng & van der Laan 2017)\n")
   } else {
     cat(sprintf("  MC sample    : %d\n", args$mc_sample))
   }
   cat(sprintf("  Bootstrap R  : %s\n", boot_str))
   if (is_interv && !is.null(args$n_vw))
-    cat(sprintf("  n_vw         : %d  (permutation draws averaged per cross-world intervention)\n",
+    cat(sprintf("  n_vw         : %d  (permutation draws averaged per pool-drawing intervention)\n",
                 as.integer(args$n_vw)))
   cat(sprintf("  Seed         : %s\n", seed_str))
 
@@ -144,11 +144,11 @@ print.gformula <- function(x,
       s1_note <- paste0(
         "  Under interventional effects, each intervention draws its mediators from independently-permuted pools (G):\n",
         "  Phi11 = E[Y(a=1, G1)]:  exposure=1, mediators ~ a=1 pool  [reference]\n",
-        "  Phi10 = E[Y(a=1, G0)]:  exposure=1, mediators ~ a=0 pool  [cross-world]\n",
+        "  Phi10 = E[Y(a=1, G0)]:  exposure=1, mediators ~ a=0 pool  [cross-regime]\n",
         if (length(med_vars) > 1)
           "  Phi1_k:  exposure=1, first k mediators ~ a=1 pool, rest ~ a=0 pool  [sequential]\n",
         "  Phi00 = E[Y(a=0, G0)]:  exposure=0, mediators ~ a=0 pool  [reference]\n",
-        "  nat1/nat0 = E[Y(a=1)]/E[Y(a=0)]:  natural course (used for the total effect)\n"
+        "  nat1/nat0 = E[Y(a=1)]/E[Y(a=0)]:  exposure fixed, mediators natural (used for the total effect)\n"
       )
     } else {
       s1_note <- paste0(
@@ -191,7 +191,9 @@ print.gformula <- function(x,
         "  IDE + IIE             = Phi11 - Phi00    (interventional overall effect)\n",
         "  Total effect (TE)     = nat1 - nat0      (natural plug-in g-formula)\n",
         "  TE - (Direct+Indirect)= natural TE minus interventional overall effect\n",
-        "  Mediation Prop.       = (Total - Direct) / Total  (percentage; RR not applicable)\n",
+        "  Mediation Prop.       = Indirect / (Direct + Indirect)   (percentage)\n",
+        "    i.e. a share of the interventional overall effect, NOT of the total\n",
+        "    effect; Direct and Mediation Prop. sum to 100%\n",
         "  RD = risk difference;  RR = risk ratio\n"
       )
     } else {

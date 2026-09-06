@@ -66,7 +66,7 @@ evaluated. A \code{natural} element is also added automatically when
 \item{med_pool}{Optional named list keyed by mediator response variable.
 Each element is itself a pre-permuted list of \code{T} vectors (one per
 time point, each of length \code{nrow(data)}, in the mediator's own type)
-supplying the cross-world joint trajectory for that mediator. The per-time
+supplying the cross-regime joint trajectory for that mediator. The per-time
 slice is delivered to \code{simulate_data}.}
 
 \item{collect_pool}{Logical. If \code{TRUE}, capture the simulated

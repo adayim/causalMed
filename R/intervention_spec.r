@@ -13,7 +13,7 @@
 #                            * mediation_type = "N": the swap-target
 #                              exposure for re-evaluating the mediator
 #                              model on the intervention's own covariate history.
-#                          An empty list means "no cross-world override" —
+#                          An empty list means "no mediator override" —
 #                          mediators are simulated from their fitted models
 #                          under the intervention's own treatment trajectory
 #                          (reference interventions Phi00 and Phi11).
@@ -62,19 +62,20 @@ is_intervention_spec <- function(x) inherits(x, "causalMed_intervention")
 #   IDE      = Phi10  - Phi00
 #   IIE(M_k) = Phi1_k - Phi1_{k-1}
 #   OE       = Phi11  - Phi00 = IDE + sum_k IIE(M_k)   (interventional overall)
-# The natural plug-in TOTAL effect is NOT Phi11 - Phi00 here; it is obtained
-# from the separate natural-course interventions
+# The natural plug-in TOTAL effect is NOT Phi11 - Phi00 here; it comes from two
+# fixed-exposure, natural-mediator interventions (exposure fixed, mediators from
+# their own fitted models -- NOT gformula()'s natural course, which draws the
+# exposure too):
 #   nat0 : treatment 0, mediators NATURAL  = E[Y_0]
 #   nat1 : treatment 1, mediators NATURAL  = E[Y_1]
-# so that TE = nat1 - nat0 and the decomposition residual TE - OE is
-# generally non-zero (matching the SAS mGFORMULA macro / Yamamuro Table 3).
+# so TE = nat1 - nat0 and the residual TE - OE is generally non-zero (matching
+# the SAS mGFORMULA macro / Yamamuro Table 3).
 #
 # ---- Natural effects (mediation_type = "N") ---------------------------------
-# Zheng & van der Laan (2017), single mediator only.  Here the reference interventions
-# legitimately use the NATURAL mediator distribution and the decomposition sums
-# exactly to the total effect, so the interventions are left as natural-reference interventions
-# (override values are swap-target exposures for re-evaluating the mediator
-# model, not pool sources).
+# Zheng & van der Laan (2017), single mediator only.  The references legitimately
+# use the NATURAL mediator distribution and the decomposition sums exactly to TE,
+# so they are left as natural references (override values are swap-target
+# exposures for re-evaluating the mediator model, not pool sources).
 build_mediation_interventions <- function(med_vars, mediation_type = "I") {
   N <- length(med_vars)
   if (N == 0L) stop("build_mediation_interventions: no mediator variables.")
@@ -86,7 +87,7 @@ build_mediation_interventions <- function(med_vars, mediation_type = "I") {
     interventions <- list()
     interventions$Phi00 <- intervention_spec(0, list())   # natural never-treat
     interventions$Phi11 <- intervention_spec(1, list())   # natural always-treat
-    interventions$Phi10 <- intervention_spec(1, all0)     # cross-world (swap mediator to a=0)
+    interventions$Phi10 <- intervention_spec(1, all0)     # cross-regime (draw mediators from the a=0 pool)
     interventions$Phi01 <- intervention_spec(0, all1)
     return(interventions)
   }

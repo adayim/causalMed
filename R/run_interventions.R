@@ -8,7 +8,7 @@
 #' no mediation analysis will be performed (default). It will be ignored if the intervention
 #'  is not \code{NULL}
 #' @param n_vw Integer. Number of independent permutation draws averaged for
-#'   interventional cross-world interventions (Vansteelandt-Williamson repetition).
+#'   interventional pool-drawing interventions (Vansteelandt-Williamson repetition).
 #'   Reference interventions (no mediator overrides) and natural-effect interventions are
 #'   unaffected. Default \code{1L}; \code{mediation()} sets this to 2 to
 #'   match the SAS mGFORMULA macro.
@@ -53,7 +53,7 @@
   # Cache the time sequence once (used in each intervention and in pool collection)
   time_seq <- sort(unique(data[[time_var]]))
 
-  # ── Pool collection for interventional cross-world interventions ──────────────────
+  # ── Pool collection for interventional pool-drawing interventions ──────────────────
   # For each treatment level appearing in any intervention's mediator_overrides, run a
   # reference intervention at that level once with collect_pool = TRUE. The resulting
   # `pools` object is a list keyed by treatment level (as character); each
@@ -129,7 +129,7 @@
         ))
       }
 
-      # Cross-world intervention with overrides.
+      # Intervention with mediator overrides.
       # "I": n_vw permutations averaged. "N": single pass (no permutation).
       n_reps <- if (isTRUE(mediation_type == "I")) max(1L, n_vw) else 1L
 
@@ -144,7 +144,7 @@
 
         # Build per-mediator pre-permuted pool matrix for this replicate.
         # Each mediator's pool is permuted independently (Yamamuro 2021
-        # Eq. 2: cross-world draws are independent across mediators).
+        # Eq. 2: the pool draws are independent across mediators).
         interv_med_pool <- NULL
         if (isTRUE(mediation_type == "I") && length(pools) > 0L) {
           interv_med_pool <- list()
@@ -153,8 +153,8 @@
             pool_for_med <- pools[[src_key]][[med_var]]
             if (!is.null(pool_for_med)) {
               # ONE permutation applied to every time slice, so subject i
-              # receives pool individual perm[i]'s whole trajectory (the joint
-              # draw of Paper 4 Eq. 4), not an independent value per time step.
+              # receives pool individual perm[i]'s whole trajectory -- a joint
+              # draw of M(1:T), not an independent value per time step.
               perm <- sample.int(length(pool_for_med[[1L]]))
               interv_med_pool[[med_var]] <-
                 lapply(pool_for_med, function(v) v[perm])
@@ -162,6 +162,12 @@
           }
         }
 
+        # On the LAST replicate, ask for the simulated data when the caller
+        # wants it and derive the scalar from that same run. Asking for the
+        # data and then re-running would consume a second, independent RNG
+        # stream, so `mean(Pred_Y)` of the returned table would not equal the
+        # Phi it is reported beside -- true even at n_vw = 1.
+        want_data <- return_data && rep_i == n_reps
         r <- simulate_intervention(
           data           = interv_data,
           models         = fit_mods,
@@ -173,34 +179,15 @@
           in_recode      = in_recode,
           out_recode     = out_recode,
           mediation_type = mediation_type,
-          # Inside the n_vw loop we always need the scalar Phi for averaging.
-          # When the caller asked for return_data, we still let the LAST
-          # replicate return its data table for downstream inspection.
-          return_data    = FALSE,
+          return_data    = want_data,
           med_pool       = interv_med_pool
         )
-        vw_scalars[rep_i] <- r
-
-        if (return_data && rep_i == n_reps) {
-          # Re-run the last permutation with return_data = TRUE to capture
-          # the simulated dataset. (We could refactor to avoid the second
-          # call, but return_data is an inspection feature so the cost is
-          # acceptable.)
-          interv_data2 <- data.table::copy(df_mc)
-          last_data <- simulate_intervention(
-            data           = interv_data2,
-            models         = fit_mods,
-            exposure       = exposure,
-            time_var       = time_var,
-            time_seq       = time_seq,
-            intervention   = interv,
-            init_recode    = init_recode,
-            in_recode      = in_recode,
-            out_recode     = out_recode,
-            mediation_type = mediation_type,
-            return_data    = TRUE,
-            med_pool       = interv_med_pool
-          )
+        if (want_data) {
+          last_data <- r
+          # Same definition simulate_intervention() uses for its scalar return.
+          vw_scalars[rep_i] <- sum(r[["Pred_Y"]]) / length(r[["Pred_Y"]])
+        } else {
+          vw_scalars[rep_i] <- r
         }
       }
 
@@ -395,7 +382,7 @@ lin_pred <- function(model, newdt) {
 #' @param med_pool Optional named list keyed by mediator response variable.
 #'   Each element is itself a pre-permuted list of \code{T} vectors (one per
 #'   time point, each of length \code{nrow(data)}, in the mediator's own type)
-#'   supplying the cross-world joint trajectory for that mediator. The per-time
+#'   supplying the cross-regime joint trajectory for that mediator. The per-time
 #'   slice is delivered to \code{simulate_data}.
 #' @param collect_pool Logical. If \code{TRUE}, capture the simulated
 #'   trajectory of every mediator into a named list of per-time vector lists

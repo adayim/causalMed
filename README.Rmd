@@ -30,7 +30,7 @@ indirect components. The package supports:
 
 Both approaches handle time-varying exposures, mediators, and confounders in longitudinal
 data, including survival outcomes. The standard g-formula component (total effect estimation)
-is cross-validated against the `gfoRmula` CRAN package.
+is numerically cross-checked against the `gfoRmula` CRAN package.
 
 ## Installation
 
@@ -48,7 +48,7 @@ devtools::install_github("adayim/causalMed")
   with time-varying mediators and exposure-induced mediator–outcome confounders
 - **Two mediation estimands**:
   - `mediation_type = "I"`: interventional IDE/IIE (VanderWeele & Tchetgen
-    Tchetgen 2017; Lin et al. 2017; Yamamuro et al. 2021). The cross-world
+    Tchetgen 2017; Lin et al. 2017; Yamamuro et al. 2021). The randomized
     mediator is drawn as a **joint M(1:T) trajectory** by row-permuting the
     reference (a*) cohort, matching the SAS `mGFORMULA` macro and the
     algorithm of Yamamuro et al. 2021. Does not require cross-world
@@ -66,7 +66,7 @@ devtools::install_github("adayim/causalMed")
     `print()`. VanderWeele & Tchetgen Tchetgen (2017) propose the
     interventional estimand for that setting.
 - **Two estimators for natural effects**: the parametric g-formula plug-in
-  (`estimator = "gcomp"`, the default) or a **targeted maximum likelihood
+  (`estimator = "gcomp"`, the default) or a **targeted minimum loss-based
   estimator** (`estimator = "tmle"`, Zheng & van der Laan 2017 §4.3), for which
   that paper establishes multiple robustness, meaning consistency when only
   certain subsets of the nuisance models are correct, with Wald confidence
@@ -198,8 +198,7 @@ The `estimate` component of `fit_med` contains:
 | Direct effect   | Q(1,0) − Q(0,0): effect not through the mediator |
 | Total effect    | natural plug-in g-formula contrast E[Y₁] − E[Y₀] |
 | TE − (Direct + Indirect) | decomposition residual (interventional only; exactly 0, and omitted, for natural effects) |
-| Mediation Proportion | (Total − Direct) / Total × 100% (additive) |
-| Mediation Proportion (multiplicative) | RR-scale proportion mediated (Lin et al. 2017, Table 2) |
+| Mediation Proportion | Indirect / (Direct + Indirect) × 100%, i.e. a share of the interventional **overall** effect, not of the total effect (Lin et al. 2017, Table 2) |
 
 With `R > 1`, `estimate` additionally carries bootstrap SEs and percentile/normal
 CIs on the RD and RR scales, and the returned object gains `boot_estimates` (the
@@ -215,13 +214,15 @@ references use each subject's own mediator and the decomposition sums exactly to
 the total effect (no residual row).
 
 Under `mediation_type = "I"`, the mediators in **every** intervention (the
-references Q(0,0) and Q(1,1) as well as the cross-world Q(1,0)) are drawn as
-**joint trajectories**: a natural-course cohort is simulated under each a*, and
+references Q(0,0) and Q(1,1) as well as the cross-regime Q(1,0)) are drawn as
+**joint trajectories**: a cohort is simulated under each a* with the exposure
+held fixed and the mediator following its fitted model, and
 the intervention assigns each subject the full M(1:T) of a randomly permuted
 reference-cohort individual (each mediator permuted independently). This matches the SAS
 `mGFORMULA` macro (Lin et al. 2017, eAppendix) and Yamamuro et al. 2021
-(Figure 3, step 3). Mediator values are not survival-weighted; the full
-reference cohort is used. See `?mediation` for details.
+(Figure 3, step 3). No one is removed from the pool once they have an event;
+the full reference cohort is used at every time step, following the estimation
+algorithm of Lin et al. (2017). See `?mediation` for details.
 
 ### Natural NDE/NIE (Zheng & van der Laan 2017)
 

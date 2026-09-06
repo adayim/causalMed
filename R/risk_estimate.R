@@ -91,29 +91,42 @@ phi_scalar <- function(x) {
   sum(x) / length(x)
 }
 
-# Proportion mediated (additive + multiplicative, in percent) from a named
-# list/vector of intervention Phi values and its risk_estimate_mediation()
-# table. Additive PM follows Yamamuro et al. (2021): (TE - IDE) / TE -- the
-# residual (TE - OE) is folded into the mediated portion, so for
-# mediation_type = "N" (zero residual) it reduces to the usual sum(IIE)/TE.
-# Multiplicative PM (Lin et al. 2017 Table 2, generalised to N mediators via
-# Yamamuro et al. 2021): RR_IDE * (prod RR_IIE_k - 1) / (RR_OE - 1) on the
-# interventional overall scale RR_OE = Phi11/Phi00 (under "N" that ratio is
-# the total-effect RR and the formula is reported as an analogue). NA where
-# the denominator is degenerate or any component RR is non-finite.
+# Proportion mediated (in percent) from a named list/vector of intervention Phi
+# values and its risk_estimate_mediation() table.
+#
+#   PM = sum_k IIE(M_k) / OE,   OE = Phi11 - Phi00 = IDE + sum_k IIE(M_k)
+#
+# Numerator and denominator come from the SAME decomposition, so
+# IDE/OE + PM = 100% exactly. This is the quantity Lin et al. (2017,
+# Stat Med, Table 2) report: their formula is the indirect effect over the
+# total effect, but their design has no separate fixed-exposure,
+# natural-mediator intervention (our nat0/nat1), so their
+# "total effect" IS Phi11 - Phi00 -- the overall effect in this package's
+# notation. Dividing instead by the natural plug-in TE would mix two estimand
+# systems, since TE - OE (the decomposition residual) is generally non-zero;
+# that residual is reported in its own row on the RD scale rather than folded
+# into, or divided into, this proportion.
+#
+# NOTE ON THE FORMER "MULTIPLICATIVE" ROW (removed at 0.1.1). The risk-ratio
+# formula RR_IDE * (prod RR_IIE_k - 1) / (RR_OE - 1) is not a second scale:
+#
+#   (P10/P00) * ((P11/P10) - 1) / ((P11/P00) - 1)
+#     = (P10/P00) * ((P11-P10)/P10) * (P00/(P11-P00))
+#     = (P11 - P10) / (P11 - P00)  =  sum_k IIE(M_k) / OE
+#
+# i.e. it is algebraically identical to the additive proportion above (verified
+# to 1e-9 on all three worked examples). Reporting both invited the reader to
+# compare two numbers that can only differ through the denominator, which is
+# what made the old output confusing. A genuine ratio-scale proportion needs a
+# scale-specific definition and is not provided.
+#
+# NA where the denominator is degenerate.
 pm_from_phi <- function(phi, risk) {
-  total  <- risk$RD[risk$Effect == "Total effect"]
-  direct <- risk$RD[risk$Effect == "Direct effect"]
-  rr_ide <- risk$RR[risk$Effect == "Direct effect"]
-  rr_iie <- risk$RR[grepl("^Indirect effect", risk$Effect)]
-  rr_oe  <- phi_scalar(phi[["Phi11"]]) / phi_scalar(phi[["Phi00"]])
-
-  add <- if (isTRUE(abs(total) < 1e-10)) NA_real_ else
-    (total - direct) / total * 100
-  mult <- if (isTRUE(abs(rr_oe - 1) < 1e-10) ||
-              !all(is.finite(c(rr_oe, rr_ide, rr_iie)))) NA_real_ else
-    rr_ide * (prod(rr_iie) - 1) / (rr_oe - 1) * 100
-  c(add = add, mult = mult)
+  iie_rd <- risk$RD[grepl("^Indirect effect", risk$Effect)]
+  ide_rd <- risk$RD[risk$Effect == "Direct effect"]
+  oe     <- ide_rd + sum(iie_rd)
+  if (isTRUE(abs(oe) < 1e-10)) return(c(pm = NA_real_))
+  c(pm = sum(iie_rd) / oe * 100)
 }
 
 # Calculate mediation effects from a named list of intervention Phi values.

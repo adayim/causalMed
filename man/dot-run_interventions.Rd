@@ -79,7 +79,7 @@ a multiple of the subject count; a larger multiple buys precision in the
 point estimate and does not change what is being estimated.}
 
 \item{n_vw}{Integer. Number of independent permutation draws averaged for
-interventional cross-world interventions (Vansteelandt-Williamson repetition).
+interventional pool-drawing interventions (Vansteelandt-Williamson repetition).
 Reference interventions (no mediator overrides) and natural-effect interventions are
 unaffected. Default \code{1L}; \code{mediation()} sets this to 2 to
 match the SAS mGFORMULA macro.}
