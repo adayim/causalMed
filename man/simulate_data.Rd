@@ -37,8 +37,11 @@ mediator-trajectory pool built by \code{.run_interventions} from the
 corresponding reference intervention (Phi00 or Phi11). When the intervention
 \code{intervention} requires a mediator override under
 \code{mediation_type = "I"}, the mediator is assigned directly from this
-vector (joint draw matching Lin et al. 2017 Eq. 4, the SAS mGFORMULA
-macro, and Yamamuro et al. 2021 Figure 3 step 3).}
+vector. This is the joint, whole-population marginal draw of the Lin et al.
+(2017, \emph{Stat Med}) Section 4 algorithm and the reference SAS macros
+(mGFORMULA; Yamamuro et al. 2021 Figure 3 step 3). Their Eq. 4 and Eq. 2 are
+written conditional on baseline covariates; see the Mediator pool section of
+\code{\link{mediation}}.}
 }
 \description{
 Loop through the models and apply any recoding or subset.

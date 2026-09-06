@@ -867,3 +867,95 @@ testthat::test_that("documented dataset conventions hold", {
   testthat::expect_false(anyNA(s))
   testthat::expect_true(all(s$lag1_A[s$time == 0] == 0))
 })
+
+
+testthat::test_that("return_data reuses the simulated run rather than re-running it", {
+  testthat::skip_on_cran()
+
+  # `return_data = TRUE` used to trigger a SECOND simulate_intervention() call
+  # for the last n_vw replicate. That second run reused the same mediator
+  # permutation but consumed a fresh RNG stream for every covariate and outcome
+  # draw, so mean(Pred_Y) of the returned table did not equal the Phi reported
+  # beside it -- even at n_vw = 1, where no averaging is involved.
+  data("nonsurvivaldata", package = "causalMed")
+
+  models <- list(
+    spec_model(L2    ~ A + V + time,      var_type = "binary", mod_type = "covariate"),
+    spec_model(L1    ~ A + V + L2 + time, var_type = "normal", mod_type = "mediator"),
+    spec_model(Y_bin ~ A + L1 + L2 + V,   var_type = "binary", mod_type = "outcome")
+  )
+
+  fit <- suppressWarnings(causalMed::mediation(
+    data = nonsurvivaldata, id_var = "id", base_vars = "V",
+    exposure = "A", outcome = "Y_bin", time_var = "time",
+    models = models, mediation_type = "I", n_vw = 1L,
+    mc_sample = 800L, R = 1L, quiet = TRUE, seed = 99L,
+    return_data = TRUE
+  ))
+
+  sim <- data.table::as.data.table(fit$sim_data)
+  es  <- fit$effect_size
+
+  # At n_vw = 1 every intervention must reproduce exactly.
+  for (a in es$Intervention) {
+    got <- sim[Intervention == a, sum(Pred_Y) / .N]
+    testthat::expect_equal(
+      got, es$Est[es$Intervention == a], tolerance = 1e-12,
+      label = paste0("mean(Pred_Y) == Est for ", a, " [n_vw = 1]")
+    )
+  }
+
+  # nat0/nat1 are single passes, so they reproduce at any n_vw.
+  fit2 <- suppressWarnings(causalMed::mediation(
+    data = nonsurvivaldata, id_var = "id", base_vars = "V",
+    exposure = "A", outcome = "Y_bin", time_var = "time",
+    models = models, mediation_type = "I", n_vw = 2L,
+    mc_sample = 800L, R = 1L, quiet = TRUE, seed = 99L,
+    return_data = TRUE
+  ))
+  sim2 <- data.table::as.data.table(fit2$sim_data)
+  es2  <- fit2$effect_size
+  for (a in c("nat0", "nat1")) {
+    testthat::expect_equal(
+      sim2[Intervention == a, sum(Pred_Y) / .N],
+      es2$Est[es2$Intervention == a], tolerance = 1e-12,
+      label = paste0("mean(Pred_Y) == Est for ", a, " [n_vw = 2]")
+    )
+  }
+})
+
+
+testthat::test_that("the censoring indicator is zero before downstream models run", {
+  testthat::skip_on_cran()
+
+  # Under an intervention the estimand is the risk with loss to follow-up
+  # eliminated, so C is fixed at 0. That used to happen only AFTER all of a
+  # time step's models had been simulated, so any model ordered after the
+  # censoring model within the same step saw a SIMULATED C rather than 0.
+  # A per-model `recode` runs immediately before that model is evaluated, so
+  # `Cseen = C` on the model after the censor model records exactly what a
+  # downstream model sees.
+  data("survivaldata", package = "causalMed")
+
+  models <- list(
+    spec_model(L ~ A + V + time,     var_type = "normal", mod_type = "covariate"),
+    spec_model(A ~ V + L + time,     var_type = "binary", mod_type = "exposure"),
+    spec_model(C ~ V + L + time,     var_type = "binary", mod_type = "censor"),
+    spec_model(M ~ A + L + V + time, var_type = "binary", mod_type = "mediator",
+               recode = recodes(Cseen = C)),
+    spec_model(Y ~ A + M + L + V,    var_type = "binary", mod_type = "survival")
+  )
+
+  fit <- suppressWarnings(causalMed::mediation(
+    data = survivaldata, id_var = "id", base_vars = "V", exposure = "A",
+    outcome = "Y", time_var = "time", models = models, mediation_type = "I",
+    n_vw = 1L, mc_sample = 1000L, R = 1L, quiet = TRUE, seed = 5L,
+    return_data = TRUE
+  ))
+
+  sim <- data.table::as.data.table(fit$sim_data)
+  testthat::expect_true("Cseen" %in% names(sim))
+  # Without the fix this is in the hundreds even in the final-step snapshot.
+  testthat::expect_equal(sum(sim$Cseen != 0), 0L,
+                         label = "rows where a downstream model saw C != 0")
+})

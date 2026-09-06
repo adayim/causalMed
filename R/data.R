@@ -231,12 +231,15 @@
 #' the end of the fifth period.
 #'
 #' Censoring depends on \eqn{V} and on the current confounder \eqn{L}, so it is
-#' informative given the observed history and a censoring model is required for
-#' valid estimation: pass one as a \code{mod_type = "censor"} entry in
-#' \code{models}. Because censoring is independent of the counterfactual event
-#' process given that history, the target estimand -- risk with censoring
-#' eliminated -- is unchanged by its presence, so the true values below are the
-#' same as they would be without it.
+#' informative marginally, but it is conditionally independent of the
+#' counterfactual event process given that observed history. The target estimand
+#' -- risk with censoring eliminated -- is therefore unchanged by its presence,
+#' and the true values below are the same as they would be without it. Under
+#' \code{estimator = "gcomp"} the hazard model fitted among those still at risk
+#' already identifies that risk, so a censoring model is not required; pass one
+#' as a \code{mod_type = "censor"} entry in \code{models} to simulate the
+#' censoring process in the natural course of \code{gformula()}, or for
+#' \code{estimator = "tmle"}.
 #'
 #' @source Simulated from the parametric process given under Details.
 "survivaldata"
@@ -295,10 +298,10 @@
 #'   Interventional indirect effect via M2 \tab \eqn{-0.97} (0.009) \cr
 #'   Decomposition residual (TE \eqn{-} overall) \tab \eqn{0.10} (0.016) \cr
 #' }
-#' The decomposition residual is non-zero because the reported total
-#' effect is a natural-course contrast while the direct and indirect effects
-#' are interventional; see the \emph{Mediator pool} section of
-#' \code{\link{mediation}} for how the mediator draws are constructed.
+#' The residual is non-zero because the total effect holds the exposure fixed and
+#' lets the mediators follow their fitted models, while the direct and indirect
+#' effects draw them from a permuted pool; see the \emph{Mediator pool} section
+#' of \code{\link{mediation}}.
 #'
 #' @source Simulated from the data-generating process of Yamamuro, S.,
 #'   Shinozaki, T., Iimuro, S., & Matsuyama, Y. (2021). Mediational g-formula

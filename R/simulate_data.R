@@ -22,8 +22,11 @@
 #'   corresponding reference intervention (Phi00 or Phi11). When the intervention
 #'   \code{intervention} requires a mediator override under
 #'   \code{mediation_type = "I"}, the mediator is assigned directly from this
-#'   vector (joint draw matching Lin et al. 2017 Eq. 4, the SAS mGFORMULA
-#'   macro, and Yamamuro et al. 2021 Figure 3 step 3).
+#'   vector. This is the joint, whole-population marginal draw of the Lin et al.
+#'   (2017, \emph{Stat Med}) Section 4 algorithm and the reference SAS macros
+#'   (mGFORMULA; Yamamuro et al. 2021 Figure 3 step 3). Their Eq. 4 and Eq. 2 are
+#'   written conditional on baseline covariates; see the Mediator pool section of
+#'   \code{\link{mediation}}.
 #'
 #' @keywords internal
 #'
@@ -96,9 +99,20 @@ simulate_data <- function(data,
       next
     }
 
+    # Skip the censoring model under an intervention. The estimand is the risk
+    # with loss to follow-up eliminated, so the indicator is fixed at zero and
+    # the fitted censoring model is not drawn from. Doing this HERE, rather
+    # than only after the whole time step has been simulated, means any model
+    # ordered after the censoring model within the same step sees the
+    # intervened value rather than a simulated one.
+    if (mod_type == "censor" && !is.null(intervention)) {
+      set(data, j = resp_var, value = 0)
+      next
+    }
+
     if (sum(cond) != 0L) {
 
-      # ── Mediator handling under a cross-world override ──────────────────────
+      # ── Mediator handling under a mediator override ──────────────────────
       # Triggered when the intervention_spec lists this mediator in
       # mediator_overrides. Otherwise the mediator is simulated normally from
       # its fitted model.
@@ -122,8 +136,9 @@ simulate_data <- function(data,
           data[cond, (resp_var) := med_value]
 
         } else {
-          # Interventional effects (Lin et al. 2017 Eq. 4; Yamamuro et al.
-          # 2021 Fig. 3 step 3): direct assignment from the pre-permuted
+          # Interventional effects (whole-population marginal draw, as in the
+          # reference SAS macros; Yamamuro et al. 2021 Fig. 3 step 3): direct
+          # assignment from the pre-permuted
           # joint-trajectory pool slice for this mediator. intervention_spec carries
           # the pool source (0 or 1) but the actual pool slice was looked up
           # by mediator name in .run_interventions and is delivered via med_pool.
@@ -133,7 +148,7 @@ simulate_data <- function(data,
           } else {
             # Fallback (no pool collected, e.g., reference intervention had no
             # mediator model): draw from the mediator model at the
-            # cross-world exposure and permute within this time step.
+            # alternative exposure level and permute within this time step.
             swap_dt <- data[cond]
             set(swap_dt, j = exposure, value = mediator_override_value)
             med_value <- sim_value(model = model, newdt = swap_dt)

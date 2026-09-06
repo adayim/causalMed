@@ -334,7 +334,7 @@ fit_ide$estimate
 The `estimate` table is the decomposition: the direct effect, the indirect
 effect (through `M`), the total effect, a decomposition residual row,
 and the proportion mediated. A second estimand, **natural** direct/indirect
-effects (`mediation_type = "N"`), with an optional targeted maximum likelihood
+effects (`mediation_type = "N"`), with an optional targeted minimum loss-based
 estimator (`estimator = "tmle"`), needs stronger assumptions and is not
 identified when a confounder responds to the exposure (as `L1`/`L2` do here).
 

@@ -35,7 +35,7 @@ testthat::test_that("mediation runs without error on nonsurvivaldata", {
 
 
 
-testthat::test_that("Mediation decomposition: Direct + Indirect = Total (algebraic identity)", {
+testthat::test_that("Mediation decomposition: Direct + Indirect (+ residual under I) = Total", {
   data("nonsurvivaldata", package = "causalMed") 
 
   # Minimal models: A (exposure), L2 (confounder), L1 (mediator), Y_bin (outcome)
@@ -88,20 +88,52 @@ testthat::test_that("Mediation decomposition: Direct + Indirect = Total (algebra
       )
     }
 
-    # Additive mediation proportion = (Total - Direct) / Total * 100
-    # (= (sum IIE + residual) / Total; reduces to Indirect/Total when type = N).
+    # Mediation proportion = Indirect / OE, where OE = Direct + Indirect.
+    # Numerator and denominator come from the same decomposition, so the
+    # direct share and the mediated share sum to exactly 100%.
+    oe            <- direct + indirect
     med_prop      <- est$RD[est$Effect == "Mediation Proportion"]
-    expected_prop <- if (isTRUE(abs(total) < 1e-10)) NA_real_ else (total - direct) / total * 100
+    expected_prop <- if (isTRUE(abs(oe) < 1e-10)) NA_real_ else indirect / oe * 100
     testthat::expect_equal(
       med_prop, expected_prop,
       tolerance = 1e-10,
-      label = paste0("Mediation Proportion [type = ", mtype, "]")
+      label = paste0("Mediation Proportion = Indirect / OE [type = ", mtype, "]")
     )
+    testthat::expect_equal(
+      direct / oe * 100 + med_prop, 100, tolerance = 1e-8,
+      label = paste0("Direct% + Mediation Prop. = 100 [type = ", mtype, "]")
+    )
+
+    # The old separate rows are gone: the "multiplicative" formula was the same
+    # number as the proportion above, and the residual is reported on the RD
+    # scale only.
+    testthat::expect_false("Mediation Proportion (multiplicative)" %in% est$Effect)
+    testthat::expect_false("Residual Proportion" %in% est$Effect)
+
+    # The residual itself is still reported for the interventional path.
+    if (mtype == "N") {
+      testthat::expect_length(resid, 0L)
+    } else {
+      testthat::expect_length(resid, 1L)
+    }
   }
 })
 
 
-testthat::test_that("Multi-mediator (N=2, type=I): sum(IIE_k) + IDE = TE (Yamamuro 2021)", {
+testthat::test_that("the risk-ratio proportion formula is the same number as IIE/OE", {
+  # Guards the removal of the former "multiplicative" row: the ratio-scale
+  # formula RR_IDE * (prod RR_IIE - 1) / (RR_OE - 1) is algebraically
+  # (Phi11 - Phi10) / (Phi11 - Phi00), so reporting it separately implied a
+  # second scale that does not exist.
+  P00 <- 0.37; P10 <- 0.59; P11 <- 0.78
+  rr_ide <- P10 / P00; rr_iie <- P11 / P10; rr_oe <- P11 / P00
+  multiplicative <- rr_ide * (rr_iie - 1) / (rr_oe - 1)
+  additive       <- (P11 - P10) / (P11 - P00)
+  testthat::expect_equal(multiplicative, additive, tolerance = 1e-12)
+})
+
+
+testthat::test_that("Multi-mediator (N=2, type=I): sum(IIE_k) + IDE + residual = TE (Yamamuro 2021)", {
   data("nonsurvivaldata", package = "causalMed")
 
   # Two mediators in temporal order: A -> L1 -> L2 -> Y_bin
@@ -131,7 +163,7 @@ testthat::test_that("Multi-mediator (N=2, type=I): sum(IIE_k) + IDE = TE (Yamamu
 
   # Sequential interventional decomposition (Yamamuro 2021): the per-mediator
   # IIEs and the IDE sum to the interventional OVERALL effect; the natural total
-  # effect is recovered after adding the mediated-interaction residual.
+  # effect is recovered after adding the decomposition residual TE - OE.
   total    <- est$RD[est$Effect == "Total effect"]
   direct   <- est$RD[est$Effect == "Direct effect"]
   resid    <- est$RD[est$Effect == "TE - (Direct + Indirect)"]
@@ -152,8 +184,13 @@ testthat::test_that("Multi-mediator (N=2, type=I): sum(IIE_k) + IDE = TE (Yamamu
     c("nat0", "nat1", "Phi00", "Phi10", "Phi1_1", "Phi11")
   )
 
-  # Multiplicative PM row is present
-  testthat::expect_true("Mediation Proportion (multiplicative)" %in% est$Effect)
+  # With N mediators the proportion sums them: sum(IIE_k) / OE.
+  testthat::expect_true("Mediation Proportion" %in% est$Effect)
+  testthat::expect_equal(
+    est$RD[est$Effect == "Mediation Proportion"],
+    sum(iie_rd) / (direct + sum(iie_rd)) * 100,
+    tolerance = 1e-10, label = "sum(IIE_k) / OE [N=2]"
+  )
 })
 
 
@@ -211,12 +248,14 @@ testthat::test_that("mediation retains per-replicate bootstrap estimates and pri
   testthat::expect_true(all(c("replicate", "Intervention", "Est") %in% names(bi)))
   testthat::expect_equal(nrow(bi), 4L * 5L)
 
-  # Effects: 4 replicates x (Indirect, Direct, Total, residual + 2 PM rows) = 4 x 6
+  # Effects: 4 replicates x (Indirect, Direct, Total, residual, + 3 proportion
+  # rows: one Mediation Proportion) = 4 x 5
   be <- fit$boot_estimates$effects
   testthat::expect_true(all(c("replicate", "Effect", "RD", "RR") %in% names(be)))
-  testthat::expect_equal(nrow(be), 4L * 6L)
-  testthat::expect_true(all(c("Mediation Proportion",
-                              "Mediation Proportion (multiplicative)") %in% be$Effect))
+  testthat::expect_equal(nrow(be), 4L * 5L)
+  testthat::expect_true("Mediation Proportion" %in% be$Effect)
+  # The proportion row appears once per replicate.
+  testthat::expect_equal(sum(be$Effect == "Mediation Proportion"), 4L)
 
   # Data summary and observed benchmark
   testthat::expect_equal(fit$data_summary$n_id, length(unique(nonsurvivaldata$id)))
