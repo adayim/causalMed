@@ -227,9 +227,11 @@ confidence intervals are computed from bootstrap resamples.
 - `id_var`: unique subject identifier; `time_var`: ordered time index.
 
 - Final outcome must be well-defined at the last relevant time for each
-  subject. For survival-like settings, rows after the event of interest
-  should be removed (or a censoring model should be included and handled
-  in `models`).
+  subject. For survival-like settings the data must be in risk-set form:
+  rows after the event, and after loss to follow-up, must be removed. A
+  `mod_type = "censor"` model may additionally be declared; it is used
+  by the targeted estimator and does not alter the \\g\\-computation
+  risks, which are the risks under eliminated loss to follow-up.
 
 \*\*Interventions\*\* Provide a named list `intervention` with exposure
 values per time (e.g.,
@@ -281,10 +283,11 @@ detected internally and used for computing predicted outcomes
 
 Final outcome should be consistently defined at the terminal time for
 each subject. For survival-type applications, remove rows after the
-event of interest (or include and model censoring appropriately). The
-function may record warnings internally and print them on exit. Results
-depend on correct temporal ordering, model specification, positivity,
-and no unmeasured confounding assumptions customary for g-formula.
+event of interest and after loss to follow-up; a censoring model is not
+a substitute for that risk-set construction. The function may record
+warnings internally and print them on exit. Results depend on correct
+temporal ordering, model specification, positivity, and no unmeasured
+confounding assumptions customary for g-formula.
 
 If a fitted model turns out to be rank deficient — a collinear term, or
 a covariate that is constant among the rows actually used to fit it,

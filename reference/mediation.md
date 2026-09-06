@@ -1,10 +1,9 @@
 # G-formula based mediation analysis
 
-Conduct mediation analysis with time-varying mediators using the
-g-formula. This function estimates total effect, natural direct effect,
-and natural indirect effect for both natural mediation (`"N"`) and
-interventional mediation (`"I"`). A `data.frame` summarizing the
-estimates will be returned.
+Decompose the effect of a time-varying exposure into direct and indirect
+components using the parametric mediational g-formula. Estimates
+interventional effects (`"I"`, the default) or natural effects (`"N"`),
+with bootstrap or influence-curve confidence intervals.
 
 ## Usage
 
@@ -106,31 +105,27 @@ mediation(
 - mediation_type:
 
   Character. Type of mediation effect: `"I"` for interventional effect
-  (default) or `"N"` for natural effect. The default was chosen because
-  the interventional estimand remains identifiable in the general
-  time-varying-confounder setting the package is designed for (see
-  below). **Identifiability.** Natural direct and indirect effects
-  (`"N"`) are *not identifiable* from observational data when there
-  exists a time-varying confounder of the mediator-outcome relationship
-  that is itself affected by prior exposure (Avin, Shpitser & Pearl
-  2005; VanderWeele 2014; VanderWeele & Tchetgen Tchetgen 2017). For
-  that setting VanderWeele & Tchetgen Tchetgen (2017) propose the
-  randomized interventional analogues of the direct and indirect
-  effects, which `mediation_type = "I"` targets and which remain
-  identifiable. A warning is emitted at runtime if `"N"` is chosen and
-  any covariate model includes the exposure on its right-hand side —
-  that is, a covariate the user has modelled as exposure-affected. The
-  check reads the model formulas only: it does not establish that such a
-  covariate also confounds the mediator-outcome relationship, nor does
-  its silence establish that no intermediate confounder exists. Judging
-  the causal structure remains the analyst's responsibility. The caveat
-  is repeated by [`print()`](https://rdrr.io/r/base/print.html).
-  **Interpretation of `"I"`.** Randomized interventional indirect
-  effects buy identifiability at a price: they do not satisfy a sharp
-  mediational null criterion, so a non-zero IIE does not by itself prove
-  that the mediator transmits the effect for any individual (Miles
-  2023). The choice between `"I"` and `"N"` is therefore a substantive
-  one, not merely computational.
+  (default) or `"N"` for natural effect. **Identifiability.** Natural
+  effects (`"N"`) are *not identifiable* from observational data when a
+  time-varying confounder of the mediator-outcome relationship is itself
+  affected by prior exposure (Avin, Shpitser & Pearl 2005; VanderWeele
+  2014; VanderWeele & Tchetgen Tchetgen 2017). For that setting
+  VanderWeele & Tchetgen Tchetgen (2017) propose the randomized
+  interventional analogues, which `"I"` targets and which remain
+  identifiable — hence the default. Choosing `"N"` when a covariate
+  model carries the exposure on its right-hand side triggers a warning,
+  repeated by [`print()`](https://rdrr.io/r/base/print.html). That check
+  reads formulas only: it neither establishes that such a covariate
+  confounds the mediator-outcome relationship nor, by its silence, that
+  no intermediate confounder exists. Judging the causal structure
+  remains the analyst's responsibility. **Interpretation of `"I"`.**
+  Interventional indirect effects buy identifiability at a price: absent
+  stronger assumptions they do not satisfy the sharp null criterion of
+  Miles (2023) — being null whenever no individual-level indirect effect
+  exists — which the natural indirect effect does satisfy. A non-zero
+  IIE therefore does not by itself show that the mediator transmits the
+  effect for any individual. The choice is substantive, not
+  computational.
 
 - n_vw:
 
@@ -138,12 +133,12 @@ mediation(
   intervention that draws its mediators from a permuted pool. Under
   `mediation_type = "I"` that is *every* intervention in the
   decomposition — the references `Phi00` and `Phi11` just as much as the
-  cross-world `Phi10` and `Phi1_k` — but not the natural-course
-  interventions `nat0`/`nat1`, whose mediators come from their own
-  fitted models and involve no permutation. The same averaging is
-  applied within every bootstrap replicate. Default `2L` to match the
-  SAS `mGFORMULA` macro's `n_vw = 2`. Set to `1L` to disable averaging
-  (faster, slightly noisier Monte Carlo). Has no effect when
+  cross-regime `Phi10` and `Phi1_k` — but not the fixed-exposure,
+  natural-mediator interventions `nat0`/`nat1`, whose mediators come
+  from their own fitted models and involve no permutation. The same
+  averaging is applied within every bootstrap replicate. Default `2L` to
+  match the SAS `mGFORMULA` macro's `n_vw = 2`. Set to `1L` to disable
+  averaging (faster, slightly noisier Monte Carlo). Has no effect when
   `mediation_type = "N"` (the natural-effect mediator swap is not
   permutation-based).
 
@@ -151,39 +146,34 @@ mediation(
 
   Character. `"gcomp"` (default) for the parametric g-formula plug-in
   (Monte Carlo simulation + bootstrap CIs), or `"tmle"` for the targeted
-  maximum likelihood estimator of Zheng & van der Laan (2017, Section
+  minimum loss-based estimator of Zheng & van der Laan (2017, Section
   4.3). `"tmle"` is available for `mediation_type = "N"` only (single
   mediator, binary {0, 1} outcome or survival event indicator; an
   exposure model is required and `var_type = "custom"` /
-  `spec_model(subset = )` are not supported). **Recode restriction:**
-  the targeted engine evaluates only lag-style recodes, so `in_recode`
-  entries must copy a single column (e.g. `recodes(lag_A = A)`), lags of
-  the exposure must copy the exposure itself (chained exposure lags such
-  as `recodes(lag2_A = lag_A)` are rejected; deeper exposure history
-  requires `estimator = "gcomp"`), `init_recode` entries must be a
-  constant or a single column name, and `out_recode` is not supported;
-  derived recodes (splines, cumulative counts, carry-forward flags)
-  require `estimator = "gcomp"`. Violations are rejected with an error
-  rather than silently ignored. The TMLE uses backward iterated
-  regressions with logistic fluctuations instead of forward simulation:
-  it is multiply robust (consistent when specific subsets of the
-  nuisance models are correct, not only when all are), reports Wald CIs
-  from the efficient influence curve without bootstrapping (`R` is
-  ignored), and has no Monte Carlo simulation error (`mc_sample` is
-  ignored). **Working-model form:** the models you supply are used as
-  written for the conditional densities that form the clever covariates,
-  but the targeted sequential regressions are constructed as *additive
-  main-effects* models in the variables appearing in those formulas.
-  Transformations and interactions
+  `spec_model(subset = )` are not supported). It uses backward iterated
+  regressions with logistic fluctuations rather than forward simulation:
+  multiply robust (consistent when specific subsets of the nuisance
+  models are correct, not only when all are), Wald CIs from the
+  efficient influence curve without bootstrapping (`R` ignored), and no
+  Monte Carlo error (`mc_sample` ignored). **Recode restriction:** only
+  lag-style recodes are evaluated. `in_recode` entries must copy a
+  single column (e.g. `recodes(lag_A = A)`); exposure lags must copy the
+  exposure itself (chained lags such as `recodes(lag2_A = lag_A)` are
+  rejected); `init_recode` entries must be a constant or a column name;
+  and `out_recode` is unsupported. Derived recodes (splines, cumulative
+  counts, carry-forward flags) and deeper exposure history require
+  `"gcomp"`. Violations error rather than pass silently. **Working-model
+  form:** your formulas are used as written for the conditional
+  densities behind the clever covariates, but the targeted sequential
+  regressions are built as *additive main-effects* models in the
+  variables those formulas name, so transformations and interactions
   ([`poly()`](https://rdrr.io/r/stats/poly.html), splines, `A:M`) are
-  therefore not carried into the sequential regressions. This is a
-  property of this implementation, not of the estimator as published;
-  the theoretical results of Zheng & van der Laan (2017) are stated for
-  correctly specified nuisance models. Practical positivity violations
-  (few subjects following an intervened regime) are handled by skipping
-  the affected fluctuation steps and truncating extreme weights, with
-  collected warnings — inspect these before trusting the affected
-  functionals.
+  not carried into them. That is a property of this implementation, not
+  of the published estimator, whose results assume correctly specified
+  nuisance models. Positivity violations (few subjects following an
+  intervened regime) skip the affected fluctuation steps and truncate
+  extreme weights, with collected warnings — inspect those before
+  trusting the affected functionals.
 
 - tmle_weight_trunc:
 
@@ -218,19 +208,13 @@ mediation(
 
 - seed:
 
-  Integer random seed for reproducibility. Default `12345L`. Setting
-  `seed` fixes the RNG stream used for the original-data Monte Carlo
-  simulation *and* the bootstrap replicates (the latter via the
-  `future_seed` interface of future.apply); the caller's global RNG
-  state is saved and restored on exit, so a seeded call does not disturb
-  the ambient random stream. Pass `NULL` to disable seeding entirely: no
-  [`set.seed()`](https://rdrr.io/r/base/Random.html) is called, the
-  Monte Carlo draws consume and advance the ambient RNG stream, and
-  repeated calls therefore give *different* results (reproducible only
-  via an outer [`set.seed()`](https://rdrr.io/r/base/Random.html)). Use
-  `seed = NULL` inside simulation loops that manage their own seeds.
-  Users running multiple seeded analyses in the same session should set
-  distinct seeds to ensure independent bootstrap draws across analyses.
+  Integer random seed. Default `12345L`. Fixes the stream for both the
+  Monte Carlo simulation and the bootstrap replicates (the latter via
+  future.apply's `future_seed`); the caller's global RNG state is
+  restored on exit. Pass `NULL` to disable seeding — draws then consume
+  the ambient stream and repeated calls differ — as needed inside
+  simulation loops that manage their own seeds. Give concurrent analyses
+  distinct seeds to keep their bootstrap draws independent.
 
 ## Value
 
@@ -246,14 +230,15 @@ An object of class `"gformula"` with components:
   independently-permuted marginal pools (stochastic draws \\G\\):
   `Phi00` (= \\E\[Y\_{0,G_0}\]\\) and `Phi11` (= \\E\[Y\_{1,G_1}\]\\)
   are the interventional reference interventions, `Phi10` (=
-  \\E\[Y\_{1,G_0}\]\\) is the cross-world intervention, and for \\N \ge
+  \\E\[Y\_{1,G_0}\]\\) is the cross-regime intervention, and for \\N \ge
   2\\ mediators `Phi1_k` (k = 1, …, N-1) capture the sequential
-  per-mediator transition. Two additional natural-course interventions
-  `nat0` (= \\E\[Y_0\]\\) and `nat1` (= \\E\[Y_1\]\\) give the plug-in
-  total effect. For `mediation_type = "N"` the interventions
-  `Phi00`/`Phi11` are the natural never-/always-treat interventions (no
-  permutation). With `R > 1` the table also carries `Sd`,
-  `perct_lcl`/`perct_ucl`, and `norm_lcl`/`norm_ucl`.
+  per-mediator transition. Two additional fixed-exposure,
+  natural-mediator interventions `nat0` (= \\E\[Y_0\]\\) and `nat1` (=
+  \\E\[Y_1\]\\) give the plug-in total effect. For
+  `mediation_type = "N"` the interventions `Phi00`/`Phi11` are the
+  natural never-/always-treat interventions (no permutation). With
+  `R > 1` the table also carries `Sd`, `perct_lcl`/`perct_ucl`, and
+  `norm_lcl`/`norm_ucl`.
 
 - `estimate`: a `data.table` summarizing the decomposition of effects.
   For a single mediator under `mediation_type = "I"` the rows are:
@@ -272,25 +257,34 @@ An object of class `"gformula"` with components:
     `mediation_type = "N"`, where the decomposition sums exactly to
     \\TE\\).
 
-  - `"Mediation Proportion"` = \\(TE - IDE) / TE \times 100\\\\ (=
-    \\(IIE + residual)/TE\\; Yamamuro et al. 2021)
+  - `"Mediation Proportion"` = \\\sum_k IIE(M_k) / OE \times 100\\\\,
+    where \\OE = IDE + \sum_k IIE(M_k)\\ is the interventional overall
+    effect. Numerator and denominator come from the same decomposition,
+    so \\IDE/OE\\ and this proportion sum to 100%. It is a share of the
+    *overall* effect, **not** of the natural plug-in total effect: the
+    two differ by the decomposition residual, which is reported in its
+    own row on the RD scale. This is the quantity Lin et al. (2017,
+    *Stat Med*, Table 2) report; their design has no separate
+    fixed-exposure, natural-mediator intervention, so the "total effect"
+    in their formula is \\\Phi\_{11}-\Phi\_{00}\\. Zheng & van der
+    Laan (2017) do not define a proportion mediated; under
+    `mediation_type = "N"` there is no residual and the two denominators
+    coincide.
 
-  - `"Mediation Proportion (multiplicative)"` =
-    \\RR\_{IDE}\\(RR\_{IIE}-1)/(RR\_{OE}-1) \times 100\\\\ on the
-    interventional overall scale (Lin et al. 2017, Table 2). Under
-    `mediation_type = "N"` the same formula is reported on the
-    total-effect scale as an *analogue*; Zheng & van der Laan (2017) do
-    not define a proportion mediated.
+  A separate multiplicative proportion is *not* reported. The risk-ratio
+  formula \\RR\_{IDE}(\prod_k RR\_{IIE_k}-1)/(RR\_{OE}-1)\\ is not a
+  second scale: it simplifies to
+  \\(\Phi\_{11}-\Phi\_{10})/(\Phi\_{11}-\Phi\_{00})\\, the same number
+  as the proportion above. A genuine ratio-scale proportion would need a
+  scale-specific definition.
 
   For multiple mediators each indirect effect is labelled
-  `"Indirect effect (<mediator>)"`; the additive proportion is \\(TE -
-  IDE)/TE\\ and the multiplicative is \\RR\_{IDE}\\(\prod_k
-  RR\_{IIE_k} - 1)/(RR\_{OE}-1)\\ (Yamamuro et al. 2021). Columns: `RD`,
-  `RR`; with `R > 1` also `Sd`, percentile CIs
-  (`perct_lcl`/`perct_ucl`), and normal CIs (`norm_lcl`/`norm_ucl`) for
-  RD; and `Sd_RR`, `perct_lcl_RR`/`perct_ucl_RR`,
-  `norm_lcl_RR`/`norm_ucl_RR` for RR. `RR` is `NA` for the Mediation
-  Proportion rows.
+  `"Indirect effect (<mediator>)"` and the proportion sums them
+  (Yamamuro et al. 2021). Columns: `RD`, `RR`; with `R > 1` also `Sd`,
+  percentile CIs (`perct_lcl`/`perct_ucl`), and normal CIs
+  (`norm_lcl`/`norm_ucl`) for RD; and `Sd_RR`,
+  `perct_lcl_RR`/`perct_ucl_RR`, `norm_lcl_RR`/`norm_ucl_RR` for RR.
+  `RR` is `NA` for the proportion rows.
 
 - `sim_data`: if `return_data = TRUE`, the simulated Monte Carlo dataset
   used internally (can be large), stacked across interventions with an
@@ -362,11 +356,13 @@ supported under `mediation_type = "N"`.
 
 A `"censor"` model declares a discrete-time censoring process. Under
 every intervention the censoring indicator is set to zero, so the
-estimand is the risk under eliminated loss to follow-up, and with the
-default `estimator = "gcomp"` the censoring model does not alter the
-intervention-specific risks; it is used by the targeted estimator
-(`estimator = "tmle"`) and by the natural course in
-[`gformula`](https://adayim.github.io/causalMed/reference/gformula.md).
+estimand is the risk under eliminated loss to follow-up. With the
+default `estimator = "gcomp"` the censoring model does not alter any
+reported risk: no simulated subject is removed on any pass, and the risk
+is the average of the analytic \\1-\prod_t(1-\hat p_t)\\ rather than of
+the simulated event indicator. Its presence marks the analysis as a
+survival setting, and it is used by the targeted estimator
+(`estimator = "tmle"`).
 
 The list order determines the simulation sequence at each time step and
 must match your assumed data-generating process. A common ordering is
@@ -384,46 +380,41 @@ See the custom covariate distributions section of
 [`vignette("causalMed-03-gformula")`](https://adayim.github.io/causalMed/articles/causalMed-03-gformula.md).
 
 \*\*Mediator pool (interventional effects)\*\* For
-`mediation_type = "I"`, a natural-course pass under each treatment level
-\\a^\*\\ stores every simulated individual's full mediator trajectory
-\\M(1{:}T)\\ in a pool. Each decomposition intervention that fixes a
-mediator to its \\a^\*\\ value — *including the reference interventions*
-`Phi00` (\\a^\* = 0\\) and `Phi11` (\\a^\* = 1\\) — permutes that pool
-once and assigns subject \\i\\ the entire trajectory of pool individual
-\\\pi(i)\\: a joint, stochastic draw \\G\_{a^\*}\\ from the simulated
-distribution of \\M(1{:}T)\\. The permutation is uniform over the whole
-simulated cohort, so the draw is marginal over the baseline covariates
-as well as over \\i\\'s own confounder history (and is permuted
-independently across mediators). This makes *all* interventions in the
-decomposition — references and cross-world alike — use the randomized
-interventional mediator distribution.
+`mediation_type = "I"`, one pass at each treatment level \\a^\*\\ —
+exposure held fixed, mediator following its fitted model — stores every
+simulated individual's full trajectory \\M(1{:}T)\\ in a pool. Each
+decomposition intervention that fixes a mediator to its \\a^\*\\ value,
+*including the references* `Phi00` (\\a^\* = 0\\) and `Phi11` (\\a^\* =
+1\\), permutes that pool once and assigns subject \\i\\ the whole
+trajectory of pool individual \\\pi(i)\\ — a joint stochastic draw
+\\G\_{a^\*}\\. Mediators are permuted independently. Every intervention
+in the decomposition therefore uses the randomized mediator
+distribution, not only the cross-regime ones.
 
-The draw is *marginal* over the whole covariate history, baseline
-included. VanderWeele and Tchetgen Tchetgen (2017), who introduced the
-mediational g-formula, define two forms: a draw from the distribution
-within the baseline-covariate stratum, \\G\_{a\|v}\\, and — as an
-explicit variation, with its own identifying formula — a draw from the
-entire population, \\G\_{a}\\. This package targets the second. It is
-also the form that the fixed-endpoint mediational g-formula of Lin et
-al. (2017, *Epidemiology*) parameterizes: that algorithm estimates the
-joint mediator distribution "marginal over all other covariates" and
-permutes it across subjects, and averaging over several permutations
-(`n_vw`) is a step of it. Both reference SAS implementations — the
-mGFORMULA macro and the Yamamuro et al. (2021) supplement — permute the
-whole simulated cohort.
-
-Note for readers comparing notation: Yamamuro et al. (2021, Eq. 2) and
-the survival formula of Lin et al. (2017, *Stat Med*, Eq. 4) are written
-for the conditional form, the latter also restricting the mediator
-factor to survivors. The two agree when the counterfactual mediator
+The permutation is uniform over the whole simulated cohort, so the draw
+is marginal over the baseline covariates as well as over \\i\\'s own
+confounder history. VanderWeele and Tchetgen Tchetgen (2017) define both
+a within-stratum draw \\G\_{a\|v}\\ and a whole-population draw
+\\G\_{a}\\ with its own identifying formula; this package targets the
+second, as does the fixed-endpoint algorithm of Lin et al. (2017,
+*Epidemiology*), of which averaging over several permutations (`n_vw`)
+is a step. Yamamuro et al. (2021, Eq. 2) and Lin et al. (2017, *Stat
+Med*, Eq. 4) are written for the conditional form, but the algorithms in
+both papers — and the SAS macros distributed with them — permute the
+whole cohort. The forms agree when the counterfactual mediator
 distribution does not depend on the baseline covariates, or when the
 outcome mean is additively separable in them and the mediator; otherwise
-they are different functionals. The natural plug-in total effect is
-obtained from separate natural-course interventions (`nat0`, `nat1`), so
+they are different functionals.
+
+**Survival outcomes.** This package implements the estimation algorithm
+of Lin et al. (2017, *Stat Med*, Section 4): the mediator models are
+fitted among those at risk, no one is then removed from the simulated
+cohort, cumulative risk is accumulated analytically over the
+discrete-time hazards, and the pool is permuted with equal weight. The
+natural plug-in total effect is obtained from the separate
+fixed-exposure, natural-mediator interventions (`nat0`, `nat1`), so
 \\TE\\ need not equal the sum of the interventional direct and indirect
-effects; their difference is reported as the decomposition residual. The
-pool is not survival-weighted; the full reference cohort is used,
-mirroring the reference SAS implementations.
+effects; their difference is reported as the decomposition residual.
 
 \*\*Warnings\*\* Warnings from model fitting (e.g., convergence,
 near-separation) are collected during the run and printed as a

@@ -369,21 +369,20 @@ fit_ide <- mediation(
 )
 
 fit_ide$estimate
-#>                                   Effect           RD       RR
-#>                                   <char>        <num>    <num>
-#> 1:                       Indirect effect  0.068268280 1.413236
-#> 2:                         Direct effect  0.087924817 2.137753
-#> 3:                          Total effect  0.161254808 2.678705
-#> 4:              TE - (Direct + Indirect)  0.005061711       NA
-#> 5:                  Mediation Proportion 45.474607398       NA
-#> 6: Mediation Proportion (multiplicative) 43.707616415       NA
+#>                      Effect           RD       RR
+#>                      <char>        <num>    <num>
+#> 1:          Indirect effect  0.068268280 1.413236
+#> 2:            Direct effect  0.087924817 2.137753
+#> 3:             Total effect  0.161254808 2.678705
+#> 4: TE - (Direct + Indirect)  0.005061711       NA
+#> 5:     Mediation Proportion 43.707616415       NA
 ```
 
 The `estimate` table is the decomposition: the direct effect, the
 indirect effect (through `M`), the total effect, a decomposition
 residual row, and the proportion mediated. A second estimand,
 **natural** direct/indirect effects (`mediation_type = "N"`), with an
-optional targeted maximum likelihood estimator (`estimator = "tmle"`),
+optional targeted minimum loss-based estimator (`estimator = "tmle"`),
 needs stronger assumptions and is not identified when a confounder
 responds to the exposure (as `L1`/`L2` do here).
 

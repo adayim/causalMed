@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -530,20 +530,19 @@ identifiable when confounders are affected by the exposure:</p>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">fit_ide</span><span class="op">$</span><span class="va">estimate</span></span>
-<span><span class="co">#&gt;                                   Effect           RD       RR</span></span>
-<span><span class="co">#&gt;                                   &lt;char&gt;        &lt;num&gt;    &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:                       Indirect effect  0.068268280 1.413236</span></span>
-<span><span class="co">#&gt; 2:                         Direct effect  0.087924817 2.137753</span></span>
-<span><span class="co">#&gt; 3:                          Total effect  0.161254808 2.678705</span></span>
-<span><span class="co">#&gt; 4:              TE - (Direct + Indirect)  0.005061711       NA</span></span>
-<span><span class="co">#&gt; 5:                  Mediation Proportion 45.474607398       NA</span></span>
-<span><span class="co">#&gt; 6: Mediation Proportion (multiplicative) 43.707616415       NA</span></span></code></pre></div>
+<span><span class="co">#&gt;                      Effect           RD       RR</span></span>
+<span><span class="co">#&gt;                      &lt;char&gt;        &lt;num&gt;    &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1:          Indirect effect  0.068268280 1.413236</span></span>
+<span><span class="co">#&gt; 2:            Direct effect  0.087924817 2.137753</span></span>
+<span><span class="co">#&gt; 3:             Total effect  0.161254808 2.678705</span></span>
+<span><span class="co">#&gt; 4: TE - (Direct + Indirect)  0.005061711       NA</span></span>
+<span><span class="co">#&gt; 5:     Mediation Proportion 43.707616415       NA</span></span></code></pre></div>
 <p>The <code>estimate</code> table is the decomposition: the direct
 effect, the indirect effect (through <code>M</code>), the total effect,
 a decomposition residual row, and the proportion mediated. A second
 estimand, <strong>natural</strong> direct/indirect effects
-(<code>mediation_type = "N"</code>), with an optional targeted maximum
-likelihood estimator (<code>estimator = "tmle"</code>), needs stronger
+(<code>mediation_type = "N"</code>), with an optional targeted minimum
+loss-based estimator (<code>estimator = "tmle"</code>), needs stronger
 assumptions and is not identified when a confounder responds to the
 exposure (as <code>L1</code>/<code>L2</code> do here).</p>
 <p>What the decomposition rows mean, the choice between the two

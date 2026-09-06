@@ -135,16 +135,18 @@ under each treatment level $`a^*`$ and every individual’s full mediator
 trajectory $`M(1{:}T)`$ is stored in a pool. Each intervention that
 fixes a mediator to its $`a^*`$ value, **including the reference
 interventions** $`\Phi_{00} = E[Y_{0,G_0}]`$ and
-$`\Phi_{11} = E[Y_{1,G_1}]`$ and not only the cross-world $`\Phi_{10}`$,
-permutes the relevant pool once and assigns subject $`i`$ the *entire*
-trajectory of one randomly chosen pool individual (each mediator
-permuted independently). This is the joint-trajectory algorithm
+$`\Phi_{11} = E[Y_{1,G_1}]`$ and not only the cross-regime
+$`\Phi_{10}`$, permutes the relevant pool once and assigns subject $`i`$
+the *entire* trajectory of one randomly chosen pool individual (each
+mediator permuted independently). This is the joint-trajectory algorithm
 described by Yamamuro et al. (2021, Figure 3 step 3) and implemented by
 the SAS `mGFORMULA` macro (Lin et al. 2017 eAppendix); it samples the
-marginal mediator distribution targeted by Lin et al. (2017, Eq. 4) and
-VanderWeele & Tchetgen Tchetgen (2017). The pool is not
-survival-weighted; the full reference cohort is used at every time step
-(matching both reference SAS implementations).
+whole-population marginal mediator distribution, the $`G_a`$ variation
+of VanderWeele & Tchetgen Tchetgen (2017). Lin et al. (2017, *Stat Med*,
+Eq. 4) is written for the conditional form, but the estimation algorithm
+in their Section 4 permutes the whole cohort as here. No one is removed
+from the pool once they have an event: the full reference cohort is used
+at every time step, following that algorithm.
 
 **Warning summary.** Warnings from model fitting (e.g., convergence,
 near-separation) are held and printed as a deduplicated summary at
@@ -295,11 +297,11 @@ fit_surv <- mediation(
 fit_surv$effect_size
 #>    Intervention       Est
 #>          <char>     <num>
-#> 1:         nat0 0.4111782
-#> 2:         nat1 0.7853884
-#> 3:        Phi00 0.4181072
-#> 4:        Phi10 0.5913585
-#> 5:        Phi11 0.7807899
+#> 1:         nat0 0.4106340
+#> 2:         nat1 0.7868999
+#> 3:        Phi00 0.4177377
+#> 4:        Phi10 0.5903442
+#> 5:        Phi11 0.7823181
 ```
 
 Each row is the simulated cumulative incidence under one intervention:
@@ -311,7 +313,7 @@ Each row is the simulated cumulative incidence under one intervention:
   the *permuted marginal pool* collected under that same exposure level
   ($`E[Y_{0,G_0}]`$, $`E[Y_{1,G_1}]`$). These are the interventional
   references.
-- **`Phi10`**: the cross-world intervention. Exposure fixed to 1,
+- **`Phi10`**: the cross-regime intervention. Exposure fixed to 1,
   mediator drawn from the a = 0 pool ($`E[Y_{1,G_0}]`$).
 
 ### Reading the decomposition
@@ -319,14 +321,13 @@ Each row is the simulated cumulative incidence under one intervention:
 ``` r
 
 fit_surv$estimate
-#>                                   Effect          RD       RR
-#>                                   <char>       <num>    <num>
-#> 1:                       Indirect effect  0.18943139 1.320333
-#> 2:                         Direct effect  0.17325126 1.414370
-#> 3:                          Total effect  0.37421016 1.910092
-#> 4:              TE - (Direct + Indirect)  0.01152751       NA
-#> 5:                  Mediation Proportion 53.70214941       NA
-#> 6: Mediation Proportion (multiplicative) 52.23061759       NA
+#>                      Effect          RD       RR
+#>                      <char>       <num>    <num>
+#> 1:          Indirect effect  0.19197390 1.325190
+#> 2:            Direct effect  0.17260655 1.413194
+#> 3:             Total effect  0.37626584 1.916305
+#> 4: TE - (Direct + Indirect)  0.01168539       NA
+#> 5:     Mediation Proportion 52.65611453       NA
 ```
 
 Row by row:
@@ -334,10 +335,13 @@ Row by row:
 - **Indirect effect (IIE)** = `Phi11 − Phi10`: the change in risk from
   shifting the *population distribution* of the mediator from its
   never-treated to its always-treated form, while exposure is held at 1.
+
 - **Direct effect (IDE)** = `Phi10 − Phi00`: the effect of exposure with
   the mediator distribution held at its never-treated form.
+
 - **Total effect (TE)** = `nat1 − nat0`: the ordinary g-formula total
   effect.
+
 - **TE − (Direct + Indirect)**: IDE + IIE sum to the *interventional
   overall effect* `Phi11 − Phi00`, not to TE; this row is the arithmetic
   difference between the two, reported so the decomposition can be read
@@ -345,12 +349,23 @@ Row by row:
   corresponding quantity for their simulation. (For
   `mediation_type = "N"` the decomposition is exact and this row is
   absent.)
-- **Mediation Proportion** = (TE − IDE) / TE × 100: the share of the
-  total effect *not* acting directly, i.e. the indirect effects plus the
-  residual (Yamamuro et al. 2021).
-- **Mediation Proportion (multiplicative)** =
-  $`RR_{IDE}(RR_{IIE}-1)/(RR_{OE}-1) \times 100`$ on the risk-ratio
-  scale (Lin et al. 2017, Table 2).
+
+- **Mediation Proportion** = $`\sum_k`$ IIE(M_k) / OE × 100, where OE =
+  IDE + $`\sum_k`$ IIE(M_k) is the interventional overall effect.
+  Numerator and denominator come from the same decomposition, so IDE /
+  OE and this proportion sum to exactly 100%. It is a share of the
+  **overall** effect, not of the natural plug-in total effect — the two
+  differ by the decomposition residual, which is reported in its own row
+  on the RD scale. This is the quantity Lin et al. (2017, *Stat Med*,
+  Table 2) report: their design has no separate fixed-exposure,
+  natural-mediator intervention, so the “total effect” in their formula
+  is $`\Phi_{11}-\Phi_{00}`$.
+
+  No separate multiplicative proportion is reported. The risk-ratio
+  formula $`RR_{IDE}(\prod_k RR_{IIE_k}-1)/(RR_{OE}-1)`$ is not a second
+  scale: it simplifies to
+  $`(\Phi_{11}-\Phi_{10})/(\Phi_{11}-\Phi_{00})`$, the same number as
+  the proportion above.
 
 The `RD` column is the risk-difference scale, `RR` the risk-ratio scale
 (`RR` is not applicable to the residual and proportion rows). With
@@ -367,15 +382,15 @@ cumulative-incidence benchmark computed directly from the data.
 Every intervention that draws its mediators from a permuted pool does so
 by randomly permuting the pool of simulated mediator trajectories. Under
 `mediation_type = "I"` that is the *whole* decomposition (the references
-$`\Phi_{00}`$ and $`\Phi_{11}`$ as well as the cross-world
-$`\Phi_{10}`$), but not the natural-course interventions `nat0`/`nat1`,
-whose mediators come from their own fitted models. `n_vw` controls how
-many independent permutations are averaged per intervention (default
-`2`, matching the SAS `mGFORMULA` macro). Averaging reduces Monte Carlo
-noise from the permutation step at the cost of one extra simulation pass
-per intervention; `n_vw = 1` is faster and slightly noisier. It has no
-effect on natural effects (`mediation_type = "N"`), which do not use
-permutation.
+$`\Phi_{00}`$ and $`\Phi_{11}`$ as well as the cross-regime
+$`\Phi_{10}`$), but not the fixed-exposure, natural-mediator
+interventions `nat0`/`nat1`, whose mediators come from their own fitted
+models. `n_vw` controls how many independent permutations are averaged
+per intervention (default `2`, matching the SAS `mGFORMULA` macro).
+Averaging reduces Monte Carlo noise from the permutation step at the
+cost of one extra simulation pass per intervention; `n_vw = 1` is faster
+and slightly noisier. It has no effect on natural effects
+(`mediation_type = "N"`), which do not use permutation.
 
 One consequence worth knowing if you use `return_data = TRUE`: with
 `n_vw > 1`, `sim_data` keeps only the last permutation of each
@@ -598,14 +613,13 @@ fit_cens <- mediation(
 )
 
 fit_cens$estimate
-#>                                   Effect          RD       RR
-#>                                   <char>       <num>    <num>
-#> 1:                       Indirect effect  0.18998326 1.340490
-#> 2:                         Direct effect  0.16553404 1.421811
-#> 3:                          Total effect  0.37043222 1.969298
-#> 4:              TE - (Direct + Indirect)  0.01491493       NA
-#> 5:                  Mediation Proportion 55.31327315       NA
-#> 6: Mediation Proportion (multiplicative) 53.43854201       NA
+#>                      Effect          RD       RR
+#>                      <char>       <num>    <num>
+#> 1:          Indirect effect  0.19200968 1.344445
+#> 2:            Direct effect  0.16502821 1.420542
+#> 3:             Total effect  0.37218202 1.974708
+#> 4: TE - (Direct + Indirect)  0.01514413       NA
+#> 5:     Mediation Proportion 53.77851536       NA
 ```
 
 In the simulation, censoring is **abolished** in every intervention (all
@@ -746,7 +760,7 @@ establish.
 
 When the natural-effects estimand *is* appropriate for your data, the
 plug-in simulation is not the only estimator: `estimator = "tmle"`
-implements the targeted maximum likelihood estimator from the same
+implements the targeted minimum loss-based estimator from the same
 reference (Zheng & van der Laan 2017, Section 4.3), including
 right-censored survival outcomes. Instead of simulating forward, it runs
 backward iterated regressions with targeted fluctuation steps, weighting

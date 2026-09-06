@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -237,7 +237,7 @@ value, <strong>including the reference interventions</strong>
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="normal">Φ</mi><mn>00</mn></msub><mo>=</mo><mi>E</mi><mo stretchy="false" form="prefix">[</mo><msub><mi>Y</mi><mrow><mn>0</mn><mo>,</mo><msub><mi>G</mi><mn>0</mn></msub></mrow></msub><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">\Phi_{00} = E[Y_{0,G_0}]</annotation></semantics></math>
 and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="normal">Φ</mi><mn>11</mn></msub><mo>=</mo><mi>E</mi><mo stretchy="false" form="prefix">[</mo><msub><mi>Y</mi><mrow><mn>1</mn><mo>,</mo><msub><mi>G</mi><mn>1</mn></msub></mrow></msub><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">\Phi_{11} = E[Y_{1,G_1}]</annotation></semantics></math>
-and not only the cross-world
+and not only the cross-regime
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi mathvariant="normal">Φ</mi><mn>10</mn></msub><annotation encoding="application/x-tex">\Phi_{10}</annotation></semantics></math>,
 permutes the relevant pool once and assigns subject
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
@@ -245,10 +245,15 @@ the <em>entire</em> trajectory of one randomly chosen pool individual
 (each mediator permuted independently). This is the joint-trajectory
 algorithm described by Yamamuro et al. (2021, Figure 3 step 3) and
 implemented by the SAS <code>mGFORMULA</code> macro (Lin et al. 2017
-eAppendix); it samples the marginal mediator distribution targeted by
-Lin et al. (2017, Eq. 4) and VanderWeele &amp; Tchetgen Tchetgen (2017).
-The pool is not survival-weighted; the full reference cohort is used at
-every time step (matching both reference SAS implementations).</p>
+eAppendix); it samples the whole-population marginal mediator
+distribution, the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>G</mi><mi>a</mi></msub><annotation encoding="application/x-tex">G_a</annotation></semantics></math>
+variation of VanderWeele &amp; Tchetgen Tchetgen (2017). Lin et
+al. (2017, <em>Stat Med</em>, Eq. 4) is written for the conditional
+form, but the estimation algorithm in their Section 4 permutes the whole
+cohort as here. No one is removed from the pool once they have an event:
+the full reference cohort is used at every time step, following that
+algorithm.</p>
 <p><strong>Warning summary.</strong> Warnings from model fitting (e.g.,
 convergence, near-separation) are held and printed as a deduplicated
 summary at function exit. Repeated warnings (e.g., across 500 bootstrap
@@ -416,11 +421,11 @@ estimator (<code>estimator = "tmle"</code>).</p>
 <code class="sourceCode R"><span><span class="va">fit_surv</span><span class="op">$</span><span class="va">effect_size</span></span>
 <span><span class="co">#&gt;    Intervention       Est</span></span>
 <span><span class="co">#&gt;          &lt;char&gt;     &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:         nat0 0.4111782</span></span>
-<span><span class="co">#&gt; 2:         nat1 0.7853884</span></span>
-<span><span class="co">#&gt; 3:        Phi00 0.4181072</span></span>
-<span><span class="co">#&gt; 4:        Phi10 0.5913585</span></span>
-<span><span class="co">#&gt; 5:        Phi11 0.7807899</span></span></code></pre></div>
+<span><span class="co">#&gt; 1:         nat0 0.4106340</span></span>
+<span><span class="co">#&gt; 2:         nat1 0.7868999</span></span>
+<span><span class="co">#&gt; 3:        Phi00 0.4177377</span></span>
+<span><span class="co">#&gt; 4:        Phi10 0.5903442</span></span>
+<span><span class="co">#&gt; 5:        Phi11 0.7823181</span></span></code></pre></div>
 <p>Each row is the simulated cumulative incidence under one
 intervention:</p>
 <ul>
@@ -437,7 +442,7 @@ collected under that same exposure level
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mo stretchy="false" form="prefix">[</mo><msub><mi>Y</mi><mrow><mn>1</mn><mo>,</mo><msub><mi>G</mi><mn>1</mn></msub></mrow></msub><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">E[Y_{1,G_1}]</annotation></semantics></math>).
 These are the interventional references.</li>
 <li>
-<strong><code>Phi10</code></strong>: the cross-world intervention.
+<strong><code>Phi10</code></strong>: the cross-regime intervention.
 Exposure fixed to 1, mediator drawn from the a = 0 pool
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mo stretchy="false" form="prefix">[</mo><msub><mi>Y</mi><mrow><mn>1</mn><mo>,</mo><msub><mi>G</mi><mn>0</mn></msub></mrow></msub><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">E[Y_{1,G_0}]</annotation></semantics></math>).</li>
 </ul>
@@ -447,44 +452,52 @@ Exposure fixed to 1, mediator drawn from the a = 0 pool
 </h3>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_surv</span><span class="op">$</span><span class="va">estimate</span></span>
-<span><span class="co">#&gt;                                   Effect          RD       RR</span></span>
-<span><span class="co">#&gt;                                   &lt;char&gt;       &lt;num&gt;    &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:                       Indirect effect  0.18943139 1.320333</span></span>
-<span><span class="co">#&gt; 2:                         Direct effect  0.17325126 1.414370</span></span>
-<span><span class="co">#&gt; 3:                          Total effect  0.37421016 1.910092</span></span>
-<span><span class="co">#&gt; 4:              TE - (Direct + Indirect)  0.01152751       NA</span></span>
-<span><span class="co">#&gt; 5:                  Mediation Proportion 53.70214941       NA</span></span>
-<span><span class="co">#&gt; 6: Mediation Proportion (multiplicative) 52.23061759       NA</span></span></code></pre></div>
+<span><span class="co">#&gt;                      Effect          RD       RR</span></span>
+<span><span class="co">#&gt;                      &lt;char&gt;       &lt;num&gt;    &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1:          Indirect effect  0.19197390 1.325190</span></span>
+<span><span class="co">#&gt; 2:            Direct effect  0.17260655 1.413194</span></span>
+<span><span class="co">#&gt; 3:             Total effect  0.37626584 1.916305</span></span>
+<span><span class="co">#&gt; 4: TE - (Direct + Indirect)  0.01168539       NA</span></span>
+<span><span class="co">#&gt; 5:     Mediation Proportion 52.65611453       NA</span></span></code></pre></div>
 <p>Row by row:</p>
 <ul>
-<li>
-<strong>Indirect effect (IIE)</strong> = <code>Phi11 − Phi10</code>:
-the change in risk from shifting the <em>population distribution</em> of
-the mediator from its never-treated to its always-treated form, while
-exposure is held at 1.</li>
-<li>
-<strong>Direct effect (IDE)</strong> = <code>Phi10 − Phi00</code>:
-the effect of exposure with the mediator distribution held at its
-never-treated form.</li>
-<li>
-<strong>Total effect (TE)</strong> = <code>nat1 − nat0</code>: the
-ordinary g-formula total effect.</li>
-<li>
-<strong>TE − (Direct + Indirect)</strong>: IDE + IIE sum to the
+<li><p><strong>Indirect effect (IIE)</strong> =
+<code>Phi11 − Phi10</code>: the change in risk from shifting the
+<em>population distribution</em> of the mediator from its never-treated
+to its always-treated form, while exposure is held at 1.</p></li>
+<li><p><strong>Direct effect (IDE)</strong> =
+<code>Phi10 − Phi00</code>: the effect of exposure with the mediator
+distribution held at its never-treated form.</p></li>
+<li><p><strong>Total effect (TE)</strong> = <code>nat1 − nat0</code>:
+the ordinary g-formula total effect.</p></li>
+<li><p><strong>TE − (Direct + Indirect)</strong>: IDE + IIE sum to the
 <em>interventional overall effect</em> <code>Phi11 − Phi00</code>, not
 to TE; this row is the arithmetic difference between the two, reported
 so the decomposition can be read against the total effect. Yamamuro et
 al. (2021) report the corresponding quantity for their simulation. (For
 <code>mediation_type = "N"</code> the decomposition is exact and this
-row is absent.)</li>
+row is absent.)</p></li>
 <li>
-<strong>Mediation Proportion</strong> = (TE − IDE) / TE × 100: the
-share of the total effect <em>not</em> acting directly, i.e. the
-indirect effects plus the residual (Yamamuro et al. 2021).</li>
-<li>
-<strong>Mediation Proportion (multiplicative)</strong> =
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><msub><mi>R</mi><mrow><mi>I</mi><mi>D</mi><mi>E</mi></mrow></msub><mo stretchy="false" form="prefix">(</mo><mi>R</mi><msub><mi>R</mi><mrow><mi>I</mi><mi>I</mi><mi>E</mi></mrow></msub><mo>−</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mi>R</mi><msub><mi>R</mi><mrow><mi>O</mi><mi>E</mi></mrow></msub><mo>−</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo><mo>×</mo><mn>100</mn></mrow><annotation encoding="application/x-tex">RR_{IDE}(RR_{IIE}-1)/(RR_{OE}-1) \times 100</annotation></semantics></math>
-on the risk-ratio scale (Lin et al. 2017, Table 2).</li>
+<p><strong>Mediation Proportion</strong> =
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mo>∑</mo><mi>k</mi></msub><annotation encoding="application/x-tex">\sum_k</annotation></semantics></math>
+IIE(M_k) / OE × 100, where OE = IDE +
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mo>∑</mo><mi>k</mi></msub><annotation encoding="application/x-tex">\sum_k</annotation></semantics></math>
+IIE(M_k) is the interventional overall effect. Numerator and denominator
+come from the same decomposition, so IDE / OE and this proportion sum to
+exactly 100%. It is a share of the <strong>overall</strong> effect, not
+of the natural plug-in total effect — the two differ by the
+decomposition residual, which is reported in its own row on the RD
+scale. This is the quantity Lin et al. (2017, <em>Stat Med</em>, Table
+2) report: their design has no separate fixed-exposure, natural-mediator
+intervention, so the “total effect” in their formula is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="normal">Φ</mi><mn>11</mn></msub><mo>−</mo><msub><mi mathvariant="normal">Φ</mi><mn>00</mn></msub></mrow><annotation encoding="application/x-tex">\Phi_{11}-\Phi_{00}</annotation></semantics></math>.</p>
+<p>No separate multiplicative proportion is reported. The risk-ratio
+formula
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><msub><mi>R</mi><mrow><mi>I</mi><mi>D</mi><mi>E</mi></mrow></msub><mo stretchy="false" form="prefix">(</mo><msub><mo>∏</mo><mi>k</mi></msub><mi>R</mi><msub><mi>R</mi><mrow><mi>I</mi><mi>I</mi><msub><mi>E</mi><mi>k</mi></msub></mrow></msub><mo>−</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mi>R</mi><msub><mi>R</mi><mrow><mi>O</mi><mi>E</mi></mrow></msub><mo>−</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">RR_{IDE}(\prod_k RR_{IIE_k}-1)/(RR_{OE}-1)</annotation></semantics></math>
+is not a second scale: it simplifies to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><msub><mi mathvariant="normal">Φ</mi><mn>11</mn></msub><mo>−</mo><msub><mi mathvariant="normal">Φ</mi><mn>10</mn></msub><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mo stretchy="false" form="prefix">(</mo><msub><mi mathvariant="normal">Φ</mi><mn>11</mn></msub><mo>−</mo><msub><mi mathvariant="normal">Φ</mi><mn>00</mn></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(\Phi_{11}-\Phi_{10})/(\Phi_{11}-\Phi_{00})</annotation></semantics></math>,
+the same number as the proportion above.</p>
+</li>
 </ul>
 <p>The <code>RD</code> column is the risk-difference scale,
 <code>RR</code> the risk-ratio scale (<code>RR</code> is not applicable
@@ -507,9 +520,9 @@ decomposition (the references
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi mathvariant="normal">Φ</mi><mn>00</mn></msub><annotation encoding="application/x-tex">\Phi_{00}</annotation></semantics></math>
 and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi mathvariant="normal">Φ</mi><mn>11</mn></msub><annotation encoding="application/x-tex">\Phi_{11}</annotation></semantics></math>
-as well as the cross-world
+as well as the cross-regime
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi mathvariant="normal">Φ</mi><mn>10</mn></msub><annotation encoding="application/x-tex">\Phi_{10}</annotation></semantics></math>),
-but not the natural-course interventions
+but not the fixed-exposure, natural-mediator interventions
 <code>nat0</code>/<code>nat1</code>, whose mediators come from their own
 fitted models. <code>n_vw</code> controls how many independent
 permutations are averaged per intervention (default <code>2</code>,
@@ -736,14 +749,13 @@ depends on, before the survival model):</p>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">fit_cens</span><span class="op">$</span><span class="va">estimate</span></span>
-<span><span class="co">#&gt;                                   Effect          RD       RR</span></span>
-<span><span class="co">#&gt;                                   &lt;char&gt;       &lt;num&gt;    &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:                       Indirect effect  0.18998326 1.340490</span></span>
-<span><span class="co">#&gt; 2:                         Direct effect  0.16553404 1.421811</span></span>
-<span><span class="co">#&gt; 3:                          Total effect  0.37043222 1.969298</span></span>
-<span><span class="co">#&gt; 4:              TE - (Direct + Indirect)  0.01491493       NA</span></span>
-<span><span class="co">#&gt; 5:                  Mediation Proportion 55.31327315       NA</span></span>
-<span><span class="co">#&gt; 6: Mediation Proportion (multiplicative) 53.43854201       NA</span></span></code></pre></div>
+<span><span class="co">#&gt;                      Effect          RD       RR</span></span>
+<span><span class="co">#&gt;                      &lt;char&gt;       &lt;num&gt;    &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1:          Indirect effect  0.19200968 1.344445</span></span>
+<span><span class="co">#&gt; 2:            Direct effect  0.16502821 1.420542</span></span>
+<span><span class="co">#&gt; 3:             Total effect  0.37218202 1.974708</span></span>
+<span><span class="co">#&gt; 4: TE - (Direct + Indirect)  0.01514413       NA</span></span>
+<span><span class="co">#&gt; 5:     Mediation Proportion 53.77851536       NA</span></span></code></pre></div>
 <p>In the simulation, censoring is <strong>abolished</strong> in every
 intervention (all interventions fix the exposure, and the censoring
 indicator is set to 0), so the reported risks are counterfactual risks
@@ -869,8 +881,8 @@ indirect effect does and does not establish.</p>
 </h3>
 <p>When the natural-effects estimand <em>is</em> appropriate for your
 data, the plug-in simulation is not the only estimator:
-<code>estimator = "tmle"</code> implements the targeted maximum
-likelihood estimator from the same reference (Zheng &amp; van der Laan
+<code>estimator = "tmle"</code> implements the targeted minimum
+loss-based estimator from the same reference (Zheng &amp; van der Laan
 2017, Section 4.3), including right-censored survival outcomes. Instead
 of simulating forward, it runs backward iterated regressions with
 targeted fluctuation steps, weighting by inverse treatment <em>and</em>

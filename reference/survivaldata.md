@@ -109,12 +109,16 @@ subjects, 1822 have the event, 283 are censored and the remaining 895
 reach the end of the fifth period.
 
 Censoring depends on \\V\\ and on the current confounder \\L\\, so it is
-informative given the observed history and a censoring model is required
-for valid estimation: pass one as a `mod_type = "censor"` entry in
-`models`. Because censoring is independent of the counterfactual event
-process given that history, the target estimand – risk with censoring
-eliminated – is unchanged by its presence, so the true values below are
-the same as they would be without it.
+informative marginally, but it is conditionally independent of the
+counterfactual event process given that observed history. The target
+estimand – risk with censoring eliminated – is therefore unchanged by
+its presence, and the true values below are the same as they would be
+without it. Under `estimator = "gcomp"` the hazard model fitted among
+those still at risk already identifies that risk, so a censoring model
+is not required; pass one as a `mod_type = "censor"` entry in `models`
+to simulate the censoring process in the natural course of
+[`gformula()`](https://adayim.github.io/causalMed/reference/gformula.md),
+or for `estimator = "tmle"`.
 
 ## See also
 

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -89,8 +89,11 @@ mediator-trajectory pool built by <code>.run_interventions</code> from the
 corresponding reference intervention (Phi00 or Phi11). When the intervention
 <code>intervention</code> requires a mediator override under
 <code>mediation_type = "I"</code>, the mediator is assigned directly from this
-vector (joint draw matching Lin et al. 2017 Eq. 4, the SAS mGFORMULA
-macro, and Yamamuro et al. 2021 Figure 3 step 3).</p></dd>
+vector. This is the joint, whole-population marginal draw of the Lin et al.
+(2017, <em>Stat Med</em>) Section 4 algorithm and the reference SAS macros
+(mGFORMULA; Yamamuro et al. 2021 Figure 3 step 3). Their Eq. 4 and Eq. 2 are
+written conditional on baseline covariates; see the Mediator pool section of
+<code><a href="mediation.html">mediation</a></code>.</p></dd>
 
 </dl></div>
 

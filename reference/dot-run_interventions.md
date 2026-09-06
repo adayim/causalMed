@@ -125,7 +125,7 @@ intervention.
 - n_vw:
 
   Integer. Number of independent permutation draws averaged for
-  interventional cross-world interventions (Vansteelandt-Williamson
+  interventional pool-drawing interventions (Vansteelandt-Williamson
   repetition). Reference interventions (no mediator overrides) and
   natural-effect interventions are unaffected. Default `1L`;
   [`mediation()`](https://adayim.github.io/causalMed/reference/mediation.md)

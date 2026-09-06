@@ -13,7 +13,7 @@ optional survival/terminal outcomes, and nonparametric uncertainty via bootstrap
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -241,8 +241,11 @@ and normal-approximation confidence intervals are computed from bootstrap resamp
 <p>**Data requirements**</p><ul><li><p>Long format: one row per subject per time point.</p></li>
 <li><p><code>id_var</code>: unique subject identifier; <code>time_var</code>: ordered time index.</p></li>
 <li><p>Final outcome must be well-defined at the last relevant time for each subject.
-        For survival-like settings, rows after the event of interest should be removed
-        (or a censoring model should be included and handled in <code>models</code>).</p></li>
+        For survival-like settings the data must be in risk-set form: rows after
+        the event, and after loss to follow-up, must be removed. A
+        <code>mod_type = "censor"</code> model may additionally be declared; it is used
+        by the targeted estimator and does not alter the \(g\)-computation risks,
+        which are the risks under eliminated loss to follow-up.</p></li>
 </ul><p>**Interventions**
 Provide a named list <code>intervention</code> with exposure values per time
 (e.g., <code>list(natural = NULL, always = c(1,1,1), never = c(0,0,0))</code>).
@@ -275,8 +278,9 @@ and used for computing predicted outcomes (<code>Pred\_Y</code>) under each inte
     <div class="section level2">
     <h2 id="note">Note<a class="anchor" aria-label="anchor" href="#note"></a></h2>
     <p>Final outcome should be consistently defined at the terminal time for each subject.
-For survival-type applications, remove rows after the event of interest (or include
-and model censoring appropriately). The function may record warnings internally and
+For survival-type applications, remove rows after the event of interest and after
+loss to follow-up; a censoring model is not a substitute for that risk-set
+construction. The function may record warnings internally and
 print them on exit. Results depend on correct temporal ordering, model specification,
 positivity, and no unmeasured confounding assumptions customary for g-formula.</p>
 <p>If a fitted model turns out to be rank deficient — a collinear term, or a

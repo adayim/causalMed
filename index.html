@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -67,7 +67,7 @@
 <li>
 <strong>Natural direct and indirect effects</strong> (NDE/NIE): Zheng &amp; van der Laan (2017)</li>
 </ul>
-<p>Both approaches handle time-varying exposures, mediators, and confounders in longitudinal data, including survival outcomes. The standard g-formula component (total effect estimation) is cross-validated against the <code>gfoRmula</code> CRAN package.</p>
+<p>Both approaches handle time-varying exposures, mediators, and confounders in longitudinal data, including survival outcomes. The standard g-formula component (total effect estimation) is numerically cross-checked against the <code>gfoRmula</code> CRAN package.</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
@@ -88,13 +88,13 @@
 <strong>Two mediation estimands</strong>:
 <ul>
 <li>
-<code>mediation_type = "I"</code>: interventional IDE/IIE (VanderWeele &amp; Tchetgen Tchetgen 2017; Lin et al. 2017; Yamamuro et al. 2021). The cross-world mediator is drawn as a <strong>joint M(1:T) trajectory</strong> by row-permuting the reference (a*) cohort, matching the SAS <code>mGFORMULA</code> macro and the algorithm of Yamamuro et al. 2021. Does not require cross-world independence. <strong>Multiple mediator models</strong> are supported under this estimand (Yamamuro 2021 §4); per-mediator IIE(M_k) is reported alongside the overall IDE/TE. On what a non-zero interventional indirect effect does and does not establish, see Miles (2023).</li>
+<code>mediation_type = "I"</code>: interventional IDE/IIE (VanderWeele &amp; Tchetgen Tchetgen 2017; Lin et al. 2017; Yamamuro et al. 2021). The randomized mediator is drawn as a <strong>joint M(1:T) trajectory</strong> by row-permuting the reference (a*) cohort, matching the SAS <code>mGFORMULA</code> macro and the algorithm of Yamamuro et al. 2021. Does not require cross-world independence. <strong>Multiple mediator models</strong> are supported under this estimand (Yamamuro 2021 §4); per-mediator IIE(M_k) is reported alongside the overall IDE/TE. On what a non-zero interventional indirect effect does and does not establish, see Miles (2023).</li>
 <li>
 <code>mediation_type = "N"</code>: natural NDE/NIE (Zheng &amp; van der Laan 2017), using the conditional mediator distribution with exposure swapping; requires stronger assumptions (single mediator only). Natural effects are <strong>not identifiable</strong> when a confounder of the mediator–outcome relationship is itself affected by the exposure (Avin, Shpitser &amp; Pearl 2005; VanderWeele &amp; Tchetgen Tchetgen 2017); <code><a href="reference/mediation.html">mediation()</a></code> detects this, warns, and repeats the caveat in <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code>. VanderWeele &amp; Tchetgen Tchetgen (2017) propose the interventional estimand for that setting.</li>
 </ul>
 </li>
 <li>
-<strong>Two estimators for natural effects</strong>: the parametric g-formula plug-in (<code>estimator = "gcomp"</code>, the default) or a <strong>targeted maximum likelihood estimator</strong> (<code>estimator = "tmle"</code>, Zheng &amp; van der Laan 2017 §4.3), for which that paper establishes multiple robustness, meaning consistency when only certain subsets of the nuisance models are correct, with Wald confidence intervals from the efficient influence curve, so no bootstrap is needed. Available for <code>mediation_type = "N"</code> only.</li>
+<strong>Two estimators for natural effects</strong>: the parametric g-formula plug-in (<code>estimator = "gcomp"</code>, the default) or a <strong>targeted minimum loss-based estimator</strong> (<code>estimator = "tmle"</code>, Zheng &amp; van der Laan 2017 §4.3), for which that paper establishes multiple robustness, meaning consistency when only certain subsets of the nuisance models are correct, with Wald confidence intervals from the efficient influence curve, so no bootstrap is needed. Available for <code>mediation_type = "N"</code> only.</li>
 <li>
 <strong>Model specification</strong>: logistic regression (binary), linear regression (normal), multinomial logistic (categorical), and custom simulation functions. Numeric draws are clipped to the observed range of the response by default; use <code>spec_model(truncate = FALSE)</code> to draw from the untruncated fitted distribution.</li>
 <li>
@@ -266,16 +266,16 @@
 <span><span class="co">#&gt;   Data         : 3,000 individuals, 15,000 observations</span></span>
 <span><span class="co">#&gt;   MC sample    : 10000</span></span>
 <span><span class="co">#&gt;   Bootstrap R  : 100</span></span>
-<span><span class="co">#&gt;   n_vw         : 2  (permutation draws averaged per cross-world intervention)</span></span>
+<span><span class="co">#&gt;   n_vw         : 2  (permutation draws averaged per pool-drawing intervention)</span></span>
 <span><span class="co">#&gt;   Seed         : 2025</span></span>
 <span><span class="co">#&gt;   Mediation    : Interventional effects (IDE/IIE) -- Lin et al. (2017)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; --- Marginal mean outcome per intervention --- </span></span>
 <span><span class="co">#&gt;   Under interventional effects, each intervention draws its mediators from independently-permuted pools (G):</span></span>
 <span><span class="co">#&gt;   Phi11 = E[Y(a=1, G1)]:  exposure=1, mediators ~ a=1 pool  [reference]</span></span>
-<span><span class="co">#&gt;   Phi10 = E[Y(a=1, G0)]:  exposure=1, mediators ~ a=0 pool  [cross-world]</span></span>
+<span><span class="co">#&gt;   Phi10 = E[Y(a=1, G0)]:  exposure=1, mediators ~ a=0 pool  [cross-regime]</span></span>
 <span><span class="co">#&gt;   Phi00 = E[Y(a=0, G0)]:  exposure=0, mediators ~ a=0 pool  [reference]</span></span>
-<span><span class="co">#&gt;   nat1/nat0 = E[Y(a=1)]/E[Y(a=0)]:  natural course (used for the total effect)</span></span>
+<span><span class="co">#&gt;   nat1/nat0 = E[Y(a=1)]/E[Y(a=0)]:  exposure fixed, mediators natural (used for the total effect)</span></span>
 <span><span class="co">#&gt;    Intervention    Est     Sd 2.5%(pct) 97.5%(pct) 2.5%(norm) 97.5%(norm)</span></span>
 <span><span class="co">#&gt;          &lt;char&gt;  &lt;num&gt;  &lt;num&gt;     &lt;num&gt;      &lt;num&gt;      &lt;num&gt;       &lt;num&gt;</span></span>
 <span><span class="co">#&gt; 1:         nat0 0.0961 0.0151    0.0695     0.1262     0.0664      0.1257</span></span>
@@ -292,32 +292,31 @@
 <span><span class="co">#&gt;   IDE + IIE             = Phi11 - Phi00    (interventional overall effect)</span></span>
 <span><span class="co">#&gt;   Total effect (TE)     = nat1 - nat0      (natural plug-in g-formula)</span></span>
 <span><span class="co">#&gt;   TE - (Direct+Indirect)= natural TE minus interventional overall effect</span></span>
-<span><span class="co">#&gt;   Mediation Prop.       = (Total - Direct) / Total  (percentage; RR not applicable)</span></span>
+<span><span class="co">#&gt;   Mediation Prop.       = Indirect / (Direct + Indirect)   (percentage)</span></span>
+<span><span class="co">#&gt;     i.e. a share of the interventional overall effect, NOT of the total</span></span>
+<span><span class="co">#&gt;     effect; Direct and Mediation Prop. sum to 100%</span></span>
 <span><span class="co">#&gt;   RD = risk difference;  RR = risk ratio</span></span>
-<span><span class="co">#&gt;                                   Effect      RD     RR Sd(RD) RD 2.5%(pct)</span></span>
-<span><span class="co">#&gt;                                   &lt;char&gt;   &lt;num&gt;  &lt;num&gt;  &lt;num&gt;        &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:                       Indirect effect  0.0683 1.4132 0.0085       0.0521</span></span>
-<span><span class="co">#&gt; 2:                         Direct effect  0.0879 2.1378 0.0159       0.0571</span></span>
-<span><span class="co">#&gt; 3:                          Total effect  0.1613 2.6787 0.0179       0.1190</span></span>
-<span><span class="co">#&gt; 4:              TE - (Direct + Indirect)  0.0051     NA 0.0018      -0.0001</span></span>
-<span><span class="co">#&gt; 5:                  Mediation Proportion 45.4746     NA 5.6305      34.8497</span></span>
-<span><span class="co">#&gt; 6: Mediation Proportion (multiplicative) 43.7076     NA 5.9414      34.0057</span></span>
-<span><span class="co">#&gt;    RD 97.5%(pct) Sd(RR) RR 2.5%(pct) RR 97.5%(pct) RD 2.5%(norm) RD 97.5%(norm)</span></span>
-<span><span class="co">#&gt;            &lt;num&gt;  &lt;num&gt;        &lt;num&gt;         &lt;num&gt;         &lt;num&gt;          &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:        0.0819 0.0652       1.2857        1.5185        0.0516         0.0849</span></span>
-<span><span class="co">#&gt; 2:        0.1191 0.3897       1.5371        2.9167        0.0568         0.1190</span></span>
-<span><span class="co">#&gt; 3:        0.1872 0.4424       1.9739        3.6034        0.1261         0.1964</span></span>
-<span><span class="co">#&gt; 4:        0.0066     NA           NA            NA        0.0015         0.0086</span></span>
-<span><span class="co">#&gt; 5:       56.0160     NA           NA            NA       34.4391        56.5101</span></span>
-<span><span class="co">#&gt; 6:       55.8100     NA           NA            NA       32.0626        55.3526</span></span>
-<span><span class="co">#&gt;    RR 2.5%(norm) RR 97.5%(norm)</span></span>
-<span><span class="co">#&gt;            &lt;num&gt;          &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:        1.2854         1.5411</span></span>
-<span><span class="co">#&gt; 2:        1.3739         2.9016</span></span>
-<span><span class="co">#&gt; 3:        1.8117         3.5457</span></span>
-<span><span class="co">#&gt; 4:            NA             NA</span></span>
-<span><span class="co">#&gt; 5:            NA             NA</span></span>
-<span><span class="co">#&gt; 6:            NA             NA</span></span>
+<span><span class="co">#&gt;                      Effect      RD     RR Sd(RD) RD 2.5%(pct) RD 97.5%(pct)</span></span>
+<span><span class="co">#&gt;                      &lt;char&gt;   &lt;num&gt;  &lt;num&gt;  &lt;num&gt;        &lt;num&gt;         &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1:          Indirect effect  0.0683 1.4132 0.0085       0.0521        0.0819</span></span>
+<span><span class="co">#&gt; 2:            Direct effect  0.0879 2.1378 0.0159       0.0571        0.1191</span></span>
+<span><span class="co">#&gt; 3:             Total effect  0.1613 2.6787 0.0179       0.1190        0.1872</span></span>
+<span><span class="co">#&gt; 4: TE - (Direct + Indirect)  0.0051     NA 0.0018      -0.0001        0.0066</span></span>
+<span><span class="co">#&gt; 5:     Mediation Proportion 43.7076     NA 5.9414      34.0057       55.8100</span></span>
+<span><span class="co">#&gt;    Sd(RR) RR 2.5%(pct) RR 97.5%(pct) RD 2.5%(norm) RD 97.5%(norm) RR 2.5%(norm)</span></span>
+<span><span class="co">#&gt;     &lt;num&gt;        &lt;num&gt;         &lt;num&gt;         &lt;num&gt;          &lt;num&gt;         &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1: 0.0652       1.2857        1.5185        0.0516         0.0849        1.2854</span></span>
+<span><span class="co">#&gt; 2: 0.3897       1.5371        2.9167        0.0568         0.1190        1.3739</span></span>
+<span><span class="co">#&gt; 3: 0.4424       1.9739        3.6034        0.1261         0.1964        1.8117</span></span>
+<span><span class="co">#&gt; 4:     NA           NA            NA        0.0015         0.0086            NA</span></span>
+<span><span class="co">#&gt; 5:     NA           NA            NA       32.0626        55.3526            NA</span></span>
+<span><span class="co">#&gt;    RR 97.5%(norm)</span></span>
+<span><span class="co">#&gt;             &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1:         1.5411</span></span>
+<span><span class="co">#&gt; 2:         2.9016</span></span>
+<span><span class="co">#&gt; 3:         3.5457</span></span>
+<span><span class="co">#&gt; 4:             NA</span></span>
+<span><span class="co">#&gt; 5:             NA</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;   95% CIs: percentile (pct) and normal approximation (norm) from 100 bootstrap replicates.</span></span></code></pre></div>
 <p>The <code>estimate</code> component of <code>fit_med</code> contains:</p>
@@ -349,17 +348,13 @@
 </tr>
 <tr>
 <td>Mediation Proportion</td>
-<td>(Total − Direct) / Total × 100% (additive)</td>
-</tr>
-<tr>
-<td>Mediation Proportion (multiplicative)</td>
-<td>RR-scale proportion mediated (Lin et al. 2017, Table 2)</td>
+<td>Indirect / (Direct + Indirect) × 100%, i.e. a share of the interventional <strong>overall</strong> effect, not of the total effect (Lin et al. 2017, Table 2)</td>
 </tr>
 </tbody>
 </table>
 <p>With <code>R &gt; 1</code>, <code>estimate</code> additionally carries bootstrap SEs and percentile/normal CIs on the RD and RR scales, and the returned object gains <code>boot_estimates</code> (the per-replicate draws), <code>data_summary</code>, and an <code>observed</code> nonparametric benchmark that <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> displays next to the simulated means.</p>
 <p>For <code>mediation_type = "I"</code>, Q(a₁, a₂) is the mean outcome when exposure is set to a₁ and each mediator is a <strong>stochastic draw</strong> from its marginal distribution under exposure a₂. The direct and indirect effects then sum to the <em>interventional overall effect</em> Q(1,1) − Q(0,0), which generally differs from the total effect; their gap is the residual row. For <code>mediation_type = "N"</code> the references use each subject’s own mediator and the decomposition sums exactly to the total effect (no residual row).</p>
-<p>Under <code>mediation_type = "I"</code>, the mediators in <strong>every</strong> intervention (the references Q(0,0) and Q(1,1) as well as the cross-world Q(1,0)) are drawn as <strong>joint trajectories</strong>: a natural-course cohort is simulated under each a*, and the intervention assigns each subject the full M(1:T) of a randomly permuted reference-cohort individual (each mediator permuted independently). This matches the SAS <code>mGFORMULA</code> macro (Lin et al. 2017, eAppendix) and Yamamuro et al. 2021 (Figure 3, step 3). Mediator values are not survival-weighted; the full reference cohort is used. See <code><a href="reference/mediation.html">?mediation</a></code> for details.</p>
+<p>Under <code>mediation_type = "I"</code>, the mediators in <strong>every</strong> intervention (the references Q(0,0) and Q(1,1) as well as the cross-regime Q(1,0)) are drawn as <strong>joint trajectories</strong>: a cohort is simulated under each a* with the exposure held fixed and the mediator following its fitted model, and the intervention assigns each subject the full M(1:T) of a randomly permuted reference-cohort individual (each mediator permuted independently). This matches the SAS <code>mGFORMULA</code> macro (Lin et al. 2017, eAppendix) and Yamamuro et al. 2021 (Figure 3, step 3). No one is removed from the pool once they have an event; the full reference cohort is used at every time step, following the estimation algorithm of Lin et al. (2017). See <code><a href="reference/mediation.html">?mediation</a></code> for details.</p>
 </div>
 <div class="section level3">
 <h3 id="natural-ndenie-zheng--van-der-laan-2017">Natural NDE/NIE (Zheng &amp; van der Laan 2017)<a class="anchor" aria-label="anchor" href="#natural-ndenie-zheng--van-der-laan-2017"></a>

@@ -96,8 +96,8 @@ SE in parentheses):
 | Interventional indirect effect via M2       | \\-0.97\\ (0.009) |
 | Decomposition residual (TE \\-\\ overall)   | \\0.10\\ (0.016)  |
 
-The decomposition residual is non-zero because the reported total effect
-is a natural-course contrast while the direct and indirect effects are
-interventional; see the *Mediator pool* section of
-[`mediation`](https://adayim.github.io/causalMed/reference/mediation.md)
-for how the mediator draws are constructed.
+The residual is non-zero because the total effect holds the exposure
+fixed and lets the mediators follow their fitted models, while the
+direct and indirect effects draw them from a permuted pool; see the
+*Mediator pool* section of
+[`mediation`](https://adayim.github.io/causalMed/reference/mediation.md).

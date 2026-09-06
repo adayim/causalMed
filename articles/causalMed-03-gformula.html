@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -81,7 +81,7 @@ effect</strong> of the strategy, using the standard parametric g-formula
 (Westreich et al. 2012; McGrath et al. 2020): fit a parametric model for
 every time-varying variable, then Monte Carlo simulate each subject
 forward in time under the intervention of interest.</p>
-<p>This vignette is the full total-effect story:</p>
+<p>This vignette covers:</p>
 <ol style="list-style-type: decimal">
 <li>a binary end-of-follow-up outcome,</li>
 <li>a survival (time-to-event) outcome,</li>
@@ -91,14 +91,13 @@ which combines absorbing states, censoring, and spline recodes,</li>
 <li>bootstrap confidence intervals and parallel execution, and</li>
 <li>extracting fitted models and simulated data.</li>
 </ol>
-<p>Custom covariate distributions (<code>var_type = "custom"</code>) are
-covered in <code><a href="../articles/causalMed-01-overview.html">vignette("causalMed-01-overview")</a></code>.</p>
 <p>The shared vocabulary (long-format data, <code><a href="../reference/spec_model.html">spec_model()</a></code>,
 the <code>var_type</code> / <code>mod_type</code> tables, and the
 <code><a href="../reference/recodes.html">recodes()</a></code> lag hooks) is introduced in
-<code><a href="../articles/causalMed-01-overview.html">vignette("causalMed-01-overview")</a></code> and not repeated here.
-For mediation (direct/indirect decomposition) see
-<code><a href="../articles/causalMed-02-mediation.html">vignette("causalMed-02-mediation")</a></code>.</p>
+<code><a href="../articles/causalMed-01-overview.html">vignette("causalMed-01-overview")</a></code> and not repeated here,
+and so are custom covariate distributions
+(<code>var_type = "custom"</code>). For mediation (direct/indirect
+decomposition) see <code><a href="../articles/causalMed-02-mediation.html">vignette("causalMed-02-mediation")</a></code>.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/adayim/causalMed" class="external-link">causalMed</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r-datatable.com" class="external-link">data.table</a></span><span class="op">)</span></span>
@@ -419,15 +418,15 @@ it from day one:</p>
 <span>  mc_sample <span class="op">=</span> <span class="fl">20000</span>, R <span class="op">=</span> <span class="fl">1</span>, quiet <span class="op">=</span> <span class="cn">TRUE</span>, seed <span class="op">=</span> <span class="fl">20260703</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">fit_gvhd</span><span class="op">$</span><span class="va">effect_size</span></span>
-<span><span class="co">#&gt;    Intervention       Est</span></span>
-<span><span class="co">#&gt;          &lt;fctr&gt;     &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:      natural 0.6117630</span></span>
-<span><span class="co">#&gt; 2:        never 0.5877012</span></span>
+<span><span class="co">#&gt;    Intervention      Est</span></span>
+<span><span class="co">#&gt;          &lt;fctr&gt;    &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1:      natural 0.611763</span></span>
+<span><span class="co">#&gt; 2:        never 0.587719</span></span>
 <span><span class="va">fit_gvhd</span><span class="op">$</span><span class="va">estimate</span></span>
 <span><span class="co">#&gt;       Intervention  Risk_type    Estimate</span></span>
 <span><span class="co">#&gt;             &lt;char&gt;     &lt;char&gt;       &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1: never - natural Difference -0.02406177</span></span>
-<span><span class="co">#&gt; 2: never / natural      Ratio  0.96066816</span></span></code></pre></div>
+<span><span class="co">#&gt; 1: never - natural Difference -0.02404395</span></span>
+<span><span class="co">#&gt; 2: never / natural      Ratio  0.96069728</span></span></code></pre></div>
 <p>The two rows above are the simulated 5-year risks of death under the
 natural course and under the “never GvHD” strategy, and their contrast.
 This reproduces the analysis specification of Keil et al. (2014). Read

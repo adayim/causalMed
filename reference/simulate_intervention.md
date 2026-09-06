@@ -107,7 +107,7 @@ simulate_intervention(
   Optional named list keyed by mediator response variable. Each element
   is itself a pre-permuted list of `T` vectors (one per time point, each
   of length `nrow(data)`, in the mediator's own type) supplying the
-  cross-world joint trajectory for that mediator. The per-time slice is
+  cross-regime joint trajectory for that mediator. The per-time slice is
   delivered to `simulate_data`.
 
 - collect_pool:

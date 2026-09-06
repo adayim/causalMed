@@ -58,10 +58,9 @@ Two points of clarification:
 - **GFORMULA-SAS estimates total effects only.** It contains no mediator
   decomposition. The direct/indirect machinery in `causalMed` (see the
   mediation section below) is an *extension* beyond what GFORMULA-SAS or
-  `gfoRmula` provide. The cross-world mediator-permutation step
-  `causalMed` uses for interventional effects follows a *separate* SAS
-  macro, `mGFORMULA` (Lin et al. 2017), not the total-effect GFORMULA
-  macro.
+  `gfoRmula` provide. The mediator-permutation step `causalMed` uses for
+  interventional effects follows a *separate* SAS macro, `mGFORMULA`
+  (Lin et al. 2017), not the total-effect GFORMULA macro.
 - **The SAS macro has a much larger declarative vocabulary.** It exposes
   up to eight covariate distribution types, keyword-driven functional
   forms of covariate history (lags, cumulative averages, restricted
@@ -128,8 +127,8 @@ onto the user.
 
 `gfoRmula` provides explicit support for competing events via the
 `compevent_name` argument, modelling and eliminating the competing risk
-in the simulation. `causalMed` handles censoring but does not have a
-dedicated competing-event interface.
+in the simulation. `causalMed` targets the risk under eliminated loss to
+follow-up but does not have a dedicated competing-event interface.
 
 ### Full-function custom interventions
 
@@ -665,7 +664,7 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] data.table_1.18.6.1 causalMed_0.1.0    
+#> [1] data.table_1.18.6.1 causalMed_0.1.1    
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] future.apply_1.20.2 gtable_0.3.6        jsonlite_2.0.0     
