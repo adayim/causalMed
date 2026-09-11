@@ -40,6 +40,29 @@
 }
 
 
+# Display helpers for exposure regimes and time grids. A regime carries one
+# value per distinct time point, so on a daily grid it can run to thousands of
+# entries -- far too long to print. Regimes are run-length encoded when that
+# shortens them (mostly constant runs); a regime that switches too often for
+# that, and every time grid, is elided head/tail. The full-fidelity values
+# stay in the returned object; only the printed form is shortened.
+.fmt_regime_str <- function(s, max_show = 20L) {
+  v <- strsplit(s, " ", fixed = TRUE)[[1L]]
+  if (length(v) <= max_show) return(s)
+  r <- rle(v)
+  enc <- paste(ifelse(r$lengths == 1L, r$values,
+                      sprintf("%s x %d", r$values, r$lengths)), collapse = ", ")
+  if (nchar(enc) < nchar(s)) enc else .fmt_times(v, max_show)
+}
+
+.fmt_times <- function(x, max_show = 12L) {
+  if (length(x) <= max_show) return(paste(x, collapse = " "))
+  sprintf("%s ... %s  (%d points)",
+          paste(utils::head(x, 3L), collapse = " "),
+          paste(utils::tail(x, 3L), collapse = " "), length(x))
+}
+
+
 #' Print
 #'
 #' Print method for objects returned by \code{\link{gformula}} or \code{\link{mediation}}.
@@ -105,10 +128,35 @@ print.gformula <- function(x,
   cat(sprintf("  ID variable  : %s\n", args$id_var))
   if (!is.null(args$base_vars) && length(args$base_vars) > 0)
     cat(sprintf("  Baseline vars: %s\n", paste(args$base_vars, collapse = ", ")))
-  if (!is.null(ds))
+  if (!is.null(ds)) {
     cat(sprintf("  Data         : %s individuals, %s observations\n",
                 format(ds$n_id, big.mark = ","),
                 format(ds$n_obs, big.mark = ",")))
+    # Observed support for each exposure regime (mediation() only; absent on
+    # objects created before regimes were user-settable). A count of observed
+    # trajectories -- nothing in the estimation uses it.
+    rs <- ds$regime_support
+    if (!is.null(rs)) {
+      lab_w <- max(nchar(rs$regime))
+      for (i in seq_len(nrow(rs))) {
+        # `n_complete` is absent on objects saved before this column existed;
+        # only show the bracket when it exists and differs from n_following
+        # (a balanced panel, where the two are equal, prints as before).
+        nc <- rs$n_complete[i]
+        complete_str <- if (!is.null(nc) && !is.na(nc) && nc != rs$n_following[i]) {
+          sprintf("  [%s observed at every time point]", format(nc, big.mark = ","))
+        } else {
+          ""
+        }
+        cat(sprintf("  Observed subjects following %-*s (%s): %s of %s (%.1f%%)%s\n",
+                    lab_w, rs$regime[i], .fmt_regime_str(rs$values[i]),
+                    format(rs$n_following[i], big.mark = ","),
+                    format(ds$n_id, big.mark = ","),
+                    100 * rs$prop_following[i],
+                    complete_str))
+      }
+    }
+  }
 
   is_tmle <- is_mediation && identical(args$estimator, "tmle")
 
@@ -125,12 +173,41 @@ print.gformula <- function(x,
                 as.integer(args$n_vw)))
   cat(sprintf("  Seed         : %s\n", seed_str))
 
+  # Regimes are the defaults (always/never exposed) unless the object says
+  # otherwise; objects from before the arguments existed carry NULL.
+  is_default_regime <- default_regime_pair(args$exposure_regime,
+                                           args$reference_regime)
+
+  # Regime labels for the legends below. The defaults keep the always/never
+  # wording (a=1 / a=0); any other pair is written a / a*, the regimes listed in
+  # the setup block. Every legend line is built from this one map, so the
+  # sections cannot drift apart. `a`/`s` are the short forms used inside
+  # E[Y(., M(.))]; `la`/`ls` the labelled forms.
+  rl <- if (is_default_regime) {
+    list(a = "1", s = "0", la = "a=1", ls = "a=0", Ga = "G1", Gs = "G0",
+         ea = "exposure=1", es = "exposure=0", nat = "exposure fixed",
+         intro = "")
+  } else {
+    list(a = "a", s = "a*", la = "a", ls = "a*", Ga = "G_a", Gs = "G_a*",
+         ea = "exposure = a", es = "exposure = a*",
+         nat = "exposure follows a / a*",
+         intro = "  a and a* are the exposure and reference regimes listed above:\n")
+  }
+
   if (is_mediation) {
     type_label <- if (args$mediation_type == "I")
       "Interventional effects (IDE/IIE) -- Lin et al. (2017)"
     else
       "Natural effects (NDE/NIE) -- Zheng & van der Laan (2017)"
     cat(sprintf("  Mediation    : %s\n", type_label))
+    if (!is_default_regime) {
+      tp <- if (!is.null(ds) && !is.null(ds$time_seq))
+        sprintf("   (time = %s)", .fmt_times(ds$time_seq)) else ""
+      cat(sprintf("  Exposure regime  a : %s%s\n",
+                  .fmt_regime_str(paste(args$exposure_regime, collapse = " ")), tp))
+      cat(sprintf("  Reference regime a*: %s\n",
+                  .fmt_regime_str(paste(args$reference_regime, collapse = " "))))
+    }
   } else {
     # show reference intervention for gformula
     if (!is.null(args$ref_int))
@@ -141,20 +218,32 @@ print.gformula <- function(x,
   if (is_mediation) {
     s1_hdr  <- "\n--- Marginal mean outcome per intervention ---"
     if (is_interv) {
+      pa <- paste(rl$la, "pool")
+      ps <- paste(rl$ls, "pool")
       s1_note <- paste0(
-        "  Under interventional effects, each intervention draws its mediators from independently-permuted pools (G):\n",
-        "  Phi11 = E[Y(a=1, G1)]:  exposure=1, mediators ~ a=1 pool  [reference]\n",
-        "  Phi10 = E[Y(a=1, G0)]:  exposure=1, mediators ~ a=0 pool  [cross-regime]\n",
+        "  Under interventional effects, each intervention draws its mediators from independently-permuted pools (G)",
+        if (is_default_regime) ":\n" else ";\n", rl$intro,
+        sprintf("  Phi11 = E[Y(%s, %s)]:  %s, mediators ~ %s  [reference]\n",
+                rl$la, rl$Ga, rl$ea, pa),
+        sprintf("  Phi10 = E[Y(%s, %s)]:  %s, mediators ~ %s  [cross-regime]\n",
+                rl$la, rl$Gs, rl$ea, ps),
         if (length(med_vars) > 1)
-          "  Phi1_k:  exposure=1, first k mediators ~ a=1 pool, rest ~ a=0 pool  [sequential]\n",
-        "  Phi00 = E[Y(a=0, G0)]:  exposure=0, mediators ~ a=0 pool  [reference]\n",
-        "  nat1/nat0 = E[Y(a=1)]/E[Y(a=0)]:  exposure fixed, mediators natural (used for the total effect)\n"
+          sprintf("  Phi1_k:  %s, first k mediators ~ %s, rest ~ %s  [sequential]\n",
+                  rl$ea, pa, ps),
+        sprintf("  Phi00 = E[Y(%s, %s)]:  %s, mediators ~ %s  [reference]\n",
+                rl$ls, rl$Gs, rl$es, ps),
+        sprintf("  nat1/nat0 = E[Y(%s)]/E[Y(%s)]:  %s, mediators natural (used for the total effect)\n",
+                rl$la, rl$ls, rl$nat)
       )
     } else {
       s1_note <- paste0(
-        "  Phi11 = E[Y(a=1, M(1))]:  exposure=1, mediator under a=1\n",
-        "  Phi10 = E[Y(a=1, M(0))]:  exposure=1, mediator under a=0  [cross-world]\n",
-        "  Phi00 = E[Y(a=0, M(0))]:  exposure=0, mediator under a=0\n"
+        rl$intro,
+        sprintf("  Phi11 = E[Y(%s, M(%s))]:  %s, mediator under %s\n",
+                rl$la, rl$a, rl$ea, rl$la),
+        sprintf("  Phi10 = E[Y(%s, M(%s))]:  %s, mediator under %s  [cross-world]\n",
+                rl$la, rl$s, rl$ea, rl$ls),
+        sprintf("  Phi00 = E[Y(%s, M(%s))]:  %s, mediator under %s\n",
+                rl$ls, rl$s, rl$es, rl$ls)
       )
     }
   } else {
@@ -198,9 +287,12 @@ print.gformula <- function(x,
       )
     } else {
       s2_note <- paste0(
-        "  Total effect    = Phi11 - Phi00 =  E[Y(1,M(1))] - E[Y(0,M(0))]\n",
-        "  Direct effect   = Phi10 - Phi00 =  E[Y(1,M(0))] - E[Y(0,M(0))]\n",
-        "  Indirect effect = Phi11 - Phi10 =  E[Y(1,M(1))] - E[Y(1,M(0))]\n",
+        sprintf("  Total effect    = Phi11 - Phi00 =  E[Y(%1$s,M(%1$s))] - E[Y(%2$s,M(%2$s))]\n",
+                rl$a, rl$s),
+        sprintf("  Direct effect   = Phi10 - Phi00 =  E[Y(%1$s,M(%2$s))] - E[Y(%2$s,M(%2$s))]\n",
+                rl$a, rl$s),
+        sprintf("  Indirect effect = Phi11 - Phi10 =  E[Y(%1$s,M(%1$s))] - E[Y(%1$s,M(%2$s))]\n",
+                rl$a, rl$s),
         "  Mediation Prop. = Indirect / Total  (as a percentage; RR not applicable)\n",
         "  RD = risk difference;  RR = risk ratio\n"
       )
@@ -231,13 +323,20 @@ print.gformula <- function(x,
       !is.null(ic) && length(ic) > 0) {
     cat(sprintf(
       paste0("\n  ! Identifiability: covariate model(s) for {%s} include the ",
-             "exposure '%s', i.e. are modelled as exposure-affected.\n",
-             "    If such a covariate also confounds the mediator-outcome ",
-             "relationship, the natural direct/indirect\n",
-             "    effects are not point-identified (Avin, Shpitser & Pearl 2005; ",
-             "VanderWeele & Tchetgen Tchetgen 2017,\n",
-             "    who propose the interventional analogues, mediation_type = ",
-             "\"I\", for that setting).\n"),
+             "exposure '%s',\n",
+             "    i.e. are modelled as exposure-affected. The effects reported ",
+             "here are those of\n",
+             "    Zheng & van der Laan (2017), identified under sequential ",
+             "randomization and\n",
+             "    positivity (their Lemma 1). Reading them as ",
+             "individual-level natural effects\n",
+             "    additionally requires a cross-world assumption, not expected ",
+             "to hold when such\n",
+             "    a covariate also confounds the mediator-outcome relationship ",
+             "(Avin, Shpitser &\n",
+             "    Pearl 2005; VanderWeele & Tchetgen Tchetgen 2017, who propose ",
+             "the interventional\n",
+             "    analogues, mediation_type = \"I\", for that setting).\n"),
       paste(ic, collapse = ", "), args$exposure))
   }
 

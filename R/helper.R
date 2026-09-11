@@ -56,6 +56,24 @@ apply_recodes <- function(data, recode_params) {
   invisible(data)
 }
 
+# The in_recode entries that only copy the exposure (recodes(lag_A = A)): the
+# first-order exposure lags. in_recode runs at the start of every step after
+# the first, before the exposure is set, so at step k >= 2 such a column holds
+# the exposure of step k - 1. (An out_recode copy is NOT one: out_recode also
+# skips the first step, so it still holds its init value at step 2.) Uses the
+# TMLE engine's lag map so both "N" estimators share one definition.
+exposure_lag_cols <- function(in_recode, exposure) {
+  lag_map <- .tmle_lag_map(in_recode)
+  as.character(names(lag_map)[vapply(lag_map, identical, logical(1), exposure)])
+}
+
+# TRUE for the default regime pair, always (1) vs never (0) exposed. NULL
+# regimes -- objects saved before the arguments existed -- are the default.
+default_regime_pair <- function(exposure_regime, reference_regime) {
+  is.null(exposure_regime) ||
+    (all(exposure_regime == 1) && all(reference_regime == 0))
+}
+
 #' Derive parameters for a function from the current environment
 #'
 #' @description
@@ -166,17 +184,81 @@ wrap_fitted_models <- function(fitted_models, return_fitted) {
   out
 }
 
+# The simulation grid: the distinct observed values of `time_var`, sorted.
+# gformula() and mediation() compute it ONCE from the input data and pass it
+# down, so every pass -- bootstrap replicates included -- simulates the same
+# steps. Every consumer goes through this one definition.
+time_grid <- function(data, time_var) sort(unique(na.omit(data[[time_var]])))
+
 # Summarize the input data for display by print.gformula():
-# number of individuals, observations, and time points.
-summarize_input_data <- function(data, id_var, time_var) {
-  times <- sort(unique(na.omit(data[[time_var]])))
+# number of individuals, observations, and time points. `time_seq` is the
+# caller's simulation grid (time_grid()), stored so print() can label a
+# regime's positions.
+summarize_input_data <- function(data, id_var, time_seq) {
   list(
-    n_id    = data.table::uniqueN(data[[id_var]]),
-    n_obs   = nrow(data),
-    n_times = length(times),
-    t_min   = min(times),
-    t_max   = max(times)
+    n_id     = data.table::uniqueN(data[[id_var]]),
+    n_obs    = nrow(data),
+    n_times  = length(time_seq),
+    t_min    = min(time_seq),
+    t_max    = max(time_seq),
+    time_seq = time_seq
   )
+}
+
+# How many observed subjects follow each exposure regime: a subject follows a
+# regime when its observed exposure equals the regime's value at EVERY time
+# point at which that subject is observed (matched by time value, so a short
+# follow-up is compared on the times it has; an NA exposure at any observed
+# time means the subject follows neither; a row with an NA time has no grid
+# position and is ignored). A count for the data summary -- nothing in the
+# estimation uses it. Base R only (tapply), so no data.table NSE columns to
+# register in zzz.R.
+#
+# `n_following` alone overstates support under right-censoring: a subject
+# observed only at t = 0 matches the first element of every regime that
+# shares that value, so it is counted as "following" regimes it was never
+# followed past the first step on -- and the SAME subject can be counted for
+# more than one regime this way. `n_complete` restricts the count to
+# subjects who also have an observation at every time point in `time_seq`,
+# so it reports how many were actually followed for the whole grid.
+#
+# `regimes` is a named list of full-length regime vectors aligned to
+# `time_seq`. Returns a data.frame with one row per regime: `regime`,
+# `values`, `n_following`, `prop_following`, `n_complete`.
+regime_support <- function(data, id_var, time_var, exposure, time_seq, regimes) {
+  # as.character(): tapply() groups by factor(ids), and an unused factor level
+  # would give an empty group whose all() is NA, poisoning the count.
+  ids_all <- as.character(data[[id_var]])
+  n_id    <- data.table::uniqueN(ids_all)
+  pos     <- match(data[[time_var]], time_seq)    # NA for an NA time
+  # Compare subjects only on rows that sit on the grid. Treating an off-grid
+  # row as a mismatch would disqualify the subject from every regime.
+  on_grid <- !is.na(pos)
+  ids <- ids_all[on_grid]
+  pos <- pos[on_grid]
+  aa  <- data[[exposure]][on_grid]
+  # Subjects observed at every grid time. Counted once here rather than per
+  # regime: with right-censored data most subjects have short follow-up, and a
+  # subject observed only at t = 0 matches the first element of MANY regimes,
+  # so `n_following` alone reads far larger than the number of subjects who
+  # actually followed the whole trajectory. DISTINCT grid times, so a
+  # duplicated (id, time) row cannot stand in for a missing time point.
+  n_obs_grid <- tapply(pos, ids, function(p) length(unique(p)))
+  complete   <- n_obs_grid == length(time_seq)
+  rows <- lapply(regimes, function(reg) {
+    follows <- !is.na(aa) & aa == reg[pos]
+    ok <- tapply(follows, ids, all)
+    n  <- sum(ok)
+    data.frame(values         = paste(reg, collapse = " "),
+               n_following    = as.integer(n),
+               prop_following = n / n_id,
+               n_complete     = as.integer(sum(ok & complete[names(ok)])),
+               stringsAsFactors = FALSE)
+  })
+  out <- cbind(data.frame(regime = names(regimes), stringsAsFactors = FALSE),
+               do.call(rbind, rows))
+  rownames(out) <- NULL
+  out
 }
 
 # Observed nonparametric benchmark of the outcome, printed alongside the

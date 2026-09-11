@@ -20,7 +20,8 @@ bootstrap_helper(
   n_vw = 1L,
   R = 500,
   progress_bar = TRUE,
-  future_seed = TRUE
+  future_seed = TRUE,
+  time_seq
 )
 }
 \arguments{
@@ -43,7 +44,7 @@ element is one of:
 \itemize{
   \item \code{NULL} — the natural course (exposure drawn from its fitted model).
   \item A numeric/logical scalar or vector (length 1 or equal to the number
-        of time points) — a static intervention setting the exposure to that
+        of \strong{distinct} time points) — a static intervention setting the exposure to that
         value at every (or each specific) time step.
   \item A \code{\link{dyn_int}} object — a dynamic (rule-based) intervention
         whose expression is evaluated inside the simulated dataset at each
@@ -81,6 +82,10 @@ unless a parallel plan is set; see \code{future::plan}. Use
 Unix-alikes to enable parallel bootstrap. Default \code{500}.}
 
 \item{future_seed}{Logical or integer. Seed is passed to future_lapply.}
+
+\item{time_seq}{Sorted distinct time points from the input data (required);
+see \code{.run_interventions}. Every replicate simulates this grid, so a
+resample missing a rare time value cannot shorten it.}
 }
 \description{
 Used to calculate confidence interval using non-parametric bootstrap methods.

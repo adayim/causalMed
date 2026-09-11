@@ -18,15 +18,20 @@
 #' no mediation analysis will be performed (default).
 #' @param med_pool Optional named list keyed by mediator response variable.
 #'   Each element is the time-\eqn{t} slice of the pre-permuted joint
-#'   mediator-trajectory pool built by \code{.run_interventions} from the
-#'   corresponding reference intervention (Phi00 or Phi11). When the intervention
+#'   mediator-trajectory pool that \code{.run_interventions} collected under the
+#'   regime named by that mediator's override. When the intervention
 #'   \code{intervention} requires a mediator override under
 #'   \code{mediation_type = "I"}, the mediator is assigned directly from this
-#'   vector. This is the joint, whole-population marginal draw of the Lin et al.
+#'   vector, and a missing slice is an error. This is the joint, whole-population marginal draw of the Lin et al.
 #'   (2017, \emph{Stat Med}) Section 4 algorithm and the reference SAS macros
 #'   (mGFORMULA; Yamamuro et al. 2021 Figure 3 step 3). Their Eq. 4 and Eq. 2 are
 #'   written conditional on baseline covariates; see the Mediator pool section of
 #'   \code{\link{mediation}}.
+#' @param med_swap_lags Optional named list keyed by mediator response variable,
+#'   used under \code{mediation_type = "N"}. Each element is a named list giving,
+#'   for every first-order exposure lag column, the value it takes under the
+#'   regime the mediator is drawn from (that regime's exposure at the previous
+#'   step). \code{NULL} at the first step, where the lags hold their init value.
 #'
 #' @keywords internal
 #'
@@ -35,7 +40,8 @@ simulate_data <- function(data,
                           models,
                           intervention = NULL,
                           mediation_type = c(NA, "N", "I"),
-                          med_pool = NULL) {
+                          med_pool = NULL,
+                          med_swap_lags = NULL) {
 
   # Replicate match.arg behaviour for a c(NA, "N", "I") default:
   # when the full default vector is passed (user did not specify), use first element (NA).
@@ -126,34 +132,40 @@ simulate_data <- function(data,
 
       if (mod_type == "mediator" && has_med_override) {
         if (mediation_type == "N") {
-          # Natural effects (Zheng & van der Laan 2017): evaluate the
-          # mediator model on the intervention's own covariate history but with the
-          # exposure swapped to the cross-world value. data[cond] returns a
-          # fresh subset copy, safe to modify in place.
+          # Natural effects (Zheng & van der Laan 2017, Eq. 5): evaluate the
+          # mediator model on the intervention's own covariate history but with
+          # the exposure HISTORY set to the cross-world regime -- the current
+          # exposure and the first-order exposure lags (their values come from
+          # simulate_intervention() in med_swap_lags). Nothing else is touched:
+          # no recode is re-run here (re-running an order-dependent recode on
+          # the copy shifts its columns), and any other exposure-derived input
+          # is rejected up front by check_natural_exposure_history().
+          # data[cond] returns a fresh subset copy, safe to modify in place.
           swap_dt <- data[cond]
           set(swap_dt, j = exposure, value = mediator_override_value)
+          lag_vals <- med_swap_lags[[resp_var]]
+          for (lg in names(lag_vals)) set(swap_dt, j = lg, value = lag_vals[[lg]])
           med_value <- sim_value(model = model, newdt = swap_dt)
           data[cond, (resp_var) := med_value]
 
         } else {
           # Interventional effects (whole-population marginal draw, as in the
           # reference SAS macros; Yamamuro et al. 2021 Fig. 3 step 3): direct
-          # assignment from the pre-permuted
-          # joint-trajectory pool slice for this mediator. intervention_spec carries
-          # the pool source (0 or 1) but the actual pool slice was looked up
-          # by mediator name in .run_interventions and is delivered via med_pool.
-          this_pool <- if (!is.null(med_pool)) med_pool[[resp_var]] else NULL
-          if (!is.null(this_pool)) {
-            data[cond, (resp_var) := this_pool[cond]]
-          } else {
-            # Fallback (no pool collected, e.g., reference intervention had no
-            # mediator model): draw from the mediator model at the
-            # alternative exposure level and permute within this time step.
-            swap_dt <- data[cond]
-            set(swap_dt, j = exposure, value = mediator_override_value)
-            med_value <- sim_value(model = model, newdt = swap_dt)
-            data[cond, (resp_var) := sample(med_value, length(med_value), replace = FALSE)]
+          # assignment from the pre-permuted joint-trajectory pool slice for
+          # this mediator. intervention_spec names the regime the pool was
+          # collected under; .run_interventions looked the pool up by
+          # regime_key() and mediator name and delivers the slice via med_pool.
+          this_pool <- med_pool[[resp_var]]
+          if (is.null(this_pool)) {
+            # No fallback. Drawing from the mediator model and permuting within
+            # this time step would be a different estimand -- independent
+            # per-step draws rather than a joint M(1:T) trajectory -- produced
+            # with no error. .run_interventions() always supplies the slice.
+            stop(sprintf(paste0(
+              "Internal error: no mediator pool slice for '%s' under ",
+              "mediation_type = \"I\"."), resp_var), domain = "causalMed")
           }
+          data[cond, (resp_var) := this_pool[cond]]
         }
 
       } else {

@@ -4,6 +4,9 @@
 #'
 #' @inheritParams gformula
 #' @param future_seed Logical or integer. Seed is passed to future_lapply.
+#' @param time_seq Sorted distinct time points from the input data (required);
+#'   see \code{.run_interventions}. Every replicate simulates this grid, so a
+#'   resample missing a rare time value cannot shorten it.
 #' @importFrom future.apply future_lapply
 #' @importFrom future nbrOfWorkers
 #' @importFrom progressr handler_progress handlers progressor
@@ -24,7 +27,8 @@ bootstrap_helper <- function(data,
                              n_vw = 1L,
                              R = 500,
                              progress_bar = TRUE,
-                             future_seed = TRUE) {
+                             future_seed = TRUE,
+                             time_seq) {
   mediation_type <- match.arg(mediation_type)
 
   # Progress bar. progressr::handlers() sets a SESSION-WIDE option, so we save
@@ -85,6 +89,7 @@ bootstrap_helper <- function(data,
                      n_vw = n_vw,
                      return_fitted = FALSE,
                      return_data = FALSE,
+                     time_seq = time_seq,
                      seed = NULL)   # let each replicate draw its own MC sample
     
     if (progress_bar)

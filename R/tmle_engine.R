@@ -106,7 +106,9 @@ dens_value <- function(model, newdt) {
       "column (lag form, e.g. recodes(lag_A = A)). These entries are ",
       "expressions and would be silently ignored: {%s}. Use estimator = ",
       "'gcomp' for derived recodes (splines, cumulative counts, ",
-      "carry-forward flags)."), paste(bad_in, collapse = ", ")),
+      "carry-forward flags); under mediation_type = 'N' its mediator model may ",
+      "read the exposure only directly or through first-order lags."),
+      paste(bad_in, collapse = ", ")),
       domain = "causalMed")
   }
 
@@ -140,11 +142,51 @@ dens_value <- function(model, newdt) {
       "estimator = 'tmle' only supports first-order exposure lags ",
       "(e.g. recodes(lag_A = %s)). These in_recode entries are chained ",
       "exposure lags and would silently keep their observed values in the ",
-      "intervened regime: {%s}. Use estimator = 'gcomp' for deeper exposure ",
-      "history."), exposure, paste(chained, collapse = ", ")),
+      "intervened regime: {%s}. estimator = 'gcomp' supports deeper exposure ",
+      "history in covariate and outcome models, but not in the mediator model ",
+      "under mediation_type = 'N'."), exposure, paste(chained, collapse = ", ")),
       domain = "causalMed")
   }
 
+  invisible(NULL)
+}
+
+# spec_model(recode = ) is applied ONCE to the observed data (see
+# tmle_natural_mediation()), while every regime evaluation -- the clever-
+# covariate densities and the targeted sequential regressions -- sets only the
+# exposure and its first-order lags (.tmle_set_regime()). A model recode that
+# reads either, directly or through another model recode, would keep observed
+# exposure values inside every regime evaluation: a silently distorted TMLE.
+# Refuse it. Exposure terms written in a model formula (A:L) are unaffected:
+# they are built from the regime-set columns.
+.tmle_check_model_recodes <- function(models, exposure, in_recode) {
+  lag_map <- .tmle_lag_map(in_recode)
+  src <- c(exposure,
+           names(lag_map)[vapply(lag_map, identical, logical(1), exposure)])
+  pairs <- unlist(lapply(models, function(m) {
+    rc <- m$recode
+    if (length(rc) == 0L) return(list())
+    Map(function(nm, ex) list(target = nm, reads = all.vars(ex)),
+        names(rc), as.list(rc))
+  }), recursive = FALSE)
+  bad <- character(0)
+  repeat {
+    hit <- vapply(pairs, function(p) any(p$reads %in% c(src, bad)), logical(1))
+    new <- setdiff(vapply(pairs[hit], `[[`, character(1), "target"), bad)
+    if (length(new) == 0L) break
+    bad <- c(bad, new)
+  }
+  if (length(bad) > 0L) {
+    stop(sprintf(paste0(
+      "estimator = 'tmle' applies spec_model(recode = ) once to the observed ",
+      "data, while its regime evaluations set only the exposure '%s' and its ",
+      "first-order lags. These model recode columns are derived from the ",
+      "exposure and would keep their observed values inside the regime ",
+      "evaluations: {%s}. Exposure terms written in a model formula (e.g. ",
+      "%s:L) are evaluated under the regime."),
+      exposure, paste(bad, collapse = ", "), exposure),
+      call. = FALSE, domain = "causalMed")
+  }
   invisible(NULL)
 }
 
@@ -424,7 +466,7 @@ tmle_natural_mediation <- function(data,
   ids      <- unique(data[[id_var]])
   n        <- length(ids)
   id_pos   <- match(data[[id_var]], ids)           # row -> subject index
-  time_seq <- sort(unique(na.omit(data[[time_var]])))
+  time_seq <- time_grid(data, time_var)
   Tn       <- length(time_seq)
   t_pos    <- match(data[[time_var]], time_seq)    # row -> time index
 

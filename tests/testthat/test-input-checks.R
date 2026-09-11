@@ -129,10 +129,43 @@ test_that("gformula throws error for invalid recode parameters", {
   
   # Passed as list (but not causalMed_recodes class)
   expect_error(
-    gformula(data = nonsurvivaldata, 
+    gformula(data = nonsurvivaldata,
              id_var = "id", base_vars = "V", exposure = "A", time_var = "time", models = models,
              in_recode = list(A = 1)),
     "Invalid input for 'in_recode'"
   )
-  
+
+})
+
+test_that("mediation validates exposure_regime / reference_regime", {
+  data(nonsurvivaldata)   # 5 distinct time points
+  m_L2  <- spec_model(L2    ~ A + V + time,      var_type = "binary", mod_type = "covariate")
+  m_med <- spec_model(L1    ~ A + V + L2 + time, var_type = "normal", mod_type = "mediator")
+  m_Y   <- spec_model(Y_bin ~ A + L1 + L2 + V,   var_type = "binary", mod_type = "outcome")
+  models <- list(m_L2, m_med, m_Y)
+  med <- function(...) mediation(
+    data = nonsurvivaldata, id_var = "id", base_vars = "V", exposure = "A",
+    outcome = "Y_bin", time_var = "time", models = models,
+    mc_sample = 100L, R = 1L, quiet = TRUE, ...)
+
+  expect_error(med(exposure_regime = c(0, 1, 1)),
+               "`exposure_regime` must have length 1 or 5 (one value per distinct time point); got length 3",
+               fixed = TRUE)
+  expect_error(med(reference_regime = c(0, 0, 2, 0, 0)),
+               "`reference_regime` must take values in {0, 1}; got {2}", fixed = TRUE)
+  expect_error(med(exposure_regime = "1"),
+               "`exposure_regime` must be a numeric or logical vector", fixed = TRUE)
+  expect_error(med(exposure_regime = c(0, 0, 0, 0, 0)),
+               "`exposure_regime` and `reference_regime` are identical", fixed = TRUE)
+  expect_error(med(exposure_regime = 1, reference_regime = TRUE),
+               "are identical", fixed = TRUE)
+  # TMLE: defaults only. suppressWarnings(): the "N" identifiability warning
+  # (L2 ~ A) fires before the TMLE block is reached.
+  m_A <- spec_model(A ~ V + time, var_type = "binary", mod_type = "exposure")
+  expect_error(suppressWarnings(
+    mediation(data = nonsurvivaldata, id_var = "id", base_vars = "V", exposure = "A",
+              outcome = "Y_bin", time_var = "time", models = c(list(m_A), models),
+              mediation_type = "N", estimator = "tmle", exposure_regime = c(0, 1, 1, 0, 0),
+              quiet = TRUE)),
+    "estimator = 'tmle' supports only the default regimes", fixed = TRUE)
 })

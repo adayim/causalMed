@@ -20,7 +20,8 @@
   n_vw = 1L,
   return_fitted = FALSE,
   return_data = FALSE,
-  seed = NULL
+  seed = NULL,
+  time_seq = NULL
 )
 }
 \arguments{
@@ -43,7 +44,7 @@ element is one of:
 \itemize{
   \item \code{NULL} — the natural course (exposure drawn from its fitted model).
   \item A numeric/logical scalar or vector (length 1 or equal to the number
-        of time points) — a static intervention setting the exposure to that
+        of \strong{distinct} time points) — a static intervention setting the exposure to that
         value at every (or each specific) time step.
   \item A \code{\link{dyn_int}} object — a dynamic (rule-based) intervention
         whose expression is evaluated inside the simulated dataset at each
@@ -98,6 +99,12 @@ random stream. Pass \code{NULL} to disable seeding entirely: no
 ambient RNG stream, and repeated calls therefore give \emph{different}
 results (reproducible only via an outer \code{set.seed()}). Use
 \code{seed = NULL} inside simulation loops that manage their own seeds.}
+
+\item{time_seq}{Numeric vector: the sorted distinct time points to simulate,
+as computed by \code{gformula()}/\code{mediation()} from the \emph{input}
+data. Passed to every bootstrap replicate so all passes simulate the same
+steps even when a resample lacks a rarely observed time value. When
+\code{NULL} the grid is derived from \code{data}.}
 }
 \description{
 This function will receive the parameters and fit model. After the model is fitted,

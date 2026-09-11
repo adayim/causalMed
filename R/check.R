@@ -135,6 +135,49 @@ check_error <- function(data,
   }
 }
 
+#' Validate one static intervention vector
+#'
+#' One static exposure regime is a numeric or logical vector, with no
+#' \code{NA}, of length 1 (the same value at every time point) or
+#' \code{time_len} (one value per \strong{distinct} time point in the data, in
+#' sorted order). Shared by
+#' \code{\link{check_intervention}} (for \code{gformula()}) and
+#' \code{\link{mediation}} (for its two exposure regimes).
+#'
+#' @param x The vector to check.
+#' @param time_len Number of distinct time points in the data.
+#' @param arg Argument name used in error messages.
+#' @param values Optional vector of allowed values. \code{NULL} (the default)
+#'   allows any numeric value.
+#' @return \code{x} coerced to numeric.
+#' @keywords internal
+check_static_regime <- function(x, time_len, arg, values = NULL) {
+  if (!is.numeric(x) && !is.logical(x)) {
+    stop(sprintf("`%s` must be a numeric or logical vector.", arg),
+         domain = "causalMed")
+  }
+  if (!(length(x) %in% c(1L, time_len))) {
+    stop(sprintf(
+      "`%s` must have length 1 or %d (one value per distinct time point); got length %d.",
+      arg, as.integer(time_len), length(x)), domain = "causalMed")
+  }
+  x <- as.numeric(x)
+  # Before the values check, so an NA gets its own message on both paths
+  # (mediation()'s 0/1 check would otherwise report it as a bad value, and
+  # gformula(), with values = NULL, would pass it into the simulation).
+  if (anyNA(x)) {
+    stop(sprintf("`%s` must not contain NA.", arg), domain = "causalMed")
+  }
+  if (!is.null(values) && !all(x %in% values)) {
+    bad <- x[!x %in% values]
+    stop(sprintf("`%s` must take values in {%s}; got {%s}.",
+                 arg, paste(values, collapse = ", "),
+                 paste(sort(unique(bad), na.last = TRUE), collapse = ", ")),
+         domain = "causalMed")
+  }
+  x
+}
+
 #' Check for the intervention
 #'
 #' Check if the intervention is correctly defined.
@@ -158,17 +201,6 @@ check_intervention <- function(models, intervention, ref_int, time_len) {
     stop("Intervention must be a list object", domain = "causalMed")
   }
 
-  # Each element must be NULL, numeric/logical (static), or a dyn_int() object (dynamic)
-  bad <- sapply(intervention, function(x) {
-    !is.null(x) && !is.numeric(x) && !is.logical(x) && !inherits(x, "causalMed_dynint")
-  })
-  if (any(bad)) {
-    stop(
-      "Each intervention element must be NULL, a numeric/logical value, or a dyn_int() object.",
-      domain = "causalMed"
-    )
-  }
-
   # At most one element may be NULL (the natural-course reference)
   interv_value <- sapply(intervention, is.null)
   if (sum(interv_value) > 1) {
@@ -181,13 +213,16 @@ check_intervention <- function(models, intervention, ref_int, time_len) {
     stop("Intervention must be a named list object", domain = "causalMed")
   }
 
-  # Check the length: each element must be NULL (0), scalar (1), or full-length.
-  # dyn_int() objects are exempt — they apply a rule at every time step.
-  intervention_len <- sapply(intervention, function(x) {
-    if (inherits(x, "causalMed_dynint")) 1L else length(x)
-  })
-  if (!all(intervention_len %in% c(0, 1, time_len))) {
-    stop("Length of the elements in the intervention must be 0 (`NULL`), 1 or the same length of time.", domain = "causalMed")
+  # Each static element must be numeric/logical of length 1 or time_len --
+  # the same rule mediation() applies to its exposure regimes. NULL is the
+  # natural course; dyn_int() objects apply a rule at every time step.
+  # Positional, not by name: [[name]] returns the first match, so a
+  # duplicate-named element would escape validation.
+  nms <- names(intervention)
+  for (i in seq_along(intervention)) {
+    x <- intervention[[i]]
+    if (is.null(x) || inherits(x, "causalMed_dynint")) next
+    check_static_regime(x, time_len, arg = sprintf("intervention$%s", nms[i]))
   }
 
   # Check for reference intervention. `&&` (not `&`) throughout: with `&` both
@@ -309,12 +344,18 @@ check_mediation_order <- function(models) {
 }
 
 
-#' Warn about non-identifiability of natural effects under intermediate confounding
+#' Report covariates modelled as exposure-affected under natural effects
 #'
-#' For \code{mediation_type = "N"}, natural direct and indirect effects are not
-#' identifiable from observational data when a confounder of the
-#' mediator-outcome relationship is itself affected by exposure (Avin, Shpitser
-#' & Pearl 2005; VanderWeele 2014; VanderWeele & Tchetgen Tchetgen 2017). This
+#' The effects reported under \code{mediation_type = "N"} are those of Zheng &
+#' van der Laan (2017): the mediator is drawn from its conditional distribution
+#' under the other regime given each subject's own history, and their Lemma 1
+#' identifies them under sequential randomization and positivity, whether or not
+#' a covariate is exposure-affected. Reading them as \emph{individual-level}
+#' natural effects, contrasts of each subject's own counterfactual mediator,
+#' additionally requires a cross-world independence assumption that is not
+#' expected to hold when an exposure-affected covariate also confounds the
+#' mediator-outcome relationship (Avin, Shpitser & Pearl 2005; VanderWeele 2014;
+#' VanderWeele & Tchetgen Tchetgen 2017). This
 #' check reads the model formulas only: it reports covariate models that carry
 #' the exposure on the right-hand side, i.e. covariates the user has modelled
 #' as exposure-affected. It does not establish that such a covariate also
@@ -346,14 +387,17 @@ check_natural_identifiability <- function(models, exposure) {
   if (length(hit) > 0) {
     warning(sprintf(
       paste0(
-        "mediation_type = \"N\" requested, but covariate model(s) for {%s} include ",
+        "mediation_type = \"N\" requested, and covariate model(s) for {%s} include ",
         "the exposure '%s' on the right-hand side, i.e. they are modelled as ",
-        "exposure-affected. If such a covariate also confounds the ",
-        "mediator-outcome relationship, natural direct and indirect effects are ",
-        "NOT identifiable from observational data (Avin, Shpitser & Pearl 2005; ",
-        "VanderWeele 2014; VanderWeele & Tchetgen Tchetgen 2017); for that ",
-        "setting VanderWeele & Tchetgen Tchetgen (2017) propose the randomized ",
-        "interventional analogues, available here as mediation_type = \"I\". ",
+        "exposure-affected. The reported effects are those of Zheng & van der ",
+        "Laan (2017), identified under sequential randomization and positivity ",
+        "(their Lemma 1). Reading them as individual-level natural effects, ",
+        "contrasts of each subject's own counterfactual mediator, additionally ",
+        "requires a cross-world independence assumption that is not expected to ",
+        "hold if such a covariate also confounds the mediator-outcome ",
+        "relationship (Avin, Shpitser & Pearl 2005; VanderWeele 2014; ",
+        "VanderWeele & Tchetgen Tchetgen 2017, who propose the randomized ",
+        "interventional analogues, available here as mediation_type = \"I\"). ",
         "This check reads the model formulas only and cannot verify the causal ",
         "structure."
       ),
@@ -362,6 +406,101 @@ check_natural_identifiability <- function(models, exposure) {
   }
 
   invisible(hit)
+}
+
+
+#' Check that the natural-effect mediator can be evaluated on the other regime
+#'
+#' Under \code{mediation_type = "N"} the cross-world mediator is drawn from its
+#' model evaluated on the intervention's own covariate history with the
+#' exposure history set to the other regime (Zheng & van der Laan 2017, Eq. 5).
+#' The Monte Carlo engine sets exactly two kinds of input to that regime: the
+#' exposure itself (so exposure terms written in the mediator formula, e.g.
+#' \code{A:L}, are evaluated on it) and first-order exposure lags (an
+#' \code{in_recode} entry that only copies the exposure, e.g.
+#' \code{recodes(lag_A = A)}). Every other column a recode derives from the
+#' exposure -- a chained lag, a cumulative count or other expression, an
+#' \code{out_recode} copy, a column created by a model's own \code{recode} --
+#' keeps the intervention's own exposure history, and the mediator
+#' \code{subset} is evaluated on the intervention's own data. The check fails
+#' closed: a mediator formula that reads such a column, or a mediator
+#' \code{subset} that reads the exposure or anything derived from it, is
+#' rejected.
+#'
+#' @param models List of model specifications from \code{\link{spec_model}}.
+#' @param exposure Character scalar. Name of the exposure variable.
+#' @param init_recode,in_recode,out_recode The recode hooks passed to
+#'   \code{\link{mediation}}.
+#' @return Invisibly, the names of the first-order exposure lag columns.
+#' @keywords internal
+check_natural_exposure_history <- function(models, exposure, init_recode = NULL,
+                                           in_recode = NULL, out_recode = NULL) {
+  lags <- exposure_lag_cols(in_recode, exposure)
+
+  # Every recode assignment in the run as (target, columns read), leaving out
+  # the in_recode entries that only copy the exposure: the swap sets those.
+  # Skipped by POSITION, not by name, so a second entry for the same column
+  # that transforms it (lag1_A = 2 * lag1_A) stays in and marks it derived.
+  assignments <- function(rc, skip = NULL) {
+    if (length(rc) == 0L) return(list())
+    keep <- if (is.null(skip)) rep(TRUE, length(rc)) else !skip
+    Map(function(nm, ex) list(target = nm, reads = all.vars(ex)),
+        names(rc)[keep], as.list(rc)[keep])
+  }
+  is_copy <- vapply(in_recode, function(ex)
+    is.name(ex) && identical(as.character(ex), exposure), logical(1))
+  pairs <- c(assignments(init_recode),
+             assignments(in_recode, skip = is_copy),
+             assignments(out_recode),
+             unlist(lapply(models, function(m) assignments(m$recode)),
+                    recursive = FALSE))
+
+  # Columns derived from the exposure history through a recode the swap does
+  # not set, followed to a fixed point (a chained lag reads a lag, and so on).
+  derived <- character(0)
+  repeat {
+    src <- c(exposure, lags, derived)
+    hit <- vapply(pairs, function(p) any(p$reads %in% src), logical(1))
+    new <- setdiff(vapply(pairs[hit], `[[`, character(1), "target"),
+                   c(exposure, derived))
+    if (length(new) == 0L) break
+    derived <- c(derived, new)
+  }
+
+  med_idx <- which(vapply(models, function(m) identical(m$mod_type, "mediator"),
+                          logical(1)))
+  for (i in med_idx) {
+    m   <- models[[i]]
+    f   <- formula(m$call)
+    rhs <- if (length(f) >= 3L) all.vars(f[[3L]]) else character(0)
+    sub <- if (is.null(m$subset)) character(0) else all.vars(m$subset)
+    # The formula is evaluated on the swapped exposure and lags, so only other
+    # derived columns are a problem there. The subset is evaluated on the
+    # intervention's own data, so ANY exposure dependence is.
+    bad <- list(formula = intersect(rhs, derived),
+                subset  = intersect(sub, c(exposure, lags, derived)))
+    bad <- bad[lengths(bad) > 0L]
+    if (length(bad) > 0L) {
+      where <- paste(sprintf("its %s reads {%s}", names(bad),
+                             vapply(bad, paste, character(1), collapse = ", ")),
+                     collapse = " and ")
+      stop(sprintf(paste0(
+        "mediation_type = \"N\" draws the cross-world mediator '%s' from its ",
+        "model with the exposure history set to the other regime (Zheng & van ",
+        "der Laan 2017, Eq. 5), but %s. The simulation sets only the exposure ",
+        "'%s' itself and first-order exposure lags (an in_recode entry that ",
+        "only copies the exposure, e.g. recodes(lag1_%s = %s)) to that regime; ",
+        "exposure terms written in the formula (e.g. %s:L) are evaluated on ",
+        "them. Other columns derived from the exposure (chained lags, ",
+        "cumulative or other expressions, out_recode copies, columns created by ",
+        "a model's own recode) and the model's subset are evaluated on the ",
+        "intervention's own exposure history."),
+        all.vars(f[[2L]])[1L], where, exposure, exposure, exposure, exposure),
+        call. = FALSE, domain = "causalMed")
+    }
+  }
+
+  invisible(lags)
 }
 
 

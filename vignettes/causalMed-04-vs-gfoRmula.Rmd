@@ -182,10 +182,12 @@ components. `gfoRmula` does not support mediation analysis.
   independence assumption.
 
 - **`"N"`, natural NDE/NIE** (Zheng & van der Laan 2017): the mediator model
-  is evaluated at the alternative exposure level while keeping the individual's
-  own covariate history. Requires stronger sequential no-unmeasured-confounding
-  assumptions. In particular, natural effects are not identifiable when a
-  mediator–outcome confounder is affected by prior exposure.
+  is evaluated with the exposure history set to the alternative regime while
+  keeping the individual's own covariate history. Zheng & van der Laan (2017,
+  Lemma 1) identify these effects under sequential randomization and positivity;
+  reading them as individual-level natural effects additionally requires a
+  cross-world assumption that is not expected to hold when a mediator–outcome
+  confounder is affected by prior exposure.
 
 For natural effects, two estimators are available: the parametric g-formula
 plug-in (`estimator = "gcomp"`, the default, with bootstrap CIs) and a targeted

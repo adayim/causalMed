@@ -13,6 +13,11 @@
 #'   unaffected. Default \code{1L}; \code{mediation()} sets this to 2 to
 #'   match the SAS mGFORMULA macro.
 #' @param return_fitted Return the fitted model (default is FALSE).
+#' @param time_seq Numeric vector: the sorted distinct time points to simulate,
+#'   as computed by \code{gformula()}/\code{mediation()} from the \emph{input}
+#'   data. Passed to every bootstrap replicate so all passes simulate the same
+#'   steps even when a resample lacks a rarely observed time value. When
+#'   \code{NULL} the grid is derived from \code{data}.
 #' @keywords internal
 
 .run_interventions <- function(data,
@@ -30,7 +35,8 @@
                       n_vw = 1L,
                       return_fitted = FALSE,
                       return_data = FALSE,
-                      seed = NULL) {
+                      seed = NULL,
+                      time_seq = NULL) {
   if (length(mediation_type) > 1) {
     mediation_type <- mediation_type[1]
   } else if (!is.na(mediation_type) && !(mediation_type %in% c("N", "I"))) {
@@ -50,13 +56,17 @@
     base_dat[sample(1:length(base_dat[[id_var]]), mc_sample, replace = TRUE), ]
   )
 
-  # Cache the time sequence once (used in each intervention and in pool collection)
-  time_seq <- sort(unique(data[[time_var]]))
+  # The grid comes from the caller (computed once from the INPUT data) so that
+  # a bootstrap resample missing a rarely observed time value still simulates
+  # every step; a resample missing an interior time value shortens the grid,
+  # so `intervention[indx]` and the per-step regime slice would index the
+  # wrong step. The fallback serves direct internal callers.
+  if (is.null(time_seq)) time_seq <- time_grid(data, time_var)
 
   # ── Pool collection for interventional pool-drawing interventions ──────────────────
-  # For each treatment level appearing in any intervention's mediator_overrides, run a
-  # reference intervention at that level once with collect_pool = TRUE. The resulting
-  # `pools` object is a list keyed by treatment level (as character); each
+  # For each distinct regime appearing in any intervention's mediator_overrides,
+  # run a reference intervention under that regime once with collect_pool = TRUE.
+  # The resulting `pools` object is a list keyed by regime_key(); each
   # element is itself a named list keyed by mediator response variable, whose
   # value is a length-T list of `mc_sample`-long vectors — the k-th holding
   # every pool individual's simulated mediator value at `time_seq[k]`, in the
@@ -72,13 +82,23 @@
   has_mediation_spec <- any(sapply(intervention, inherits, "causalMed_intervention"))
 
   if (isTRUE(mediation_type == "I") && has_mediation_spec) {
-    pool_levels <- unique(unlist(lapply(intervention, function(interv) {
-      if (inherits(interv, "causalMed_intervention")) unlist(interv$mediator_overrides, use.names = FALSE)
-      else NULL
-    })))
-    pool_levels <- pool_levels[!is.na(pool_levels)]
+    # The distinct override REGIMES across all interventions, keyed by
+    # regime_key(), in order of first appearance -- first appearance across
+    # interventions, then across each intervention's overrides -- because
+    # pool-collection order determines RNG consumption, so it must stay
+    # stable. No NA filter is needed: intervention_spec() rejects NA in
+    # `treatment` and in every override, so an NA regime cannot reach here.
+    pool_regimes <- list()
+    for (interv in intervention) {
+      if (!inherits(interv, "causalMed_intervention")) next
+      for (v in interv$mediator_overrides) {
+        key <- regime_key(v)
+        if (is.null(pool_regimes[[key]])) pool_regimes[[key]] <- v
+      }
+    }
 
-    for (lvl in pool_levels) {
+    for (key in names(pool_regimes)) {
+      lvl <- pool_regimes[[key]]
       ref_interv  <- intervention_spec(treatment = lvl, mediator_overrides = list())
       ref_data <- data.table::copy(df_mc)
       ref_run  <- simulate_intervention(
@@ -96,8 +116,8 @@
         med_pool       = NULL,
         collect_pool   = TRUE
       )
-      pools[[as.character(lvl)]]       <- ref_run$pool
-      cached_arms[[as.character(lvl)]] <- ref_run$estimate
+      pools[[key]]       <- ref_run$pool
+      cached_arms[[key]] <- ref_run$estimate
     }
   }
 
@@ -106,7 +126,7 @@
 
     # ----- intervention_spec path (mediation) -----
     if (inherits(interv, "causalMed_intervention")) {
-      lvl_key <- as.character(interv$treatment)
+      lvl_key <- regime_key(interv$treatment)
 
       # Reference intervention (no mediator overrides) — use cached pool-collection
       # result if available; otherwise run once.
@@ -146,19 +166,31 @@
         # Each mediator's pool is permuted independently (Yamamuro 2021
         # Eq. 2: the pool draws are independent across mediators).
         interv_med_pool <- NULL
-        if (isTRUE(mediation_type == "I") && length(pools) > 0L) {
+        if (isTRUE(mediation_type == "I")) {
           interv_med_pool <- list()
           for (med_var in names(interv$mediator_overrides)) {
-            src_key      <- as.character(interv$mediator_overrides[[med_var]])
+            src_key      <- regime_key(interv$mediator_overrides[[med_var]])
             pool_for_med <- pools[[src_key]][[med_var]]
-            if (!is.null(pool_for_med)) {
-              # ONE permutation applied to every time slice, so subject i
-              # receives pool individual perm[i]'s whole trajectory -- a joint
-              # draw of M(1:T), not an independent value per time step.
-              perm <- sample.int(length(pool_for_med[[1L]]))
-              interv_med_pool[[med_var]] <-
-                lapply(pool_for_med, function(v) v[perm])
+            # A key miss is a bug, not a fallback case: anything other than a
+            # joint trajectory -- e.g. permuting the mediator WITHIN each time
+            # step -- would be a different estimand, produced with no error
+            # (the same failure class as the collapsed-pool regression). Fail
+            # loudly here, naming the collected keys; simulate_data() also
+            # stops if a slice is ever missing.
+            if (is.null(pool_for_med)) {
+              stop(sprintf(paste0(
+                "Internal error: no mediator pool for '%s' under regime key '%s'. ",
+                "Pool keys collected: {%s}. Regimes must be recycled to full ",
+                "length before interventions are built."),
+                med_var, src_key, paste(names(pools), collapse = "; ")),
+                domain = "causalMed")
             }
+            # ONE permutation applied to every time slice, so subject i
+            # receives pool individual perm[i]'s whole trajectory -- a joint
+            # draw of M(1:T), not an independent value per time step.
+            perm <- sample.int(length(pool_for_med[[1L]]))
+            interv_med_pool[[med_var]] <-
+              lapply(pool_for_med, function(v) v[perm])
           }
         }
 
@@ -329,6 +361,26 @@ fit_spec_models <- function(models, data) {
         call. = FALSE, domain = "causalMed")
     }
 
+    # sim_value() draws a node that has no custom_sim and var_type "normal" or
+    # "custom" as lp + N(0, sigma), i.e. centred on the LINEAR PREDICTOR. That
+    # is the fitted mean only under an identity link; with any other link (a
+    # Poisson glm, say) the draws would land on the link scale without any
+    # error. Refuse instead. Outcome/survival nodes are exempt: their risk is
+    # computed through the inverse link, not drawn.
+    draws_normal <- is.null(mods$custom_sim) &&
+      mods$var_type %in% c("normal", "custom") &&
+      !mods$mod_type %in% c("outcome", "survival")
+    fit_link <- tryCatch(stats::family(fitmodel)$link, error = function(e) NULL)
+    if (draws_normal && is.character(fit_link) && !identical(fit_link, "identity")) {
+      stop(sprintf(paste0(
+        "The model for '%s' (var_type = \"%s\") was fitted with a '%s' link, but ",
+        "without custom_sim its values are simulated as normal draws around the ",
+        "linear predictor, which is the fitted mean only under an identity link. ",
+        "Supply a custom_sim function in spec_model() that draws from the ",
+        "distribution the fitted model implies."),
+        rsp_vars, mods$var_type, fit_link), call. = FALSE, domain = "causalMed")
+    }
+
     # Pre-extract prediction components so the hot-path simulation loop can
     # skip predict() overhead (model.frame construction + na.action).
     # model.matrix(Xterms, newdt) %*% beta is a direct BLAS call.
@@ -410,9 +462,10 @@ simulate_intervention <- function(data,
     stop("'mediation_type' must be NA, \"N\", or \"I\"")
   }
 
-  # Replicate static interventions to the same length as the time sequence.
-  # dyn_int() and causalMed_intervention objects are not replicated — the same rule
-  # applies at every time step.
+  # Replicate static gformula() interventions to the length of the time
+  # sequence. dyn_int() objects are not replicated (the same rule applies at
+  # every step); causalMed_intervention objects carry their own regimes and are
+  # sliced per step below.
   time_len <- length(time_seq)
   # check_intervention() accepts logical static interventions; coerce them to
   # numeric so replication and exposure assignment treat them like {0, 1}.
@@ -475,6 +528,18 @@ simulate_intervention <- function(data,
 
   is_intervention_spec <- inherits(intervention, "causalMed_intervention")
 
+  # Natural effects draw the cross-world mediator on the exposure HISTORY set
+  # to the other regime (Zheng & van der Laan 2017, Eq. 5). in_recode has
+  # copied THIS intervention's step-(k-1) exposure into the first-order lag
+  # columns by the time the mediator is drawn at step k, so simulate_data() is
+  # handed the other regime's step-(k-1) value for them. At the first step
+  # in_recode does not run and the lags hold their regime-free init value.
+  swap_lag_cols <- if (is_intervention_spec && isTRUE(mediation_type == "N")) {
+    exposure_lag_cols(in_recode, exposure)
+  } else {
+    character(0)
+  }
+
   # Run g-formula
   for (indx in seq_along(time_seq)) {
     t_index <- time_seq[indx]
@@ -500,12 +565,22 @@ simulate_intervention <- function(data,
       setNames(lapply(med_pool, function(p) p[[indx]]), names(med_pool))
     } else NULL
 
-    # dyn_int() / causalMed_intervention objects pass through as-is; static
-    # interventions are indexed to the time step.
-    current_int <- if (is_intervention_spec || inherits(intervention, "causalMed_dynint")) {
+    # A causalMed_intervention carries whole regimes; hand simulate_data() the
+    # scalar slice for this step. dyn_int() objects pass through as-is; static
+    # gformula() vectors are indexed to the time step.
+    current_int <- if (is_intervention_spec) {
+      slice_intervention_spec(intervention, indx)
+    } else if (inherits(intervention, "causalMed_dynint")) {
       intervention
     } else {
       intervention[indx]
+    }
+
+    med_swap_lags <- if (length(swap_lag_cols) > 0L && indx > 1L) {
+      lapply(slice_intervention_spec(intervention, indx - 1L)$mediator_overrides,
+             function(v) setNames(rep(list(v), length(swap_lag_cols)), swap_lag_cols))
+    } else {
+      NULL
     }
 
     data <- simulate_data(
@@ -514,7 +589,8 @@ simulate_intervention <- function(data,
       models         = models,
       intervention   = current_int,
       mediation_type = mediation_type,
-      med_pool       = t_med_pool
+      med_pool       = t_med_pool,
+      med_swap_lags  = med_swap_lags
     )
 
     # Collect each mediator's value into the pool (used by the reference
