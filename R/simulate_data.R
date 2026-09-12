@@ -59,6 +59,18 @@ simulate_data <- function(data,
 
   # Set exposure for every flavour that fixes treatment.
   if (is_intervention_spec) {
+    # This function is scalar-only: simulate_intervention() slices the regime
+    # for the current step with slice_intervention_spec() before calling it.
+    # An unsliced full-length regime would otherwise reach data.table as
+    # "Supplied 3 items to be assigned to 20000 items of column 'A'", which
+    # names neither the regime nor the missing slice.
+    if (length(intervention$treatment) != 1L) {
+      stop(sprintf(paste0(
+        "simulate_data() takes one time step: the exposure regime must be a ",
+        "single value, got %d. Slice the intervention with ",
+        "slice_intervention_spec() before calling it."),
+        length(intervention$treatment)), call. = FALSE, domain = "causalMed")
+    }
     set(data, j = exposure, value = intervention$treatment)
   } else if (!is.null(intervention) && !is_dynamic) {
     set(data, j = exposure, value = intervention)

@@ -38,6 +38,8 @@ keeps the intervention's own exposure history, and the mediator
 \code{subset} is evaluated on the intervention's own data. The check fails
 closed: a mediator formula that reads such a column, or a mediator
 \code{subset} that reads the exposure or anything derived from it, is
-rejected.
+rejected. A mediator \code{custom_sim} is handed the whole data set rather
+than the formula's variables, so it is rejected too whenever any such
+column exists.
 }
 \keyword{internal}

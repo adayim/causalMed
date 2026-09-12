@@ -67,11 +67,37 @@ exposure_lag_cols <- function(in_recode, exposure) {
   as.character(names(lag_map)[vapply(lag_map, identical, logical(1), exposure)])
 }
 
-# TRUE for the default regime pair, always (1) vs never (0) exposed. NULL
-# regimes -- objects saved before the arguments existed -- are the default.
+# Which columns carry exposure history that a regime evaluation does NOT set,
+# followed to a fixed point (a chained lag reads a lag, and so on). `pairs` is
+# the run's recode assignments as list(target =, reads =); `src` the columns
+# the regime DOES set (the exposure and its first-order lags). The exposure
+# itself is never reported: both estimators always set it. A lag column CAN
+# come back, when a later recode entry transforms it rather than copying the
+# exposure. Shared by the two "N" guards -- check_natural_exposure_history()
+# and .tmle_check_model_recodes() -- so gcomp and TMLE cannot drift apart on
+# what counts as exposure-derived.
+exposure_derived_cols <- function(pairs, src, exposure) {
+  derived <- character(0)
+  repeat {
+    hit <- vapply(pairs, function(p) any(p$reads %in% c(src, derived)),
+                  logical(1))
+    new <- setdiff(vapply(pairs[hit], `[[`, character(1), "target"),
+                   c(exposure, derived))
+    if (length(new) == 0L) break
+    derived <- c(derived, new)
+  }
+  derived
+}
+
+# TRUE for the default regime pair, always (1) vs never (0) exposed. An object
+# carrying NEITHER regime -- saved before the arguments existed -- is the
+# default. Both are tested explicitly for length: all() is TRUE on a
+# zero-length vector, so a half-populated argument list would otherwise pass as
+# the default and gate estimator = "tmle" open on an arbitrary regime pair.
 default_regime_pair <- function(exposure_regime, reference_regime) {
-  is.null(exposure_regime) ||
-    (all(exposure_regime == 1) && all(reference_regime == 0))
+  if (is.null(exposure_regime) && is.null(reference_regime)) return(TRUE)
+  length(exposure_regime) > 0L && length(reference_regime) > 0L &&
+    all(exposure_regime == 1) && all(reference_regime == 0)
 }
 
 #' Derive parameters for a function from the current environment
@@ -229,7 +255,10 @@ regime_support <- function(data, id_var, time_var, exposure, time_seq, regimes) 
   # as.character(): tapply() groups by factor(ids), and an unused factor level
   # would give an empty group whose all() is NA, poisoning the count.
   ids_all <- as.character(data[[id_var]])
-  n_id    <- data.table::uniqueN(ids_all)
+  # tapply() groups by factor(ids) and DISCARDS an NA id, so an NA-id subject
+  # can never reach the numerator; counting it in the denominator would
+  # understate every regime's support. Drop it from both.
+  n_id    <- data.table::uniqueN(ids_all[!is.na(ids_all)])
   pos     <- match(data[[time_var]], time_seq)    # NA for an NA time
   # Compare subjects only on rows that sit on the grid. Treating an off-grid
   # row as a mismatch would disqualify the subject from every regime.

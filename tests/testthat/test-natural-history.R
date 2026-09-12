@@ -79,6 +79,28 @@ testthat::test_that("check_natural_exposure_history rejects every other exposure
           "its subset reads {lag1_A}")
 })
 
+testthat::test_that("check_natural_exposure_history rejects a mediator custom_sim it cannot inspect", {
+  f   <- causalMed:::check_natural_exposure_history
+  out <- spec_model(Y ~ A + M, var_type = "binary", mod_type = "outcome")
+  csim <- function(fit, newdt) newdt[["cumA"]]
+
+  # sim_value() hands custom_sim the whole swapped data set, so a formula scan
+  # proves nothing about what it reads. With an exposure-derived column present
+  # the pair is refused, even though the formula names only V.
+  testthat::expect_error(
+    f(list(spec_model(M ~ V, var_type = "custom", mod_type = "mediator",
+                      custom_sim = csim), out),
+      "A", recodes(cumA = 0), recodes(cumA = cumA + A), NULL),
+    "supplies a custom_sim", fixed = TRUE)
+
+  # Nothing is derived from the exposure here (the swap sets A and lag1_A), so
+  # there is no stale column for it to read and the custom_sim is accepted.
+  testthat::expect_no_error(
+    f(list(spec_model(M ~ V + A + lag1_A, var_type = "custom",
+                      mod_type = "mediator", custom_sim = csim), out),
+      "A", recodes(lag1_A = 0), recodes(lag1_A = A), NULL))
+})
+
 # ---- Engine -----------------------------------------------------------------
 
 # M depends on the exposure ONLY through its lag, so evaluating the mediator on

@@ -242,8 +242,12 @@ print.gformula <- function(x,
                 rl$la, rl$a, rl$ea, rl$la),
         sprintf("  Phi10 = E[Y(%s, M(%s))]:  %s, mediator under %s  [cross-world]\n",
                 rl$la, rl$s, rl$ea, rl$ls),
+        sprintf("  Phi01 = E[Y(%s, M(%s))]:  %s, mediator under %s  [cross-world]\n",
+                rl$ls, rl$a, rl$es, rl$la),
         sprintf("  Phi00 = E[Y(%s, M(%s))]:  %s, mediator under %s\n",
-                rl$ls, rl$s, rl$es, rl$ls)
+                rl$ls, rl$s, rl$es, rl$ls),
+        "  Phi01 is reported for completeness; the decomposition below uses\n",
+        "  Phi00, Phi10 and Phi11 only.\n"
       )
     }
   } else {

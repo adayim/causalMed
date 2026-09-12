@@ -156,6 +156,14 @@ check_static_regime <- function(x, time_len, arg, values = NULL) {
     stop(sprintf("`%s` must be a numeric or logical vector.", arg),
          domain = "causalMed")
   }
+  # A matrix or array is numeric, so without this it passes and as.numeric()
+  # flattens it column-major -- silently reordering the regime across time.
+  # intervention_spec() already rejects this shape; keep the two agreed.
+  if (!is.null(dim(x))) {
+    stop(sprintf("`%s` must be a plain vector, not %s.", arg,
+                 if (length(dim(x)) == 2L) "a matrix" else "an array"),
+         domain = "causalMed")
+  }
   if (!(length(x) %in% c(1L, time_len))) {
     stop(sprintf(
       "`%s` must have length 1 or %d (one value per distinct time point); got length %d.",
@@ -425,7 +433,9 @@ check_natural_identifiability <- function(models, exposure) {
 #' \code{subset} is evaluated on the intervention's own data. The check fails
 #' closed: a mediator formula that reads such a column, or a mediator
 #' \code{subset} that reads the exposure or anything derived from it, is
-#' rejected.
+#' rejected. A mediator \code{custom_sim} is handed the whole data set rather
+#' than the formula's variables, so it is rejected too whenever any such
+#' column exists.
 #'
 #' @param models List of model specifications from \code{\link{spec_model}}.
 #' @param exposure Character scalar. Name of the exposure variable.
@@ -456,16 +466,8 @@ check_natural_exposure_history <- function(models, exposure, init_recode = NULL,
                     recursive = FALSE))
 
   # Columns derived from the exposure history through a recode the swap does
-  # not set, followed to a fixed point (a chained lag reads a lag, and so on).
-  derived <- character(0)
-  repeat {
-    src <- c(exposure, lags, derived)
-    hit <- vapply(pairs, function(p) any(p$reads %in% src), logical(1))
-    new <- setdiff(vapply(pairs[hit], `[[`, character(1), "target"),
-                   c(exposure, derived))
-    if (length(new) == 0L) break
-    derived <- c(derived, new)
-  }
+  # not set. Shared walk, so this guard and the TMLE's cannot disagree.
+  derived <- exposure_derived_cols(pairs, c(exposure, lags), exposure)
 
   med_idx <- which(vapply(models, function(m) identical(m$mod_type, "mediator"),
                           logical(1)))
@@ -474,6 +476,27 @@ check_natural_exposure_history <- function(models, exposure, init_recode = NULL,
     f   <- formula(m$call)
     rhs <- if (length(f) >= 3L) all.vars(f[[3L]]) else character(0)
     sub <- if (is.null(m$subset)) character(0) else all.vars(m$subset)
+    # sim_value() hands a custom_sim the WHOLE swapped data.table, so it can
+    # read any column, not just the ones the formula names -- and what a
+    # function body reads cannot be established by scanning the formula. When
+    # some column IS derived from the exposure through a recode the swap does
+    # not set, that is exactly the silent-stale-value failure this check exists
+    # to prevent, so refuse the pair. With no such column there is nothing
+    # stale for it to read (other covariates are the a-world history Eq. 5
+    # keeps by design), and a custom_sim is accepted.
+    if (!is.null(m$custom_sim) && length(derived) > 0L) {
+      stop(sprintf(paste0(
+        "mediation_type = \"N\" draws the cross-world mediator '%s' from its ",
+        "model with the exposure history set to the other regime (Zheng & van ",
+        "der Laan 2017, Eq. 5), but the model supplies a custom_sim, which ",
+        "receives the whole data set and may read any column. These columns ",
+        "are derived from the exposure through a recode the swap does not set, ",
+        "so they would hold the intervention's own exposure history: {%s}. ",
+        "Remove those recodes, drop the custom_sim for the mediator, or use ",
+        "mediation_type = \"I\"."),
+        all.vars(f[[2L]])[1L], paste(derived, collapse = ", ")),
+        call. = FALSE, domain = "causalMed")
+    }
     # The formula is evaluated on the swapped exposure and lags, so only other
     # derived columns are a problem there. The subset is evaluated on the
     # intervention's own data, so ANY exposure dependence is.

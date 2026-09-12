@@ -116,6 +116,17 @@
         med_pool       = NULL,
         collect_pool   = TRUE
       )
+      # simulate_intervention() silently turns collect_pool off and returns a
+      # bare estimate when there is no mediator model, so the `$` below would
+      # fail as "$ operator is invalid for atomic vectors" and name nothing.
+      # A pool-drawing intervention with no mediator to draw is a caller bug.
+      if (!is.list(ref_run)) {
+        stop(sprintf(paste0(
+          "No mediator model to collect a pool from, but an intervention ",
+          "draws its mediators from the pool for exposure regime (%s). Add a ",
+          "spec_model(mod_type = \"mediator\") model."), key),
+          call. = FALSE, domain = "causalMed")
+      }
       pools[[key]]       <- ref_run$pool
       cached_arms[[key]] <- ref_run$estimate
     }

@@ -160,22 +160,17 @@ dens_value <- function(model, newdt) {
 # Refuse it. Exposure terms written in a model formula (A:L) are unaffected:
 # they are built from the regime-set columns.
 .tmle_check_model_recodes <- function(models, exposure, in_recode) {
-  lag_map <- .tmle_lag_map(in_recode)
-  src <- c(exposure,
-           names(lag_map)[vapply(lag_map, identical, logical(1), exposure)])
+  # exposure_lag_cols() is the ONE first-order-lag definition, shared with the
+  # gcomp guard check_natural_exposure_history() so both "N" estimators agree
+  # on what the regime evaluation sets.
+  src <- c(exposure, exposure_lag_cols(in_recode, exposure))
   pairs <- unlist(lapply(models, function(m) {
     rc <- m$recode
     if (length(rc) == 0L) return(list())
     Map(function(nm, ex) list(target = nm, reads = all.vars(ex)),
         names(rc), as.list(rc))
   }), recursive = FALSE)
-  bad <- character(0)
-  repeat {
-    hit <- vapply(pairs, function(p) any(p$reads %in% c(src, bad)), logical(1))
-    new <- setdiff(vapply(pairs[hit], `[[`, character(1), "target"), bad)
-    if (length(new) == 0L) break
-    bad <- c(bad, new)
-  }
+  bad <- exposure_derived_cols(pairs, src, exposure)
   if (length(bad) > 0L) {
     stop(sprintf(paste0(
       "estimator = 'tmle' applies spec_model(recode = ) once to the observed ",

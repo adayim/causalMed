@@ -532,7 +532,10 @@ testthat::test_that("print shows the regimes and support lines; defaults keep th
   testthat::expect_match(out_nd, paste0(
     "  Phi11 = E[Y(a=1, M(1))]:  exposure=1, mediator under a=1\n",
     "  Phi10 = E[Y(a=1, M(0))]:  exposure=1, mediator under a=0  [cross-world]\n",
+    "  Phi01 = E[Y(a=0, M(1))]:  exposure=0, mediator under a=1  [cross-world]\n",
     "  Phi00 = E[Y(a=0, M(0))]:  exposure=0, mediator under a=0\n"), fixed = TRUE)
+  # Phi01 is simulated and printed, so the legend must describe it.
+  testthat::expect_match(out_nd, "Phi01 is reported for completeness", fixed = TRUE)
   testthat::expect_match(out_nd, paste0(
     "  Total effect    = Phi11 - Phi00 =  E[Y(1,M(1))] - E[Y(0,M(0))]\n",
     "  Direct effect   = Phi10 - Phi00 =  E[Y(1,M(0))] - E[Y(0,M(0))]\n",
@@ -582,4 +585,63 @@ testthat::test_that("long regimes and time grids are elided in print, full in th
   testthat::expect_identical(alt_fmt, "0 1 0 ... 0 1 0  (21 points)")
   testthat::expect_identical(causalMed:::.fmt_times(0:4), "0 1 2 3 4")
   testthat::expect_match(causalMed:::.fmt_times(0:1824), "(1825 points)", fixed = TRUE)
+})
+
+# ---- Guards that must fail closed -------------------------------------------
+
+testthat::test_that("default_regime_pair() needs both regimes, not an empty one", {
+  f <- causalMed:::default_regime_pair
+  # Legacy objects, saved before the arguments existed, carry neither.
+  testthat::expect_true(f(NULL, NULL))
+  testthat::expect_true(f(c(1, 1, 1), c(0, 0, 0)))
+  testthat::expect_false(f(c(1, 0, 1), c(0, 0, 0)))
+  # all(logical(0)) is TRUE, so a half-populated pair must not read as the
+  # default: it gates estimator = "tmle" and picks the print legend.
+  testthat::expect_false(f(c(1, 1, 1), NULL))
+  testthat::expect_false(f(c(1, 1, 1), numeric(0)))
+  testthat::expect_false(f(numeric(0), c(0, 0, 0)))
+})
+
+testthat::test_that("check_static_regime() rejects a matrix instead of flattening it", {
+  f <- causalMed:::check_static_regime
+  testthat::expect_error(
+    f(matrix(c(0, 1, 1), nrow = 1), 3, "exposure_regime", values = c(0, 1)),
+    "`exposure_regime` must be a plain vector, not a matrix", fixed = TRUE)
+  testthat::expect_error(
+    f(array(c(0, 1, 1, 0), dim = c(2, 1, 2)), 4, "reference_regime"),
+    "must be a plain vector, not an array", fixed = TRUE)
+  # A plain vector of the same values still passes.
+  testthat::expect_identical(f(c(0, 1, 1), 3, "exposure_regime", values = c(0, 1)),
+                             c(0, 1, 1))
+})
+
+testthat::test_that("regime_support() counts the same subjects in both parts of the proportion", {
+  f  <- causalMed:::regime_support
+  dt <- data.table::data.table(id = c("1", "1", NA, NA), time = c(0, 1, 0, 1),
+                               A = c(1, 1, 1, 1))
+  # tapply() discards the NA-id group, so counting it in the denominator would
+  # report 1 of 2 for a regime both rows follow.
+  out <- f(dt, "id", "time", "A", 0:1, list(a = c(1, 1)))
+  testthat::expect_identical(out$n_following, 1L)
+  testthat::expect_identical(out$prop_following, 1)
+})
+
+testthat::test_that("simulate_data() refuses an unsliced regime", {
+  testthat::expect_error(
+    causalMed:::simulate_data(
+      data         = data.table::data.table(id = 1:5, A = 0, L = 0),
+      exposure     = "A",
+      models       = list(),
+      intervention = causalMed:::intervention_spec(c(0, 1, 1), list())),
+    "the exposure regime must be a single value, got 3", fixed = TRUE)
+})
+
+testthat::test_that("bootstrap_helper() rejects a missing time_seq at the call site", {
+  testthat::expect_error(
+    causalMed:::bootstrap_helper(
+      data = data.table::data.table(id = 1L, time = 0L, A = 0L, Y = 0L),
+      id_var = "id", base_vars = character(0), time_var = "time",
+      exposure = "A", models = list(), intervention = NULL,
+      R = 1L, progress_bar = FALSE),
+    "`time_seq` is required", fixed = TRUE)
 })
