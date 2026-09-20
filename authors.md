@@ -9,7 +9,7 @@
 ## Citation
 
 Source:
-[`DESCRIPTION`](https://github.com/adayim/causalMed/blob/master/DESCRIPTION)
+[`DESCRIPTION`](https://github.com/adayim/causalMed/blob/0.1.2/DESCRIPTION)
 
 Dayimu A, Guo X (2026). *causalMed: Parametric G-Formula for
 Longitudinal Mediation and Total Effects*. R package version 0.1.2,
