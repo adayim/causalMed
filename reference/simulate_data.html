@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -51,7 +51,8 @@
 <span>  <span class="va">models</span>,</span>
 <span>  intervention <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  mediation_type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="st">"N"</span>, <span class="st">"I"</span><span class="op">)</span>,</span>
-<span>  med_pool <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  med_pool <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  med_swap_lags <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -85,15 +86,23 @@ no mediation analysis will be performed (default).</p></dd>
 <dt id="arg-med-pool">med_pool<a class="anchor" aria-label="anchor" href="#arg-med-pool"></a></dt>
 <dd><p>Optional named list keyed by mediator response variable.
 Each element is the time-\(t\) slice of the pre-permuted joint
-mediator-trajectory pool built by <code>.run_interventions</code> from the
-corresponding reference intervention (Phi00 or Phi11). When the intervention
+mediator-trajectory pool that <code>.run_interventions</code> collected under the
+regime named by that mediator's override. When the intervention
 <code>intervention</code> requires a mediator override under
 <code>mediation_type = "I"</code>, the mediator is assigned directly from this
-vector. This is the joint, whole-population marginal draw of the Lin et al.
+vector, and a missing slice is an error. This is the joint, whole-population marginal draw of the Lin et al.
 (2017, <em>Stat Med</em>) Section 4 algorithm and the reference SAS macros
 (mGFORMULA; Yamamuro et al. 2021 Figure 3 step 3). Their Eq. 4 and Eq. 2 are
 written conditional on baseline covariates; see the Mediator pool section of
 <code><a href="mediation.html">mediation</a></code>.</p></dd>
+
+
+<dt id="arg-med-swap-lags">med_swap_lags<a class="anchor" aria-label="anchor" href="#arg-med-swap-lags"></a></dt>
+<dd><p>Optional named list keyed by mediator response variable,
+used under <code>mediation_type = "N"</code>. Each element is a named list giving,
+for every first-order exposure lag column, the value it takes under the
+regime the mediator is drawn from (that regime's exposure at the previous
+step). <code>NULL</code> at the first step, where the lags hold their init value.</p></dd>
 
 </dl></div>
 

@@ -22,7 +22,8 @@ bootstrap_helper(
   n_vw = 1L,
   R = 500,
   progress_bar = TRUE,
-  future_seed = TRUE
+  future_seed = TRUE,
+  time_seq
 )
 ```
 
@@ -66,8 +67,8 @@ bootstrap_helper(
   - `NULL` — the natural course (exposure drawn from its fitted model).
 
   - A numeric/logical scalar or vector (length 1 or equal to the number
-    of time points) — a static intervention setting the exposure to that
-    value at every (or each specific) time step.
+    of **distinct** time points) — a static intervention setting the
+    exposure to that value at every (or each specific) time step.
 
   - A
     [`dyn_int`](https://adayim.github.io/causalMed/reference/dyn_int.md)
@@ -127,3 +128,9 @@ bootstrap_helper(
 - future_seed:
 
   Logical or integer. Seed is passed to future_lapply.
+
+- time_seq:
+
+  Sorted distinct time points from the input data (required); see
+  `.run_interventions`. Every replicate simulates this grid, so a
+  resample missing a rare time value cannot shorten it.

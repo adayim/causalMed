@@ -172,10 +172,12 @@ indirect components. `gfoRmula` does not support mediation analysis.
   require the cross-world independence assumption.
 
 - **`"N"`, natural NDE/NIE** (Zheng & van der Laan 2017): the mediator
-  model is evaluated at the alternative exposure level while keeping the
-  individual’s own covariate history. Requires stronger sequential
-  no-unmeasured-confounding assumptions. In particular, natural effects
-  are not identifiable when a mediator–outcome confounder is affected by
+  model is evaluated with the exposure history set to the alternative
+  regime while keeping the individual’s own covariate history. Zheng &
+  van der Laan (2017, Lemma 1) identify these effects under sequential
+  randomization and positivity; reading them as individual-level natural
+  effects additionally requires a cross-world assumption that is not
+  expected to hold when a mediator–outcome confounder is affected by
   prior exposure.
 
 For natural effects, two estimators are available: the parametric
@@ -645,7 +647,7 @@ to settings the comparison does not cover.
 sessionInfo()
 #> R version 4.6.1 (2026-06-24)
 #> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.4 LTS
+#> Running under: Ubuntu 24.04.5 LTS
 #> 
 #> Matrix products: default
 #> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
@@ -664,7 +666,7 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] data.table_1.18.6.1 causalMed_0.1.1    
+#> [1] data.table_1.18.6.1 causalMed_0.1.2    
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] future.apply_1.20.2 gtable_0.3.6        jsonlite_2.0.0     
@@ -673,11 +675,11 @@ sessionInfo()
 #> [10] jquerylib_0.1.4     globals_0.19.1      systemfonts_1.3.2  
 #> [13] scales_1.4.0        textshaping_1.0.5   yaml_2.3.12        
 #> [16] fastmap_1.2.0       ggplot2_4.0.3       R6_2.6.1           
-#> [19] generics_0.1.4      knitr_1.51          htmlwidgets_1.6.4  
+#> [19] generics_0.1.4      knitr_1.52          htmlwidgets_1.6.4  
 #> [22] future_1.75.0       tibble_3.3.1        desc_1.4.3         
 #> [25] nnet_7.3-20         bslib_0.12.0        pillar_1.11.1      
 #> [28] RColorBrewer_1.1-3  rlang_1.3.0         stringi_1.8.9      
-#> [31] cachem_1.1.0        xfun_0.60           fs_2.1.0           
+#> [31] cachem_1.1.0        xfun_0.61           fs_2.1.0           
 #> [34] sass_0.4.10         S7_0.2.2            otel_0.2.0         
 #> [37] cli_3.6.6           progressr_1.0.0     pkgdown_2.2.1      
 #> [40] magrittr_2.0.5      digest_0.6.39       grid_4.6.1         

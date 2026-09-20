@@ -13,7 +13,7 @@ optional survival/terminal outcomes, and nonparametric uncertainty via bootstrap
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -109,7 +109,7 @@ way data generation process. See <code><a href="spec_model.html">spec_model</a><
 <dd><p>A named list specifying exposure interventions. Each
 element is one of:</p><ul><li><p><code>NULL</code> — the natural course (exposure drawn from its fitted model).</p></li>
 <li><p>A numeric/logical scalar or vector (length 1 or equal to the number
-        of time points) — a static intervention setting the exposure to that
+        of <strong>distinct</strong> time points) — a static intervention setting the exposure to that
         value at every (or each specific) time step.</p></li>
 <li><p>A <code><a href="dyn_int.html">dyn_int</a></code> object — a dynamic (rule-based) intervention
         whose expression is evaluated inside the simulated dataset at each
@@ -224,7 +224,7 @@ results (reproducible only via an outer <code><a href="https://rdrr.io/r/base/Ra
         independent of the input data. <code>NULL</code> when <code>R &lt;= 1</code>.</p></li>
 <li><p><code>data_summary</code>: list with the number of individuals
         (<code>n_id</code>), observations (<code>n_obs</code>), and time points
-        (<code>n_times</code>, <code>t_min</code>, <code>t_max</code>) of the input data.</p></li>
+        (<code>n_times</code>, <code>t_min</code>, <code>t_max</code>, <code>time_seq</code>) of the input data.</p></li>
 <li><p><code>observed</code>: list with the observed nonparametric benchmark of
         the outcome (<code>value</code>, <code>label</code>): the mean outcome at the
         last time point, or the product-limit cumulative incidence for

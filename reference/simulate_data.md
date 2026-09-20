@@ -11,7 +11,8 @@ simulate_data(
   models,
   intervention = NULL,
   mediation_type = c(NA, "N", "I"),
-  med_pool = NULL
+  med_pool = NULL,
+  med_swap_lags = NULL
 )
 ```
 
@@ -51,12 +52,21 @@ simulate_data(
 
   Optional named list keyed by mediator response variable. Each element
   is the time-\\t\\ slice of the pre-permuted joint mediator-trajectory
-  pool built by `.run_interventions` from the corresponding reference
-  intervention (Phi00 or Phi11). When the intervention `intervention`
+  pool that `.run_interventions` collected under the regime named by
+  that mediator's override. When the intervention `intervention`
   requires a mediator override under `mediation_type = "I"`, the
-  mediator is assigned directly from this vector. This is the joint,
-  whole-population marginal draw of the Lin et al. (2017, *Stat Med*)
-  Section 4 algorithm and the reference SAS macros (mGFORMULA; Yamamuro
-  et al. 2021 Figure 3 step 3). Their Eq. 4 and Eq. 2 are written
-  conditional on baseline covariates; see the Mediator pool section of
+  mediator is assigned directly from this vector, and a missing slice is
+  an error. This is the joint, whole-population marginal draw of the Lin
+  et al. (2017, *Stat Med*) Section 4 algorithm and the reference SAS
+  macros (mGFORMULA; Yamamuro et al. 2021 Figure 3 step 3). Their Eq. 4
+  and Eq. 2 are written conditional on baseline covariates; see the
+  Mediator pool section of
   [`mediation`](https://adayim.github.io/causalMed/reference/mediation.md).
+
+- med_swap_lags:
+
+  Optional named list keyed by mediator response variable, used under
+  `mediation_type = "N"`. Each element is a named list giving, for every
+  first-order exposure lag column, the value it takes under the regime
+  the mediator is drawn from (that regime's exposure at the previous
+  step). `NULL` at the first step, where the lags hold their init value.

@@ -13,7 +13,7 @@ interventional effects ("I", the default) or natural effects
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -67,6 +67,8 @@ interventional effects (<code>"I"</code>, the default) or natural effects
 <span>  out_recode <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  mc_sample <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  mediation_type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I"</span>, <span class="st">"N"</span><span class="op">)</span>,</span>
+<span>  exposure_regime <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  reference_regime <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>  n_vw <span class="op">=</span> <span class="fl">2L</span>,</span>
 <span>  estimator <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"gcomp"</span>, <span class="st">"tmle"</span><span class="op">)</span>,</span>
 <span>  tmle_weight_trunc <span class="op">=</span> <span class="fl">0.995</span>,</span>
@@ -143,13 +145,19 @@ point estimate and does not change what is being estimated.</p></dd>
 <dd><p>Character. Type of mediation effect:
 <code>"I"</code> for interventional effect (default) or <code>"N"</code> for natural
 effect.
-<strong>Identifiability.</strong> Natural effects (<code>"N"</code>) are <em>not
-identifiable</em> from observational data when a time-varying confounder of the
+<strong>Identifiability.</strong> The effects reported under <code>"N"</code> are those
+of Zheng &amp; van der Laan (2017): the mediator is drawn from its conditional
+distribution under the other regime given each subject's own history, and
+their Lemma 1 identifies them under sequential randomization and positivity
+conditions. Reading them as <em>individual-level</em> natural effects,
+contrasts of each subject's own counterfactual mediator, additionally
+requires a cross-world independence assumption that is <em>not</em> expected
+to hold when a time-varying confounder of the
 mediator-outcome relationship is itself affected by prior exposure (Avin,
 Shpitser &amp; Pearl 2005; VanderWeele 2014; VanderWeele &amp; Tchetgen Tchetgen
 2017). For that setting VanderWeele &amp; Tchetgen Tchetgen (2017) propose the
 randomized interventional analogues, which <code>"I"</code> targets and which
-remain identifiable — hence the default. Choosing <code>"N"</code> when a
+require no cross-world assumption — hence the default. Choosing <code>"N"</code> when a
 covariate model carries the exposure on its right-hand side triggers a
 warning, repeated by <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code>. That check reads formulas only: it
 neither establishes that such a covariate confounds the mediator-outcome
@@ -162,6 +170,21 @@ individual-level indirect effect exists — which the natural indirect
 effect does satisfy. A non-zero IIE therefore does not by itself show that
 the mediator transmits the effect for any individual. The choice is
 substantive, not computational.</p></dd>
+
+
+<dt id="arg-exposure-regime">exposure_regime<a class="anchor" aria-label="anchor" href="#arg-exposure-regime"></a></dt>
+<dd><p>Numeric (or logical) vector: the exposure regime
+\(a(1{:}T)\) whose effect is decomposed. Either a single value, applied
+at every time point, or one value per <strong>distinct</strong> value of
+<code>time_var</code> in <code>data</code>, in sorted order; each value must be 0 or
+1. Default <code>1</code> (always exposed). See <strong>Exposure regimes</strong> in
+Details.</p></dd>
+
+
+<dt id="arg-reference-regime">reference_regime<a class="anchor" aria-label="anchor" href="#arg-reference-regime"></a></dt>
+<dd><p>Numeric (or logical) vector: the reference regime
+\(a^*(1{:}T)\), in the same form. Default <code>0</code> (never exposed).
+The two regimes must differ.</p></dd>
 
 
 <dt id="arg-n-vw">n_vw<a class="anchor" aria-label="anchor" href="#arg-n-vw"></a></dt>
@@ -196,10 +219,15 @@ are), Wald CIs from the efficient influence curve without bootstrapping
 <code>in_recode</code> entries must copy a single column (e.g.
 <code>recodes(lag_A = A)</code>); exposure lags must copy the exposure itself
 (chained lags such as <code>recodes(lag2_A = lag_A)</code> are rejected);
-<code>init_recode</code> entries must be a constant or a column name; and
-<code>out_recode</code> is unsupported. Derived recodes (splines, cumulative
-counts, carry-forward flags) and deeper exposure history require
-<code>"gcomp"</code>. Violations error rather than pass silently.
+<code>init_recode</code> entries must be a constant or a column name;
+<code>out_recode</code> is unsupported; and a model's own <code>recode</code> may not
+read the exposure or its lags, since it is applied once to the observed
+data. Derived recodes (splines, cumulative counts, carry-forward flags)
+require <code>"gcomp"</code>, which supports deeper exposure history in
+covariate and outcome models; its natural-effect mediator model may read
+the exposure only directly or through first-order lags (see
+<strong>Exposure regimes</strong> in Details). Violations error rather than pass
+silently.
 <strong>Working-model form:</strong> your formulas are used as written for the
 conditional densities behind the clever covariates, but the targeted
 sequential regressions are built as <em>additive main-effects</em> models in
@@ -265,7 +293,9 @@ to keep their bootstrap draws independent.</p></dd>
         cross-regime intervention, and for \(N \ge 2\) mediators <code>Phi1_k</code>
         (k = 1, …, N-1) capture the sequential per-mediator transition.
         Two additional fixed-exposure, natural-mediator interventions <code>nat0</code> (= \(E[Y_0]\)) and
-        <code>nat1</code> (= \(E[Y_1]\)) give the plug-in total effect. For
+        <code>nat1</code> (= \(E[Y_1]\)) give the plug-in total effect.
+        With non-default regimes, 0 and 1 in these labels stand for
+        \(a^*\) and \(a\). For
         <code>mediation_type = "N"</code> the interventions <code>Phi00</code>/<code>Phi11</code> are
         the natural never-/always-treat interventions (no permutation). With
         <code>R &gt; 1</code> the table also carries <code>Sd</code>,
@@ -341,8 +371,20 @@ to keep their bootstrap draws independent.</p></dd>
         scalar summaries whose size is independent of the input data.
         <code>NULL</code> when <code>R &lt;= 1</code>.</p></li>
 <li><p><code>data_summary</code>: list with the number of individuals
-        (<code>n_id</code>), observations (<code>n_obs</code>), and time points
-        (<code>n_times</code>, <code>t_min</code>, <code>t_max</code>) of the input data.</p></li>
+        (<code>n_id</code>), observations (<code>n_obs</code>), time points
+        (<code>n_times</code>, <code>t_min</code>, <code>t_max</code>, <code>time_seq</code>) of
+        the input data, and <code>regime_support</code>: a data frame with one
+        row per regime (<code>regime</code> = <code>"a"</code> / <code>"a*"</code>,
+        <code>values</code>, <code>n_following</code>, <code>prop_following</code>,
+        <code>n_complete</code>). <code>n_following</code> counts the subjects whose
+        observed exposure equals the regime's value at every time point at
+        which they are observed; subjects with shorter follow-up are
+        compared only on the times present, and a subject with a missing
+        exposure at any observed time counts for neither regime.
+        <code>n_complete</code> is the subset of those also observed at every
+        time point in the grid; with right-censored data the two differ
+        substantially, and a subject with short follow-up can count for
+        both regimes. Nothing in the estimation uses it.</p></li>
 <li><p><code>observed</code>: list with the observed nonparametric benchmark
         of the outcome (<code>value</code>, <code>label</code>): the mean outcome at
         the last time point, or the product-limit cumulative incidence
@@ -356,8 +398,9 @@ to keep their bootstrap draws independent.</p></dd>
         <code>estimator = "gcomp"</code>.</p></li>
 <li><p><code>intermediate_confounders</code>: for <code>mediation_type = "N"</code>,
         a character vector of covariate names whose model includes the
-        exposure (exposure-affected/intermediate confounders that make
-        the natural effects non-identifiable); empty when none. The
+        exposure (exposure-affected/intermediate confounders, which bear on
+        the individual-level reading of the effects rather than on the
+        identification of the reported estimand); empty when none. The
         <code>print</code> method re-surfaces a short identifiability caveat
         when this is non-empty.</p></li>
 </ul></div>
@@ -396,15 +439,48 @@ precedes the mediator, and warns if these are violated.</p>
 <code>var_type = "custom"</code> with <code>custom_fit</code> and <code>custom_sim</code> arguments to
 <code><a href="spec_model.html">spec_model</a></code>. See the custom covariate distributions section of
 <code><a href="../articles/causalMed-03-gformula.html">vignette("causalMed-03-gformula")</a></code>.</p>
+<p>**Exposure regimes**
+The estimand contrasts two <em>static</em> exposure regimes. Lin et al.
+(2017, <em>Stat Med</em>, Section 2.2 and Definitions 5-1 to 5-3) define the
+interventional effects as \(\Psi(a(1{:}T), a^*(1{:}T))\) for arbitrary
+\(a(1{:}T)\) and \(a^*(1{:}T)\), giving always exposed,
+\((1,\ldots,1)\), against never exposed, \((0,\ldots,0)\), as an
+example; Zheng and van der Laan (2017, Section 2.2) define the natural
+effects for two regimens \(a\) and \(a'\) in the same way.
+<code>exposure_regime</code> and <code>reference_regime</code> supply the pair; the
+defaults are that example. Position \(k\) of a regime is the exposure
+assigned at the \(k\)-th distinct value of <code>time_var</code>: for times
+{1, 3, 4, 6} a regime has four elements and the simulation takes four
+steps. Under <code>mediation_type = "I"</code> a mediator pool is collected under
+each regime (<code>Phi00</code> and <code>Phi10</code> draw from the \(a^*\) pool,
+<code>Phi11</code> from the \(a\) pool); under <code>"N"</code> the mediator model is
+re-evaluated on the intervention's own covariate history with the exposure
+history set to the other regime, as in the mediator factor of Zheng and van
+der Laan (2017, Eq. 5): the current exposure and any first-order exposure
+lag (an <code>in_recode</code> entry that only copies the exposure, e.g.
+<code>recodes(lag1_A = A)</code>) take the other regime's values, and exposure
+terms written in the mediator formula (e.g. <code>A:L</code>) are evaluated on
+them. A mediator model whose formula reads any other column a recode
+derives from the exposure (a chained lag, a cumulative count, an
+<code>out_recode</code> copy, a column created by a model's own <code>recode</code>),
+or whose <code>subset</code> reads the exposure or such a column, is rejected,
+since those are evaluated on the intervention's own exposure history. The regimes are static: an exposure that follows
+its fitted model outside a window is a different estimand and is not
+available here. <code>estimator = "tmle"</code> accepts only the defaults.</p>
+<p>Both regimes are the analyst's to choose, and the reported effects are
+contrasts of the specific pair supplied. The only pair rejected is
+\(a = a^*\), which leaves an empty contrast; which pair answers a given
+question is the analyst's judgement and is not something
+<code>mediation()</code> can check.</p>
 <p>**Mediator pool (interventional effects)**
-For <code>mediation_type = "I"</code>, one pass at each treatment level \(a^*\) —
-exposure held fixed, mediator following its fitted model — stores every
+For <code>mediation_type = "I"</code>, one pass under each regime — exposure held
+to that regime, mediator following its fitted model — stores every
 simulated individual's full trajectory \(M(1{:}T)\) in a pool. Each
-decomposition intervention that fixes a mediator to its \(a^*\) value,
-<em>including the references</em> <code>Phi00</code> (\(a^* = 0\)) and <code>Phi11</code>
-(\(a^* = 1\)), permutes that pool once and assigns subject \(i\) the whole
+decomposition intervention, <em>including the references</em> <code>Phi00</code>
+(drawing from the \(a^*\) pool) and <code>Phi11</code> (from the \(a\) pool),
+permutes the pool it draws from once and assigns subject \(i\) the whole
 trajectory of pool individual \(\pi(i)\) — a joint stochastic draw
-\(G_{a^*}\). Mediators are permuted independently. Every intervention in the
+\(G_{a^*}\) or \(G_a\). Mediators are permuted independently. Every intervention in the
 decomposition therefore uses the randomized mediator distribution, not only the
 cross-regime ones.</p>
 <p>The permutation is uniform over the whole simulated cohort, so the draw is

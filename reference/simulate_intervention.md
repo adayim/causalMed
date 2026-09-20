@@ -58,8 +58,8 @@ simulate_intervention(
   - `NULL` — the natural course (exposure drawn from its fitted model).
 
   - A numeric/logical scalar or vector (length 1 or equal to the number
-    of time points) — a static intervention setting the exposure to that
-    value at every (or each specific) time step.
+    of **distinct** time points) — a static intervention setting the
+    exposure to that value at every (or each specific) time step.
 
   - A
     [`dyn_int`](https://adayim.github.io/causalMed/reference/dyn_int.md)

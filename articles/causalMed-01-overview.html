@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -88,8 +88,8 @@ direct/indirect effects (Zheng &amp; van der Laan 2017).</p></li>
 <p>Both handle time-varying exposures, mediators, and confounders,
 including confounders that are themselves affected by prior exposure.
 This is the setting the g-formula was introduced for (Robins 1986), and
-the one in which natural direct and indirect effects are not
-identifiable (Avin, Shpitser &amp; Pearl 2005; VanderWeele &amp;
+the one in which individual-level natural direct and indirect effects
+are not identifiable (Avin, Shpitser &amp; Pearl 2005; VanderWeele &amp;
 Tchetgen Tchetgen 2017).</p>
 <p>This vignette is the short tour: the data format, the
 model-specification vocabulary that every analysis uses, and one
@@ -570,19 +570,22 @@ probability of receiving each exposure level).</li>
 confounding of the exposure–outcome relationship at each time point,
 conditional on the measured past.</li>
 </ol>
-<p>For <strong>natural effects</strong>
-(<code>mediation_type = "N"</code>), an additional assumption is
-required:</p>
+<p>To read the <code>mediation_type = "N"</code> effects as
+<strong>individual-level</strong> natural effects, an additional
+assumption is required:</p>
 <ol start="4" style="list-style-type: decimal">
 <li>
 <strong>No unmeasured exposure-induced mediator–outcome
 confounding</strong>: there are no confounders of the mediator–outcome
-relationship that are themselves caused by prior exposure. Natural
-direct and indirect effects are not identifiable when one exists (Avin,
-Shpitser &amp; Pearl 2005; VanderWeele &amp; Tchetgen Tchetgen 2017);
-the randomized interventional analogues targeted by
-<code>mediation_type = "I"</code> are identifiable without this
-assumption (VanderWeele &amp; Tchetgen Tchetgen 2017).</li>
+relationship that are themselves caused by prior exposure.
+Individual-level natural direct and indirect effects are not
+identifiable when one exists (Avin, Shpitser &amp; Pearl 2005;
+VanderWeele &amp; Tchetgen Tchetgen 2017). The effects
+<code>mediation_type = "N"</code> reports are identified without it,
+under sequential randomization and positivity (Zheng &amp; van der Laan
+2017, Lemma 1), as are the randomized interventional analogues targeted
+by <code>mediation_type = "I"</code> (VanderWeele &amp; Tchetgen
+Tchetgen 2017).</li>
 </ol>
 <hr>
 </div>

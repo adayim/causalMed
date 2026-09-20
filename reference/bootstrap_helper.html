@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -61,7 +61,8 @@
 <span>  n_vw <span class="op">=</span> <span class="fl">1L</span>,</span>
 <span>  R <span class="op">=</span> <span class="fl">500</span>,</span>
 <span>  progress_bar <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  future_seed <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  future_seed <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  <span class="va">time_seq</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -99,7 +100,7 @@ way data generation process. See <code><a href="spec_model.html">spec_model</a><
 <dd><p>A named list specifying exposure interventions. Each
 element is one of:</p><ul><li><p><code>NULL</code> — the natural course (exposure drawn from its fitted model).</p></li>
 <li><p>A numeric/logical scalar or vector (length 1 or equal to the number
-        of time points) — a static intervention setting the exposure to that
+        of <strong>distinct</strong> time points) — a static intervention setting the exposure to that
         value at every (or each specific) time step.</p></li>
 <li><p>A <code><a href="dyn_int.html">dyn_int</a></code> object — a dynamic (rule-based) intervention
         whose expression is evaluated inside the simulated dataset at each
@@ -148,6 +149,12 @@ Unix-alikes to enable parallel bootstrap. Default <code>500</code>.</p></dd>
 
 <dt id="arg-future-seed">future_seed<a class="anchor" aria-label="anchor" href="#arg-future-seed"></a></dt>
 <dd><p>Logical or integer. Seed is passed to future_lapply.</p></dd>
+
+
+<dt id="arg-time-seq">time_seq<a class="anchor" aria-label="anchor" href="#arg-time-seq"></a></dt>
+<dd><p>Sorted distinct time points from the input data (required);
+see <code>.run_interventions</code>. Every replicate simulates this grid, so a
+resample missing a rare time value cannot shorten it.</p></dd>
 
 </dl></div>
 

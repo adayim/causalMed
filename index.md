@@ -47,16 +47,19 @@ devtools::install_github("adayim/causalMed")
     non-zero interventional indirect effect does and does not establish,
     see Miles (2023).
   - `mediation_type = "N"`: natural NDE/NIE (Zheng & van der Laan 2017),
-    using the conditional mediator distribution with exposure swapping;
-    requires stronger assumptions (single mediator only). Natural
-    effects are **not identifiable** when a confounder of the
-    mediator–outcome relationship is itself affected by the exposure
-    (Avin, Shpitser & Pearl 2005; VanderWeele & Tchetgen Tchetgen 2017);
+    using the conditional mediator distribution with exposure swapping
+    (single mediator only). Their Lemma 1 identifies these effects under
+    sequential randomization and positivity; reading them as
+    **individual-level** natural effects additionally requires a
+    cross-world assumption that is not expected to hold when a
+    confounder of the mediator–outcome relationship is itself affected
+    by the exposure (Avin, Shpitser & Pearl 2005; VanderWeele & Tchetgen
+    Tchetgen 2017).
     [`mediation()`](https://adayim.github.io/causalMed/reference/mediation.md)
-    detects this, warns, and repeats the caveat in
-    [`print()`](https://rdrr.io/r/base/print.html). VanderWeele &
-    Tchetgen Tchetgen (2017) propose the interventional estimand for
-    that setting.
+    detects covariates modelled as exposure-affected, warns, and repeats
+    the caveat in [`print()`](https://rdrr.io/r/base/print.html).
+    VanderWeele & Tchetgen Tchetgen (2017) propose the interventional
+    estimand for that setting.
 - **Two estimators for natural effects**: the parametric g-formula
   plug-in (`estimator = "gcomp"`, the default) or a **targeted minimum
   loss-based estimator** (`estimator = "tmle"`, Zheng & van der Laan
@@ -242,6 +245,8 @@ print(fit_med)
 #>   ID variable  : id
 #>   Baseline vars: V
 #>   Data         : 3,000 individuals, 15,000 observations
+#>   Observed subjects following a  (1 1 1 1 1): 1,177 of 3,000 (39.2%)
+#>   Observed subjects following a* (0 0 0 0 0): 5 of 3,000 (0.2%)
 #>   MC sample    : 10000
 #>   Bootstrap R  : 100
 #>   n_vw         : 2  (permutation draws averaged per pool-drawing intervention)
@@ -352,12 +357,15 @@ fit_natural <- mediation(
 ```
 
 Natural effects condition the mediator model on the individual’s own
-covariate history but evaluate it at the alternative exposure level
-(exposure swapping). They require stronger sequential
-no-unmeasured-confounding assumptions than interventional effects. In
-particular, natural direct and indirect effects are **not identifiable**
-when a mediator–outcome confounder is itself affected by prior exposure
-(Avin, Shpitser & Pearl 2005; VanderWeele & Tchetgen Tchetgen 2017).
+covariate history but evaluate it with the exposure history set to the
+alternative regime (exposure swapping). They require stronger sequential
+no-unmeasured-confounding assumptions than interventional effects. Zheng
+& van der Laan (2017, Lemma 1) identify them under sequential
+randomization and positivity; reading them as **individual-level**
+natural effects additionally requires a cross-world assumption that is
+not expected to hold when a mediator–outcome confounder is itself
+affected by prior exposure (Avin, Shpitser & Pearl 2005; VanderWeele &
+Tchetgen Tchetgen 2017).
 [`mediation()`](https://adayim.github.io/causalMed/reference/mediation.md)
 scans the model formulas for covariates modelled as exposure-affected,
 warns at run time, and restates the caveat under the decomposition when
@@ -393,9 +401,11 @@ working models; see
 [`?mediation`](https://adayim.github.io/causalMed/reference/mediation.md)
 for the detail. It requires an exposure model, a binary outcome, and
 lag-style recodes only (`recodes(lag_A = A)`; exposure lags must be
-first-order); derived recodes such as splines or cumulative counts need
-`estimator = "gcomp"`. Inspect any positivity warnings it reports before
-trusting the affected quantities.
+first-order; no model recode of the exposure); derived recodes such as
+splines or cumulative counts need `estimator = "gcomp"`, whose
+natural-effect mediator model may read the exposure only directly or
+through first-order lags. Inspect any positivity warnings it reports
+before trusting the affected quantities.
 
 ### Enabling parallel bootstrap
 

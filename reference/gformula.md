@@ -70,8 +70,8 @@ gformula(
   - `NULL` — the natural course (exposure drawn from its fitted model).
 
   - A numeric/logical scalar or vector (length 1 or equal to the number
-    of time points) — a static intervention setting the exposure to that
-    value at every (or each specific) time step.
+    of **distinct** time points) — a static intervention setting the
+    exposure to that value at every (or each specific) time step.
 
   - A
     [`dyn_int`](https://adayim.github.io/causalMed/reference/dyn_int.md)
@@ -203,8 +203,8 @@ An object of class `"gformula"` with components:
   when `R <= 1`.
 
 - `data_summary`: list with the number of individuals (`n_id`),
-  observations (`n_obs`), and time points (`n_times`, `t_min`, `t_max`)
-  of the input data.
+  observations (`n_obs`), and time points (`n_times`, `t_min`, `t_max`,
+  `time_seq`) of the input data.
 
 - `observed`: list with the observed nonparametric benchmark of the
   outcome (`value`, `label`): the mean outcome at the last time point,

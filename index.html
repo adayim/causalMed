@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -90,7 +90,7 @@
 <li>
 <code>mediation_type = "I"</code>: interventional IDE/IIE (VanderWeele &amp; Tchetgen Tchetgen 2017; Lin et al. 2017; Yamamuro et al. 2021). The randomized mediator is drawn as a <strong>joint M(1:T) trajectory</strong> by row-permuting the reference (a*) cohort, matching the SAS <code>mGFORMULA</code> macro and the algorithm of Yamamuro et al. 2021. Does not require cross-world independence. <strong>Multiple mediator models</strong> are supported under this estimand (Yamamuro 2021 §4); per-mediator IIE(M_k) is reported alongside the overall IDE/TE. On what a non-zero interventional indirect effect does and does not establish, see Miles (2023).</li>
 <li>
-<code>mediation_type = "N"</code>: natural NDE/NIE (Zheng &amp; van der Laan 2017), using the conditional mediator distribution with exposure swapping; requires stronger assumptions (single mediator only). Natural effects are <strong>not identifiable</strong> when a confounder of the mediator–outcome relationship is itself affected by the exposure (Avin, Shpitser &amp; Pearl 2005; VanderWeele &amp; Tchetgen Tchetgen 2017); <code><a href="reference/mediation.html">mediation()</a></code> detects this, warns, and repeats the caveat in <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code>. VanderWeele &amp; Tchetgen Tchetgen (2017) propose the interventional estimand for that setting.</li>
+<code>mediation_type = "N"</code>: natural NDE/NIE (Zheng &amp; van der Laan 2017), using the conditional mediator distribution with exposure swapping (single mediator only). Their Lemma 1 identifies these effects under sequential randomization and positivity; reading them as <strong>individual-level</strong> natural effects additionally requires a cross-world assumption that is not expected to hold when a confounder of the mediator–outcome relationship is itself affected by the exposure (Avin, Shpitser &amp; Pearl 2005; VanderWeele &amp; Tchetgen Tchetgen 2017). <code><a href="reference/mediation.html">mediation()</a></code> detects covariates modelled as exposure-affected, warns, and repeats the caveat in <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code>. VanderWeele &amp; Tchetgen Tchetgen (2017) propose the interventional estimand for that setting.</li>
 </ul>
 </li>
 <li>
@@ -264,6 +264,8 @@
 <span><span class="co">#&gt;   ID variable  : id</span></span>
 <span><span class="co">#&gt;   Baseline vars: V</span></span>
 <span><span class="co">#&gt;   Data         : 3,000 individuals, 15,000 observations</span></span>
+<span><span class="co">#&gt;   Observed subjects following a  (1 1 1 1 1): 1,177 of 3,000 (39.2%)</span></span>
+<span><span class="co">#&gt;   Observed subjects following a* (0 0 0 0 0): 5 of 3,000 (0.2%)</span></span>
 <span><span class="co">#&gt;   MC sample    : 10000</span></span>
 <span><span class="co">#&gt;   Bootstrap R  : 100</span></span>
 <span><span class="co">#&gt;   n_vw         : 2  (permutation draws averaged per pool-drawing intervention)</span></span>
@@ -365,7 +367,7 @@
 <span>  <span class="va">...</span>,                     <span class="co"># same arguments as above</span></span>
 <span>  mediation_type <span class="op">=</span> <span class="st">"N"</span>    <span class="co"># natural NDE/NIE (Zheng &amp; van der Laan 2017)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Natural effects condition the mediator model on the individual’s own covariate history but evaluate it at the alternative exposure level (exposure swapping). They require stronger sequential no-unmeasured-confounding assumptions than interventional effects. In particular, natural direct and indirect effects are <strong>not identifiable</strong> when a mediator–outcome confounder is itself affected by prior exposure (Avin, Shpitser &amp; Pearl 2005; VanderWeele &amp; Tchetgen Tchetgen 2017). <code><a href="reference/mediation.html">mediation()</a></code> scans the model formulas for covariates modelled as exposure-affected, warns at run time, and restates the caveat under the decomposition when you <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> the result. That scan cannot verify the causal structure, and its silence does not establish that no such confounder exists. VanderWeele &amp; Tchetgen Tchetgen (2017) propose the randomized interventional analogues (<code>mediation_type = "I"</code>) for that setting.</p>
+<p>Natural effects condition the mediator model on the individual’s own covariate history but evaluate it with the exposure history set to the alternative regime (exposure swapping). They require stronger sequential no-unmeasured-confounding assumptions than interventional effects. Zheng &amp; van der Laan (2017, Lemma 1) identify them under sequential randomization and positivity; reading them as <strong>individual-level</strong> natural effects additionally requires a cross-world assumption that is not expected to hold when a mediator–outcome confounder is itself affected by prior exposure (Avin, Shpitser &amp; Pearl 2005; VanderWeele &amp; Tchetgen Tchetgen 2017). <code><a href="reference/mediation.html">mediation()</a></code> scans the model formulas for covariates modelled as exposure-affected, warns at run time, and restates the caveat under the decomposition when you <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> the result. That scan cannot verify the causal structure, and its silence does not establish that no such confounder exists. VanderWeele &amp; Tchetgen Tchetgen (2017) propose the randomized interventional analogues (<code>mediation_type = "I"</code>) for that setting.</p>
 <div class="section level4">
 <h4 id="targeted-estimation-tmle">Targeted estimation (TMLE)<a class="anchor" aria-label="anchor" href="#targeted-estimation-tmle"></a>
 </h4>
@@ -376,7 +378,7 @@
 <span>  mediation_type <span class="op">=</span> <span class="st">"N"</span>,</span>
 <span>  estimator      <span class="op">=</span> <span class="st">"tmle"</span>  <span class="co"># EIC Wald CIs, no bootstrap</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>It runs backward targeted regressions instead of forward simulation. Zheng &amp; van der Laan (2017) establish multiple robustness for this estimator, meaning consistency when only certain subsets of the nuisance models are correct, and it reports Wald CIs from the efficient influence curve, so <code>R</code> and <code>mc_sample</code> are ignored. Note that those results are stated for correctly specified nuisance models, and this implementation builds its targeted sequential regressions as additive main-effects working models; see <code><a href="reference/mediation.html">?mediation</a></code> for the detail. It requires an exposure model, a binary outcome, and lag-style recodes only (<code>recodes(lag_A = A)</code>; exposure lags must be first-order); derived recodes such as splines or cumulative counts need <code>estimator = "gcomp"</code>. Inspect any positivity warnings it reports before trusting the affected quantities.</p>
+<p>It runs backward targeted regressions instead of forward simulation. Zheng &amp; van der Laan (2017) establish multiple robustness for this estimator, meaning consistency when only certain subsets of the nuisance models are correct, and it reports Wald CIs from the efficient influence curve, so <code>R</code> and <code>mc_sample</code> are ignored. Note that those results are stated for correctly specified nuisance models, and this implementation builds its targeted sequential regressions as additive main-effects working models; see <code><a href="reference/mediation.html">?mediation</a></code> for the detail. It requires an exposure model, a binary outcome, and lag-style recodes only (<code>recodes(lag_A = A)</code>; exposure lags must be first-order; no model recode of the exposure); derived recodes such as splines or cumulative counts need <code>estimator = "gcomp"</code>, whose natural-effect mediator model may read the exposure only directly or through first-order lags. Inspect any positivity warnings it reports before trusting the affected quantities.</p>
 </div>
 </div>
 <div class="section level3">

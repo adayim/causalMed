@@ -123,9 +123,12 @@ spec_model(
   arguments – the fitted model object and a `data.frame` of new data to
   predict on – and return a vector of simulated responses of matching
   length. When supplied it takes priority over the drawing rule implied
-  by `var_type`. If omitted and `var_type = "custom"`, normal draws are
-  used by default, which requires the fitted object to have a `terms`
-  component and a [`coef`](https://rdrr.io/r/stats/coef.html) method.
+  by `var_type`. If omitted and `var_type = "custom"`, normal draws
+  centred on the linear predictor are used by default, which requires
+  the fitted object to have a `terms` component and a
+  [`coef`](https://rdrr.io/r/stats/coef.html) method. The linear
+  predictor is the fitted mean only under an identity link, so a fit
+  with any other link is rejected unless `custom_sim` is supplied.
 
   **It supplies a draw, not a fitted value.** At each time step the
   Monte Carlo engine assigns this variable the vector `custom_sim`

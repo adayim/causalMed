@@ -20,9 +20,9 @@
 Both handle time-varying exposures, mediators, and confounders,
 including confounders that are themselves affected by prior exposure.
 This is the setting the g-formula was introduced for (Robins 1986), and
-the one in which natural direct and indirect effects are not
-identifiable (Avin, Shpitser & Pearl 2005; VanderWeele & Tchetgen
-Tchetgen 2017).
+the one in which individual-level natural direct and indirect effects
+are not identifiable (Avin, Shpitser & Pearl 2005; VanderWeele &
+Tchetgen Tchetgen 2017).
 
 This vignette is the short tour: the data format, the
 model-specification vocabulary that every analysis uses, and one
@@ -409,17 +409,19 @@ your data and design, not of the code:
     exposure–outcome relationship at each time point, conditional on the
     measured past.
 
-For **natural effects** (`mediation_type = "N"`), an additional
-assumption is required:
+To read the `mediation_type = "N"` effects as **individual-level**
+natural effects, an additional assumption is required:
 
 4.  **No unmeasured exposure-induced mediator–outcome confounding**:
     there are no confounders of the mediator–outcome relationship that
-    are themselves caused by prior exposure. Natural direct and indirect
-    effects are not identifiable when one exists (Avin, Shpitser & Pearl
-    2005; VanderWeele & Tchetgen Tchetgen 2017); the randomized
-    interventional analogues targeted by `mediation_type = "I"` are
-    identifiable without this assumption (VanderWeele & Tchetgen
-    Tchetgen 2017).
+    are themselves caused by prior exposure. Individual-level natural
+    direct and indirect effects are not identifiable when one exists
+    (Avin, Shpitser & Pearl 2005; VanderWeele & Tchetgen Tchetgen 2017).
+    The effects `mediation_type = "N"` reports are identified without
+    it, under sequential randomization and positivity (Zheng & van der
+    Laan 2017, Lemma 1), as are the randomized interventional analogues
+    targeted by `mediation_type = "I"` (VanderWeele & Tchetgen Tchetgen
+    2017).
 
 ------------------------------------------------------------------------
 

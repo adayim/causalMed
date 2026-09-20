@@ -63,7 +63,8 @@ where $`Y_{a, M(a^*)}`$ is the potential outcome under exposure $`a`$
 with the mediator at its natural value under $`a^*`$. The mediator is
 drawn from its **conditional** distribution: at each time step it is
 predicted from the individual’s own covariate history, with the exposure
-argument in the mediator model swapped to the other level.
+history in the mediator model (the current exposure and its first-order
+lags) set to the other level.
 
 For **interventional** effects (`mediation_type = "I"`, the default) the
 mediator is instead set to a *stochastic* draw $`G_{a^*}`$ from its
@@ -83,16 +84,21 @@ The key differences:
 |  | Interventional (`"I"`) | Natural (`"N"`) |
 |----|----|----|
 | Mediator drawn from | Marginal distribution (permutation) | Conditional distribution (individual history) |
-| Cross-world independence required | No | Yes |
-| Identified with exposure-affected confounders | Yes | **No** |
+| Cross-world independence required | No | Only to read the effects as individual-level |
+| Identified with exposure-affected confounders | Yes | Yes, as the conditional-draw estimand |
 | Interpretation | Shift in mediator *population* distribution | Hypothetical individual-level swap |
 | Reference | Lin et al. (2017) | Zheng & van der Laan (2017) |
 
-The identifiability row is the practical decision point: natural effects
-are **not point-identified** when a confounder of the mediator–outcome
-relationship is itself affected by the exposure, an *intermediate
-confounder* (Avin, Shpitser & Pearl 2005; VanderWeele & Tchetgen
-Tchetgen 2017).
+The identifiability row is the practical decision point. Zheng & van der
+Laan (2017, Lemma 1) identify the `"N"` effects under sequential
+randomization and positivity, with the mediator drawn from its
+conditional distribution given each subject’s own history. Reading them
+as **individual-level** natural effects, contrasts of each subject’s own
+counterfactual mediator, additionally requires a cross-world assumption
+that is **not expected to hold** when a confounder of the
+mediator–outcome relationship is itself affected by the exposure, an
+*intermediate confounder* (Avin, Shpitser & Pearl 2005; VanderWeele &
+Tchetgen Tchetgen 2017).
 [`mediation()`](https://adayim.github.io/causalMed/reference/mediation.md)
 warns when a covariate model carries the exposure on its right-hand
 side, i.e. when a covariate is *modelled as* exposure-affected. That is
@@ -306,15 +312,16 @@ fit_surv$effect_size
 
 Each row is the simulated cumulative incidence under one intervention:
 
-- **`nat0` / `nat1`**: exposure fixed to 0 / 1, mediator following its
-  fitted model given each individual’s own history. Their contrast is
-  the natural plug-in **total effect**.
-- **`Phi00` / `Phi11`**: exposure fixed to 0 / 1, mediator drawn from
-  the *permuted marginal pool* collected under that same exposure level
-  ($`E[Y_{0,G_0}]`$, $`E[Y_{1,G_1}]`$). These are the interventional
-  references.
-- **`Phi10`**: the cross-regime intervention. Exposure fixed to 1,
-  mediator drawn from the a = 0 pool ($`E[Y_{1,G_0}]`$).
+- **`nat0` / `nat1`**: exposure following the reference regime $`a^*`$ /
+  the exposure regime $`a`$ (by default never / always exposed),
+  mediator following its fitted model given each individual’s own
+  history. Their contrast is the natural plug-in **total effect**.
+- **`Phi00` / `Phi11`**: exposure following $`a^*`$ / $`a`$, mediator
+  drawn from the *permuted marginal pool* collected under that same
+  regime ($`E[Y_{0,G_0}]`$, $`E[Y_{1,G_1}]`$ with the defaults). These
+  are the interventional references.
+- **`Phi10`**: the cross-regime intervention. Exposure following $`a`$,
+  mediator drawn from the $`a^*`$ pool ($`E[Y_{1,G_0}]`$).
 
 ### Reading the decomposition
 
@@ -403,6 +410,112 @@ agree.
 
 mediation(..., n_vw = 1)   # single permutation per intervention: faster, noisier
 ```
+
+### Exposure regimes other than always/never
+
+[`mediation()`](https://adayim.github.io/causalMed/reference/mediation.md)
+contrasts two static exposure regimes, $`a(1{:}T)`$ and $`a^*(1{:}T)`$,
+supplied through `exposure_regime` and `reference_regime`. The defaults
+are `1` and `0` — always against never exposed — which is the example
+Lin et al. (2017, Section 2.2) give when defining the interventional
+effects for arbitrary regimes; Zheng and van der Laan (2017, Section
+2.2) define the natural effects the same way.
+
+Each argument is a 0/1 vector with one element per distinct time point,
+in sorted order; a scalar is recycled. `survivaldata` has `time` = 0–4,
+so exposure confined to the middle of follow-up is:
+
+| `time`                     | 0   | 1   | 2   | 3   | 4   |
+|----------------------------|-----|-----|-----|-----|-----|
+| $`a`$ = `c(0, 1, 1, 0, 0)` | 0   | 1   | 1   | 0   | 0   |
+| $`a^*`$ = `0` (recycled)   | 0   | 0   | 0   | 0   | 0   |
+
+``` r
+
+fit_window <- mediation(
+  data             = dat,
+  id_var           = "id",
+  time_var         = "time",
+  base_vars        = "V",
+  exposure         = "A",
+  outcome          = "Y",
+  models           = models_surv,
+  init_recode      = init_s,
+  in_recode        = in_s,
+  mediation_type   = "I",
+  exposure_regime  = c(0, 1, 1, 0, 0),   # exposed at t = 1 and 2 only
+  reference_regime = 0,                  # never exposed
+  mc_sample        = 20000,
+  R                = 1,
+  quiet            = TRUE,
+  seed             = 2026
+)
+fit_window$estimate
+#>                      Effect           RD       RR
+#>                      <char>        <num>    <num>
+#> 1:          Indirect effect  0.111479530 1.226072
+#> 2:            Direct effect  0.075377855 1.180443
+#> 3:             Total effect  0.192451782 1.468670
+#> 4: TE - (Direct + Indirect)  0.005594397       NA
+#> 5:     Mediation Proportion 59.660221446       NA
+```
+
+**What the rows now mean.** The decomposition is read exactly as in
+*Reading the decomposition* above, with $`a`$ standing for the windowed
+regime rather than always-exposed. The total effect is the change in the
+risk of the event by $`t = 4`$ from exposing everyone during $`t`$ = 1–2
+only rather than never; the direct effect is the part of that contrast
+not operating through `M`; and the indirect effect is the part carried
+by the shift in `M`’s population distribution between the two regimes.
+
+One subtlety is specific to windowed regimes. The mediator pool holds
+each pool individual’s **whole trajectory** $`M(1{:}T)`$, so
+`Phi11 − Phi10` shifts the mediator at *every* time point, including
+$`t`$ = 3 and 4 after the window has closed. The indirect effect
+therefore includes whatever the window does to the mediator downstream
+of itself, not only what it does while the exposure is on.
+
+The regimes are static: the zeros outside the window are an intervention
+forcing the exposure to 0 there, not a licence for it to follow its
+fitted model. The latter is a dynamic regime, a different estimand, and
+is not available here.
+
+**Choosing the reference.** Both regimes are yours to specify, and the
+reported effects are contrasts of the pair you supply — the package
+checks only that they are 0/1, the right length, and not identical. With
+the default $`a^* = 0`$, the two regimes above differ only at $`t`$ =
+1–2. Setting `reference_regime = c(1, 0, 0, 1, 1)` against the same
+$`a`$ is equally valid input, but the two regimes then differ at *every*
+time point, so the reported effects contrast those two exposure
+histories. Which pair answers a given question is the analyst’s
+judgement;
+[`mediation()`](https://adayim.github.io/causalMed/reference/mediation.md)
+cannot check it.
+
+[`print()`](https://rdrr.io/r/base/print.html) lists both regimes in the
+analysis-setup block, together with how many observed subjects follow
+each one:
+
+``` r
+
+fit_window$data_summary$regime_support
+#>   regime    values n_following prop_following n_complete
+#> 1      a 0 1 1 0 0         489          0.163         23
+#> 2     a* 0 0 0 0 0         528          0.176        162
+```
+
+`n_following` counts subjects whose exposure matches the regime at every
+time point at which they were observed; `n_complete` restricts that to
+subjects observed at every time point. In `survivaldata` most subjects
+leave the risk set early, so the two differ by a wide margin, and a
+subject with a single observation can count for both regimes.
+
+Nothing in the estimation uses these counts — the g-formula standardises
+over the fitted models, so an estimate is produced whether or not anyone
+followed the regime. With $`T`$ binary time points there are $`2^T`$
+static regimes, and a subject observed at every time point follows at
+most one of them. How far the models can be trusted to extrapolate is
+the analyst’s judgement.
 
 ------------------------------------------------------------------------
 
@@ -712,10 +825,12 @@ fit_ci$boot_estimates$effects
 ## Natural Effects and Intermediate Confounding
 
 `mediation_type = "N"` (Zheng & van der Laan 2017) is also defined for
-survival outcomes. However, in this dataset the confounder `L` is
-affected by the current exposure, an *intermediate confounder*, and
-natural direct and indirect effects are **not identifiable** in that
-setting (see the estimands section above).
+survival outcomes. In this dataset the confounder `L` is affected by the
+current exposure, an *intermediate confounder*. The reported effects
+remain those of Zheng & van der Laan, identified under sequential
+randomization and positivity (their Lemma 1); what fails in that setting
+is the **individual-level** reading of them (see the estimands section
+above).
 [`mediation()`](https://adayim.github.io/causalMed/reference/mediation.md)
 finds the exposure on the right-hand side of a covariate model and
 warns:
@@ -738,15 +853,18 @@ fit_nat <- mediation(
   quiet          = TRUE,
   seed           = 2026
 )
-#> Warning: mediation_type = "N" requested, but covariate model(s) for {L} include
+#> Warning: mediation_type = "N" requested, and covariate model(s) for {L} include
 #> the exposure 'A' on the right-hand side, i.e. they are modelled as
-#> exposure-affected. If such a covariate also confounds the mediator-outcome
-#> relationship, natural direct and indirect effects are NOT identifiable from
-#> observational data (Avin, Shpitser & Pearl 2005; VanderWeele 2014; VanderWeele
-#> & Tchetgen Tchetgen 2017); for that setting VanderWeele & Tchetgen Tchetgen
-#> (2017) propose the randomized interventional analogues, available here as
-#> mediation_type = "I". This check reads the model formulas only and cannot
-#> verify the causal structure.
+#> exposure-affected. The reported effects are those of Zheng & van der Laan
+#> (2017), identified under sequential randomization and positivity (their Lemma
+#> 1). Reading them as individual-level natural effects, contrasts of each
+#> subject's own counterfactual mediator, additionally requires a cross-world
+#> independence assumption that is not expected to hold if such a covariate also
+#> confounds the mediator-outcome relationship (Avin, Shpitser & Pearl 2005;
+#> VanderWeele 2014; VanderWeele & Tchetgen Tchetgen 2017, who propose the
+#> randomized interventional analogues, available here as mediation_type = "I").
+#> This check reads the model formulas only and cannot verify the causal
+#> structure.
 ```
 
 Interventional effects (`"I"`) remain identifiable under intermediate
@@ -795,15 +913,18 @@ fit_tmle_s <- mediation(
   quiet          = TRUE,
   seed           = 2026
 )
-#> Warning: mediation_type = "N" requested, but covariate model(s) for {L} include
+#> Warning: mediation_type = "N" requested, and covariate model(s) for {L} include
 #> the exposure 'A' on the right-hand side, i.e. they are modelled as
-#> exposure-affected. If such a covariate also confounds the mediator-outcome
-#> relationship, natural direct and indirect effects are NOT identifiable from
-#> observational data (Avin, Shpitser & Pearl 2005; VanderWeele 2014; VanderWeele
-#> & Tchetgen Tchetgen 2017); for that setting VanderWeele & Tchetgen Tchetgen
-#> (2017) propose the randomized interventional analogues, available here as
-#> mediation_type = "I". This check reads the model formulas only and cannot
-#> verify the causal structure.
+#> exposure-affected. The reported effects are those of Zheng & van der Laan
+#> (2017), identified under sequential randomization and positivity (their Lemma
+#> 1). Reading them as individual-level natural effects, contrasts of each
+#> subject's own counterfactual mediator, additionally requires a cross-world
+#> independence assumption that is not expected to hold if such a covariate also
+#> confounds the mediator-outcome relationship (Avin, Shpitser & Pearl 2005;
+#> VanderWeele 2014; VanderWeele & Tchetgen Tchetgen 2017, who propose the
+#> randomized interventional analogues, available here as mediation_type = "I").
+#> This check reads the model formulas only and cannot verify the causal
+#> structure.
 
 fit_tmle_s$estimate
 ```
@@ -812,22 +933,26 @@ Note the **recode restriction**: the targeted engine evaluates only
 lag-style recodes, so `in_recode` entries must copy a single column (as
 `init_s`/`in_s` do here), lags of the exposure must copy the exposure
 itself (chained lags like `lag2_A = lag_A` are rejected), `init_recode`
-entries must be a constant or a column name, and `out_recode` is not
-supported. Derived recodes (splines, cumulative counts, carry-forward
-flags such as the absorbing-state pattern shown earlier) and deeper
-exposure history require `estimator = "gcomp"`. Violations raise an
-error rather than being silently dropped, so a distorted TMLE cannot
-reach you unnoticed.
+entries must be a constant or a column name, `out_recode` is not
+supported, and a model’s own `recode` may not read the exposure or its
+lags (it is applied once to the observed data). Derived recodes
+(splines, cumulative counts, carry-forward flags such as the
+absorbing-state pattern shown earlier) require `estimator = "gcomp"`,
+which supports deeper exposure history in covariate and outcome models;
+its natural-effect mediator model may read the exposure only directly or
+through first-order lags. Violations raise an error rather than being
+silently dropped, so a distorted TMLE cannot reach you unnoticed.
 
 Two caveats:
 
 - **The identification warning still applies.** The TMLE changes the
-  *estimator*, not the estimand: if an intermediate confounder makes
-  natural effects unidentifiable (as in this dataset, where `L` depends
-  on current `A`), no estimator can fix that. The same warning is
-  emitted at run time and re-surfaced as a short caveat under the
-  decomposition when you [`print()`](https://rdrr.io/r/base/print.html)
-  the result (the offending confounders are also stored in
+  *estimator*, not the estimand: if an intermediate confounder rules out
+  the individual-level reading of the natural effects (as in this
+  dataset, where `L` depends on current `A`), no estimator can restore
+  it. The same warning is emitted at run time and re-surfaced as a short
+  caveat under the decomposition when you
+  [`print()`](https://rdrr.io/r/base/print.html) the result (the
+  offending confounders are also stored in
   `fit$intermediate_confounders`). It is for this setting that
   VanderWeele & Tchetgen Tchetgen (2017) propose the interventional
   estimand.

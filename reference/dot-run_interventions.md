@@ -23,7 +23,8 @@ intervention.
   n_vw = 1L,
   return_fitted = FALSE,
   return_data = FALSE,
-  seed = NULL
+  seed = NULL,
+  time_seq = NULL
 )
 ```
 
@@ -67,8 +68,8 @@ intervention.
   - `NULL` — the natural course (exposure drawn from its fitted model).
 
   - A numeric/logical scalar or vector (length 1 or equal to the number
-    of time points) — a static intervention setting the exposure to that
-    value at every (or each specific) time step.
+    of **distinct** time points) — a static intervention setting the
+    exposure to that value at every (or each specific) time step.
 
   - A
     [`dyn_int`](https://adayim.github.io/causalMed/reference/dyn_int.md)
@@ -153,3 +154,12 @@ intervention.
   repeated calls therefore give *different* results (reproducible only
   via an outer [`set.seed()`](https://rdrr.io/r/base/Random.html)). Use
   `seed = NULL` inside simulation loops that manage their own seeds.
+
+- time_seq:
+
+  Numeric vector: the sorted distinct time points to simulate, as
+  computed by
+  [`gformula()`](https://adayim.github.io/causalMed/reference/gformula.md)/[`mediation()`](https://adayim.github.io/causalMed/reference/mediation.md)
+  from the *input* data. Passed to every bootstrap replicate so all
+  passes simulate the same steps even when a resample lacks a rarely
+  observed time value. When `NULL` the grid is derived from `data`.
