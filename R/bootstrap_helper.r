@@ -4,6 +4,9 @@
 #'
 #' @inheritParams gformula
 #' @param future_seed Logical or integer. Seed is passed to future_lapply.
+#' @param time_seq Sorted distinct time points from the input data (required);
+#'   see \code{.run_interventions}. Every replicate simulates this grid, so a
+#'   resample missing a rare time value cannot shorten it.
 #' @importFrom future.apply future_lapply
 #' @importFrom future nbrOfWorkers
 #' @importFrom progressr handler_progress handlers progressor
@@ -24,8 +27,21 @@ bootstrap_helper <- function(data,
                              n_vw = 1L,
                              R = 500,
                              progress_bar = TRUE,
-                             future_seed = TRUE) {
+                             future_seed = TRUE,
+                             time_seq) {
   mediation_type <- match.arg(mediation_type)
+
+  # `time_seq` is referenced only inside the future_lapply() closure, so a
+  # caller that omits it would install the progressr handlers and launch R
+  # replicates before failing once per worker, with the stack inside a future.
+  # Force it here so the error lands at the call site instead. No time_grid()
+  # fallback: the grid is the caller's, computed once from the FULL data, and
+  # re-deriving it per resample is the bug the argument exists to prevent.
+  if (missing(time_seq) || is.null(time_seq) || length(time_seq) == 0L) {
+    stop("`time_seq` is required: pass the simulation grid computed by the ",
+         "caller from the full data (time_grid()).", call. = FALSE,
+         domain = "causalMed")
+  }
 
   # Progress bar. progressr::handlers() sets a SESSION-WIDE option, so we save
   # the caller's current handlers and restore them on exit — otherwise a
@@ -85,6 +101,7 @@ bootstrap_helper <- function(data,
                      n_vw = n_vw,
                      return_fitted = FALSE,
                      return_data = FALSE,
+                     time_seq = time_seq,
                      seed = NULL)   # let each replicate draw its own MC sample
     
     if (progress_bar)

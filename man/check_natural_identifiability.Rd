@@ -2,7 +2,7 @@
 % Please edit documentation in R/check.R
 \name{check_natural_identifiability}
 \alias{check_natural_identifiability}
-\title{Warn about non-identifiability of natural effects under intermediate confounding}
+\title{Report covariates modelled as exposure-affected under natural effects}
 \usage{
 check_natural_identifiability(models, exposure)
 }
@@ -18,10 +18,16 @@ Invisibly returns a character vector of the covariate (response)
   \code{print.gformula}) can re-surface the identifiability caveat.
 }
 \description{
-For \code{mediation_type = "N"}, natural direct and indirect effects are not
-identifiable from observational data when a confounder of the
-mediator-outcome relationship is itself affected by exposure (Avin, Shpitser
-& Pearl 2005; VanderWeele 2014; VanderWeele & Tchetgen Tchetgen 2017). This
+The effects reported under \code{mediation_type = "N"} are those of Zheng &
+van der Laan (2017): the mediator is drawn from its conditional distribution
+under the other regime given each subject's own history, and their Lemma 1
+identifies them under sequential randomization and positivity, whether or not
+a covariate is exposure-affected. Reading them as \emph{individual-level}
+natural effects, contrasts of each subject's own counterfactual mediator,
+additionally requires a cross-world independence assumption that is not
+expected to hold when an exposure-affected covariate also confounds the
+mediator-outcome relationship (Avin, Shpitser & Pearl 2005; VanderWeele 2014;
+VanderWeele & Tchetgen Tchetgen 2017). This
 check reads the model formulas only: it reports covariate models that carry
 the exposure on the right-hand side, i.e. covariates the user has modelled
 as exposure-affected. It does not establish that such a covariate also

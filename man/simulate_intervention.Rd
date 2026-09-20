@@ -38,7 +38,7 @@ element is one of:
 \itemize{
   \item \code{NULL} — the natural course (exposure drawn from its fitted model).
   \item A numeric/logical scalar or vector (length 1 or equal to the number
-        of time points) — a static intervention setting the exposure to that
+        of \strong{distinct} time points) — a static intervention setting the exposure to that
         value at every (or each specific) time step.
   \item A \code{\link{dyn_int}} object — a dynamic (rule-based) intervention
         whose expression is evaluated inside the simulated dataset at each

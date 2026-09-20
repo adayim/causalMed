@@ -79,7 +79,7 @@ testthat::test_that("tmle estimator returns a well-formed gformula object", {
   # print() in a short form.
   testthat::expect_true("L" %in% fit$intermediate_confounders)
   testthat::expect_output(print(fit), "Identifiability")
-  testthat::expect_output(print(fit), "not point-identified|NOT point-identified")
+  testthat::expect_output(print(fit), "individual-level natural effects")
 })
 
 testthat::test_that("tmle solves the EIC equation on well-supported data", {

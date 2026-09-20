@@ -77,7 +77,7 @@
 #'   \itemize{
 #'     \item \code{NULL} — the natural course (exposure drawn from its fitted model).
 #'     \item A numeric/logical scalar or vector (length 1 or equal to the number
-#'           of time points) — a static intervention setting the exposure to that
+#'           of \strong{distinct} time points) — a static intervention setting the exposure to that
 #'           value at every (or each specific) time step.
 #'     \item A \code{\link{dyn_int}} object — a dynamic (rule-based) intervention
 #'           whose expression is evaluated inside the simulated dataset at each
@@ -163,7 +163,7 @@
 #'         independent of the input data. \code{NULL} when \code{R <= 1}.
 #'   \item \code{data_summary}: list with the number of individuals
 #'         (\code{n_id}), observations (\code{n_obs}), and time points
-#'         (\code{n_times}, \code{t_min}, \code{t_max}) of the input data.
+#'         (\code{n_times}, \code{t_min}, \code{t_max}, \code{time_seq}) of the input data.
 #'   \item \code{observed}: list with the observed nonparametric benchmark of
 #'         the outcome (\code{value}, \code{label}): the mean outcome at the
 #'         last time point, or the product-limit cumulative incidence for
@@ -296,8 +296,11 @@ gformula <- function(data,
   }
   boot_seed <- if (!is.null(seed)) seed else TRUE
 
-  # Get time length
-  time_len <- length(unique(na.omit(data[[time_var]])))
+  # The simulation grid: the distinct observed time values, sorted. Kept as
+  # `time_seq` so get_args_for() hands it to .run_interventions() and
+  # bootstrap_helper(), fixing the grid for every pass.
+  time_seq <- time_grid(data, time_var)
+  time_len <- length(time_seq)
 
   if (!is.null(intervention)) {
     check_intervention(models, intervention, ref_int, time_len)
@@ -362,7 +365,7 @@ gformula <- function(data,
   # as an informal model check against the simulated intervention means).
   is_survival  <- any(sapply(models, function(mods)
     mods$mod_type %in% c("survival", "censor")))
-  data_summary <- summarize_input_data(data, id_var, time_var)
+  data_summary <- summarize_input_data(data, id_var, time_seq)
   observed     <- observed_benchmark(data, outcome_var, time_var, is_survival)
 
   # Run original estimate.

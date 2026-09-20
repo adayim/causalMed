@@ -279,7 +279,8 @@ testthat::test_that("natural-effect intermediate-confounder caveat is retained a
   data("nonsurvivaldata", package = "causalMed")
 
   # L2's covariate model includes the exposure A on the RHS -> exposure-affected
-  # (intermediate) confounder, so the natural effects are not point-identified.
+  # (intermediate) confounder, so the individual-level reading of the natural
+  # effects is not point-identified (the reported estimand still is).
   m_L2  <- spec_model(L2    ~ A + V + time,      var_type = "binary", mod_type = "covariate")
   m_med <- spec_model(L1    ~ A + V + L2 + time, var_type = "normal", mod_type = "mediator")
   m_Y   <- spec_model(Y_bin ~ A + L1 + L2 + V,   var_type = "binary", mod_type = "outcome")
@@ -307,7 +308,7 @@ testthat::test_that("natural-effect intermediate-confounder caveat is retained a
   # ... and re-surfaced by print() in a short form.
   out <- paste(capture.output(print(fit)), collapse = "\n")
   testthat::expect_match(out, "Identifiability", fixed = TRUE)
-  testthat::expect_match(out, "not point-identified", ignore.case = TRUE)
+  testthat::expect_match(out, "individual-level natural effects", fixed = TRUE)
 
   # Interventional analyses do not carry the caveat.
   fit_i <- suppressWarnings(
