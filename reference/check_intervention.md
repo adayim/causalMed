@@ -12,44 +12,25 @@ check_intervention(models, intervention, ref_int, time_len)
 
 - models:
 
-  A list of model specifications evaluated in temporal order. The order
-  appeared in the list should reflect the temporal ordering of the
-  variables, in another way data generation process. See
+  List of
   [`spec_model`](https://adayim.github.io/causalMed/reference/spec_model.md)
-  for a recommended constructor.
+  objects, in the order the variables are generated.
 
 - intervention:
 
-  A named list specifying exposure interventions. Each element is one
-  of:
-
-  - `NULL` — the natural course (exposure drawn from its fitted model).
-
-  - A numeric/logical scalar or vector (length 1 or equal to the number
-    of **distinct** time points) — a static intervention setting the
-    exposure to that value at every (or each specific) time step.
-
-  - A
-    [`dyn_int`](https://adayim.github.io/causalMed/reference/dyn_int.md)
-    object — a dynamic (rule-based) intervention whose expression is
-    evaluated inside the simulated dataset at each time step. Column
-    names (including the exposure after its natural-course draw) are in
-    scope, e.g.
-    `list(natural = NULL, threshold = dyn_int(as.numeric(A > 0)))`.
-
-  If `intervention` is `NULL`, only the natural course is evaluated. A
-  `natural` element is also added automatically when `ref_int` asks for
-  the natural course and the list contains no `NULL` element; see
-  `ref_int` and Details.
+  Named list of interventions. Each element is `NULL` (the natural
+  course: exposure drawn from its fitted model), a 0/1 value or vector
+  with one value per distinct time point (a static intervention), or a
+  [`dyn_int`](https://adayim.github.io/causalMed/reference/dyn_int.md)
+  rule, e.g.
+  `list(natural = NULL, treat_if_high = dyn_int(as.numeric(L1 > 0)))`.
+  `NULL` (the default) runs the natural course only.
 
 - ref_int:
 
-  Reference intervention for contrasts. Either an integer index (`0` =
-  natural course; `1`, `2`, … = elements of `intervention`) or a
-  character name matching an element (e.g., `"always"`). `0` and
-  `"natural"` both resolve to the `NULL` element of `intervention` if
-  there is one, and otherwise add a `natural` element — which requires
-  an exposure model in `models`. See Details. Default: `0`.
+  Reference for the contrasts: `0` or `"natural"` (default) for the
+  natural course, or the position or name of an element of
+  `intervention`. See Details.
 
 - time_len:
 

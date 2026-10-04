@@ -131,12 +131,14 @@ Two consequences for model specification:
   in its formula: the term is not estimable and would be dropped (with a
   warning) from the simulation.
 
-- The `lag1_*` columns are `NA` at `time == 0`, so a baseline value must
-  be supplied through `init_recode`, e.g.
-  `init_recode = recodes(lag1_A = 0, lag1_L1 = 0)`. (The lag columns of
+- The `lag1_*` columns are `NA` at `time == 0`, so the rows at
+  `time == 0` are dropped when a model that reads them is fitted. In the
+  simulation, as for any data, a lag must be given its first value by
+  `init_recode`, e.g. `init_recode = recodes(lag1_A = 0, lag1_L1 = 0)`.
+  (The lag columns of
   [`survivaldata`](https://adayim.github.io/causalMed/reference/survivaldata.md)
-  are 0-filled at baseline instead, so no initialisation is strictly
-  required there.)
+  are 0-filled at baseline instead, so no rows are dropped there; the
+  simulation still needs `init_recode`.)
 
 ## See also
 

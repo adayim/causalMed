@@ -19,7 +19,7 @@ against known values."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -47,7 +47,7 @@ against known values."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Yamamuro et al. (2021) Multi-Mediator Simulation Dataset</h1>
-      <small class="dont-index">Source: <a href="https://github.com/adayim/causalMed/blob/0.1.2/R/data.R" class="external-link"><code>R/data.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/adayim/causalMed/blob/master/R/data.R" class="external-link"><code>R/data.R</code></a></small>
       <div class="d-none name"><code>yamamurodata.Rd</code></div>
     </div>
 
@@ -116,10 +116,9 @@ against known values.</p>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>The within-visit ordering is <strong>A \(\to\) L \(\to\) M1 \(\to\)
-M2 \(\to\) Y</strong>; the full data-generating equations are translated from the
-SAS <code>%simdata</code> macro in the paper's supplementary material and are
-reproduced in <code>data-raw/yamamurodata.R</code> in the package source
-repository.</p>
+M2 \(\to\) Y</strong>; the data-generating equations are those of the SAS
+<code>%simdata</code> macro in the supplementary material of Yamamuro et al.
+(2021).</p>
 <p>The published study design generates 1000 replicate datasets of
 \(n = 1000\) subjects and averages the estimates. A single replicate of
 that size is dominated by sampling error (between-replicate SD of the
@@ -128,10 +127,9 @@ is one draw of \(n = 10000\) subjects (seed 2468) from the identical
 process, making single-dataset estimates informative.</p>
 <p><strong>Large-sample true values</strong> (risk differences in percentage points,
 computed from the data-generating process at \(n = 10^7\); Monte Carlo
-SE in parentheses):</p><table class="table table"><tr><td>Total effect (TE = \(E[Y_1] - E[Y_0]\))</td><td>\(-6.36\) (0.011)</td></tr><tr><td>Interventional direct effect (IDE)</td><td>\(-3.20\) (0.013)</td></tr><tr><td>Interventional indirect effect via M1</td><td>\(-2.29\) (0.011)</td></tr><tr><td>Interventional indirect effect via M2</td><td>\(-0.97\) (0.009)</td></tr><tr><td>Decomposition residual (TE \(-\) overall)</td><td>\(0.10\) (0.016)</td></tr></table><p>The residual is non-zero because the total effect holds the exposure fixed and
-lets the mediators follow their fitted models, while the direct and indirect
-effects draw them from a permuted pool; see the <em>Mediator pool</em> section
-of <code><a href="mediation.html">mediation</a></code>.</p>
+SE in parentheses):</p><table class="table table"><tr><td>Total effect (TE = \(E[Y_1] - E[Y_0]\))</td><td>\(-6.36\) (0.011)</td></tr><tr><td>Interventional direct effect (IDE)</td><td>\(-3.20\) (0.013)</td></tr><tr><td>Interventional indirect effect via M1</td><td>\(-2.29\) (0.011)</td></tr><tr><td>Interventional indirect effect via M2</td><td>\(-0.97\) (0.009)</td></tr><tr><td>Decomposition residual (TE \(-\) overall)</td><td>\(0.10\) (0.016)</td></tr></table><p>The residual arises because the total effect lets the mediators follow their
+fitted models, while the direct and indirect effects draw them from a
+permuted pool; see Details of <code><a href="mediation.html">mediation</a></code>.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

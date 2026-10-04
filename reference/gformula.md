@@ -1,10 +1,11 @@
-# Parametric G-formula for Time-varying Intervention Analyses
+# Parametric g-formula for time-varying interventions
 
-Implements the \*\*parametric g-formula\*\* to estimate counterfactual
-mean outcomes under one or more user-specified exposure interventions in
-longitudinal data. Supports settings with time-fixed baselines,
-time-varying exposure/mediator/confounders, optional survival/terminal
-outcomes, and nonparametric uncertainty via bootstrap.
+Estimates the mean outcome, or the risk for a survival outcome, that
+would be seen if everyone followed each of several exposure strategies,
+and the contrasts between them (the total effect), using the parametric
+g-formula (Robins 1986). The models in `models` are fitted to the
+observed data and then used to simulate each subject forward in time
+under every intervention.
 
 ## Usage
 
@@ -34,268 +35,173 @@ gformula(
 
 - data:
 
-  A `data.frame` (long format): one row per `id_var` per `time_var`.
+  A `data.frame` in long format.
 
 - id_var:
 
-  Character scalar. Subject identifier column name.
+  Character. Name of the subject identifier.
 
 - base_vars:
 
-  Character vector of time-fixed baseline covariates (may be empty).
+  Character vector of time-fixed baseline covariates (may be empty),
+  with no missing values. Only these and `id_var` are carried into the
+  simulated cohort; every other variable a model uses, including lags,
+  must be created by the recode hooks.
 
 - exposure:
 
-  Character scalar. Exposure variable to intervene on (must be in
-  `data`).
+  Character. Name of the exposure to intervene on.
 
 - time_var:
 
-  Character scalar. Time variable column name (ordered;
-  integer/numeric).
+  Character. Name of the numeric time variable. Each distinct value is
+  one simulated step, in ascending order.
 
 - models:
 
-  A list of model specifications evaluated in temporal order. The order
-  appeared in the list should reflect the temporal ordering of the
-  variables, in another way data generation process. See
+  List of
   [`spec_model`](https://adayim.github.io/causalMed/reference/spec_model.md)
-  for a recommended constructor.
+  objects, in the order the variables are generated.
 
 - intervention:
 
-  A named list specifying exposure interventions. Each element is one
-  of:
-
-  - `NULL` — the natural course (exposure drawn from its fitted model).
-
-  - A numeric/logical scalar or vector (length 1 or equal to the number
-    of **distinct** time points) — a static intervention setting the
-    exposure to that value at every (or each specific) time step.
-
-  - A
-    [`dyn_int`](https://adayim.github.io/causalMed/reference/dyn_int.md)
-    object — a dynamic (rule-based) intervention whose expression is
-    evaluated inside the simulated dataset at each time step. Column
-    names (including the exposure after its natural-course draw) are in
-    scope, e.g.
-    `list(natural = NULL, threshold = dyn_int(as.numeric(A > 0)))`.
-
-  If `intervention` is `NULL`, only the natural course is evaluated. A
-  `natural` element is also added automatically when `ref_int` asks for
-  the natural course and the list contains no `NULL` element; see
-  `ref_int` and Details.
+  Named list of interventions. Each element is `NULL` (the natural
+  course: exposure drawn from its fitted model), a 0/1 value or vector
+  with one value per distinct time point (a static intervention), or a
+  [`dyn_int`](https://adayim.github.io/causalMed/reference/dyn_int.md)
+  rule, e.g.
+  `list(natural = NULL, treat_if_high = dyn_int(as.numeric(L1 > 0)))`.
+  `NULL` (the default) runs the natural course only.
 
 - ref_int:
 
-  Reference intervention for contrasts. Either an integer index (`0` =
-  natural course; `1`, `2`, … = elements of `intervention`) or a
-  character name matching an element (e.g., `"always"`). `0` and
-  `"natural"` both resolve to the `NULL` element of `intervention` if
-  there is one, and otherwise add a `natural` element — which requires
-  an exposure model in `models`. See Details. Default: `0`.
+  Reference for the contrasts: `0` or `"natural"` (default) for the
+  natural course, or the position or name of an element of
+  `intervention`. See Details.
 
 - init_recode:
 
-  Optional expression/function applied once at time 0 before the Monte
-  Carlo loop (e.g., initializing baseline-derived variables). Should be
-  defined with
-  [`recodes`](https://adayim.github.io/causalMed/reference/recodes.md).
-  See Details.
+  [`recodes`](https://adayim.github.io/causalMed/reference/recodes.md)
+  applied at the first time step, before the models are evaluated, e.g.
+  to set lags to their baseline value.
 
 - in_recode:
 
-  Optional expression/function applied at the \*\*start\*\* of each time
-  step (e.g., entry-time functional forms). Should be defined with
-  [`recodes`](https://adayim.github.io/causalMed/reference/recodes.md).
-  See Details.
+  [`recodes`](https://adayim.github.io/causalMed/reference/recodes.md)
+  applied at the start of each later time step, before the models are
+  evaluated, e.g. to update lags.
 
 - out_recode:
 
-  Optional expression/function applied at the \*\*end\*\* of each time
-  step (e.g., create lags, cumulative counts). Should be defined with
-  [`recodes`](https://adayim.github.io/causalMed/reference/recodes.md).
-  See Details.
+  [`recodes`](https://adayim.github.io/causalMed/reference/recodes.md)
+  applied at the end of each time step, the first included, e.g. to
+  advance cumulative counts or carry an absorbing state forward.
 
 - return_fitted:
 
-  Logical. If `TRUE`, return full fitted model objects; otherwise, a
-  light-weight summary (call and coefficients). Default `FALSE`.
+  Logical. Return the full fitted model objects (default `FALSE`: calls
+  and coefficients only).
 
 - mc_sample:
 
-  Integer. Size of the Monte Carlo cohort simulated under each
-  intervention, counted in subjects. Defaults to `NULL`, which resolves
-  to 50 times the number of subjects in `data` and reports the value it
-  chose unless `quiet = TRUE`. Monte Carlo error falls as
-  `1/sqrt(mc_sample)` while sampling error falls with the number of
-  subjects, so the two stay in a fixed ratio when `mc_sample` is set as
-  a multiple of the subject count; a larger multiple buys precision in
-  the point estimate and does not change what is being estimated.
+  Number of subjects in the simulated Monte Carlo cohort. The default,
+  `NULL`, uses 50 times the number of subjects in `data` and reports the
+  value unless `quiet = TRUE`. A larger value reduces Monte Carlo error,
+  which falls as `1/sqrt(mc_sample)`; it does not change the estimand.
 
 - return_data:
 
-  Logical. If `TRUE`, return the stacked simulated data (all
-  interventions) including predicted outcomes; may be large. Default
-  `FALSE`.
+  Logical. Return the simulated data (default `FALSE`; can be large).
 
 - R:
 
-  Number of bootstrap replicates. If `R > 1`, computation uses
-  [`future.apply::future_lapply`](https://future.apply.futureverse.org/reference/future_lapply.html)
-  and runs sequentially unless a parallel plan is set; see
-  [`future::plan`](https://future.futureverse.org/reference/plan.html).
-  Use `plan(multisession)` on Windows and `plan(multicore)` on
-  Unix-alikes to enable parallel bootstrap. Default `500`.
+  Number of bootstrap replicates (default `500`); `R = 1` skips the
+  bootstrap. Replicates run through
+  [`future.apply::future_lapply`](https://future.apply.futureverse.org/reference/future_lapply.html):
+  sequentially unless a parallel plan is set with
+  [`future::plan()`](https://future.futureverse.org/reference/plan.html),
+  e.g. `plan(multisession)`.
 
 - quiet:
 
-  Logical. If `TRUE`, suppress progress messages/bars. Default `FALSE`.
+  Logical. Suppress progress messages (default `FALSE`).
 
 - seed:
 
-  Integer random seed for reproducibility. Default `12345`. The seed
-  fixes the RNG stream used for the Monte Carlo simulation *and* the
-  bootstrap replicates, and the caller's global RNG state is saved and
-  restored on exit, so a seeded call does not disturb the ambient random
-  stream. Pass `NULL` to disable seeding entirely: no
-  [`set.seed()`](https://rdrr.io/r/base/Random.html) is called, the
-  Monte Carlo draws consume and advance the ambient RNG stream, and
-  repeated calls therefore give *different* results (reproducible only
-  via an outer [`set.seed()`](https://rdrr.io/r/base/Random.html)). Use
-  `seed = NULL` inside simulation loops that manage their own seeds.
+  Integer random seed (default `12345`) for the Monte Carlo simulation
+  and the bootstrap replicates; the global RNG state is restored on
+  exit. `NULL` disables seeding, so repeated calls differ.
 
 ## Value
 
-An object of class `"gformula"` with components:
+An object of class `"gformula"`, printed by
+[`print.gformula`](https://adayim.github.io/causalMed/reference/print.gformula.md),
+with components:
 
-- `call`: the matched call.
+- `effect_size`: mean outcome (risk, for survival) under each
+  intervention (`Intervention`, `Est`).
 
-- `all.args`: a named list of evaluated arguments for reproducibility.
+- `estimate`: with two or more interventions, the risk difference and
+  risk ratio of each against `ref_int` (`Intervention`, `Risk_type`,
+  `Estimate`).
 
-- `effect_size`: `data.table` with columns `Intervention` and `Est`
-  (intervention-specific mean outcome). If `R > 1`, also includes `Sd`,
-  percentile CIs (`perct_lcl`, `perct_ucl`) and normal CIs (`norm_lcl`,
-  `norm_ucl`).
+- With `R > 1`, both tables gain `Sd` and percentile (`perct_lcl`,
+  `perct_ucl`) and normal-approximation (`norm_lcl`, `norm_ucl`) limits,
+  and `boot_estimates` holds the per-replicate estimates
+  (`$interventions`, `$contrasts`).
 
-- `estimate`: if multiple interventions are provided, a `data.table` of
-  contrasts vs. `ref_int` (columns typically include `Intervention`,
-  `Risk_type`, `Estimate`, and (if `R > 1`) CI columns).
+- `sim_data`: with `return_data = TRUE`, the simulated data as an
+  end-of-follow-up snapshot: one row per Monte Carlo subject per
+  intervention, each variable at its last simulated time step, with the
+  accumulated `Pred_Y`. Earlier time steps are not kept.
 
-- `sim_data`: if `return_data = TRUE`, the simulated Monte Carlo dataset
-  stacked across interventions with an `Intervention` column (can be
-  large). It is the **end-of-follow-up snapshot** — one row per Monte
-  Carlo subject per intervention, holding each variable at its final
-  simulated time step alongside the accumulated `Pred_Y` — not a
-  row-per-time-point panel: the simulation overwrites each variable in
-  place as it steps through time.
+- `fitted_models`: the fitted models, as full objects when
+  `return_fitted = TRUE`, otherwise their calls and coefficients.
 
-- `fitted_models`: a named list of fitted models. If
-  `return_fitted = TRUE`, returns full model objects plus attributes
-  (`recodes`, `subset`, `var_type`, `mod_type`); otherwise, a compact
-  list with `call` and `coeff`.
+- `data_summary`: numbers of subjects, rows and time points in `data`.
 
-- `boot_estimates`: when `R > 1`, a list of per-replicate bootstrap
-  estimates: `$interventions` (columns `replicate`, `Intervention`,
-  `Est`) and `$contrasts` (columns `replicate`, `Intervention`,
-  `Risk_type`, `Estimate`; `NULL` with a single intervention). These are
-  scalar summaries whose size is independent of the input data. `NULL`
-  when `R <= 1`.
+- `observed`: a nonparametric benchmark printed beside the estimates:
+  the observed mean outcome at the last time point, or the product-limit
+  cumulative incidence for a survival outcome.
 
-- `data_summary`: list with the number of individuals (`n_id`),
-  observations (`n_obs`), and time points (`n_times`, `t_min`, `t_max`,
-  `time_seq`) of the input data.
-
-- `observed`: list with the observed nonparametric benchmark of the
-  outcome (`value`, `label`): the mean outcome at the last time point,
-  or the product-limit cumulative incidence for survival outcomes.
-  Printed alongside the simulated means as an informal model check.
+- `call`, `all.args`: the matched call and the evaluated arguments.
 
 ## Details
 
-The function evaluates a sequence of user-specified models (see
-`models`) in \*\*temporal order\*\* to simulate counterfactual
-trajectories via Monte Carlo, producing: (i) intervention-specific mean
-outcomes, and (ii) contrasts vs. a reference intervention (risk
-ratio/difference). When `R > 1`, percentile and normal-approximation
-confidence intervals are computed from bootstrap resamples.
+**Data.** Long format: one row per subject per time point. For a
+survival outcome the data must be in risk-set form, with every row after
+the event and after loss to follow-up removed. A `"censor"` model may be
+declared; it is simulated in the natural course but does not change any
+reported risk, each of which is the risk under eliminated loss to
+follow-up.
 
-\*\*Data requirements\*\*
-
-- Long format: one row per subject per time point.
-
-- `id_var`: unique subject identifier; `time_var`: ordered time index.
-
-- Final outcome must be well-defined at the last relevant time for each
-  subject. For survival-like settings the data must be in risk-set form:
-  rows after the event, and after loss to follow-up, must be removed. A
-  `mod_type = "censor"` model may additionally be declared; it is used
-  by the targeted estimator and does not alter the \\g\\-computation
-  risks, which are the risks under eliminated loss to follow-up.
-
-\*\*Interventions\*\* Provide a named list `intervention` with exposure
-values per time (e.g.,
-`list(natural = NULL, always = c(1,1,1), never = c(0,0,0))`). If
-`intervention` is `NULL`, the function evaluates the natural course
-only.
-
-The reference is resolved before simulation, so that `ref_int` always
-names an intervention that exists:
-
-- `ref_int = 0` and `ref_int = "natural"` both ask for the natural
-  course. The `NULL` element of `intervention` is used if one was
-  supplied — whatever it is named — and otherwise a `natural` element is
-  added to the list.
-
-- An integer position, or a name matching an element, uses that
-  intervention as the reference; no natural course is added.
-
-Because the default is `ref_int = 0`, a list holding only static or
-dynamic interventions still gains a natural course. The natural course
-draws the exposure from its fitted model, so `models` must then include
-a `mod_type = "exposure"` model; supplying one is required unless
-`ref_int` names one of the interventions you provided.
-
-\*\*Model specification\*\* Each element of `models` is typically
-created by
+**Models.** `models` is a list of
 [`spec_model`](https://adayim.github.io/causalMed/reference/spec_model.md)
-and must include: (i) the model formula/call, (ii) a `mod_type`
-indicating its role (`"exposure"`, `"covariate"`, `"outcome"`,
-`"survival"`, or `"censor"`), and (iii) a `var_type` specifying the
-variable type used for simulation/prediction (`"binary"`, `"normal"`,
-`"categorical"`, and `"custom"`). The list order must reflect the
-data-generating process (temporal ordering). The outcome model is
-detected internally and used for computing predicted outcomes
-(`Pred\_Y`) under each intervention.
+objects in the order the variables are generated within a time point.
+The `"outcome"` or `"survival"` model gives the predicted outcome
+(`Pred_Y`) under each intervention: the fitted mean or risk of an
+end-of-follow-up outcome, or the cumulative risk built from the fitted
+hazards.
 
-\*\*Re-coding hooks\*\*
+**Interventions.** `intervention` is a named list, for example
+`list(natural = NULL, always = 1, never = 0)`. `ref_int = 0` or
+`"natural"` (the default) compares against the natural course: the
+`NULL` element if there is one, otherwise a `natural` element is added.
+Because the natural course draws the exposure from its fitted model,
+`models` then needs an `"exposure"` model. An integer position or a name
+selects one of your interventions instead, and no natural course is
+added.
 
-- `init_recode`: executed once at time 0 before simulation (initialize
-  baselines).
+**Rank-deficient models.** Terms that cannot be estimated (a collinear
+term, or one that is constant in the rows used for fitting, such as
+`time` in an outcome recorded only at the last time point) are dropped
+from the simulation, as
+[`predict`](https://rdrr.io/r/stats/predict.html) would drop them, and
+named in the warning summary printed on exit.
 
-- `in_recode`: executed at the start of each time step (e.g., entry-time
-  logic).
-
-- `out_recode`: executed at the end of each time step (e.g., cumulative
-  counts, lags).
-
-## Note
-
-Final outcome should be consistently defined at the terminal time for
-each subject. For survival-type applications, remove rows after the
-event of interest and after loss to follow-up; a censoring model is not
-a substitute for that risk-set construction. The function may record
-warnings internally and print them on exit. Results depend on correct
-temporal ordering, model specification, positivity, and no unmeasured
-confounding assumptions customary for g-formula.
-
-If a fitted model turns out to be rank deficient — a collinear term, or
-a covariate that is constant among the rows actually used to fit it,
-such as `time` in an outcome recorded only at the end of follow-up — the
-unestimable terms are dropped from the simulation, exactly as
-[`predict`](https://rdrr.io/r/stats/predict.html) would, and are named
-in the warning summary printed on exit. Treat that warning as a prompt
-to fix the formula.
+The results rest on the correct temporal ordering and specification of
+the models and on the usual g-formula assumptions (consistency,
+positivity, no unmeasured confounding), which the package cannot check.
 
 ## References
 
@@ -303,50 +209,84 @@ Robins, J. M. (1986). A new approach to causal inference in mortality
 studies with a sustained exposure period—application to control of the
 healthy worker survivor effect. *Mathematical Modelling*, 7(9–12),
 1393–1512.
+[doi:10.1016/0270-0255(86)90088-6](https://doi.org/10.1016/0270-0255%2886%2990088-6)
 
 Keil, A. P., Edwards, J. K., Richardson, D. B., Naimi, A. I., & Cole, S.
 R. (2014). The parametric g-formula for time-to-event data: intuition
 and a worked example. *Epidemiology*, 25(6), 889–897.
+[doi:10.1097/EDE.0000000000000160](https://doi.org/10.1097/EDE.0000000000000160)
+
+## See also
+
+[`spec_model`](https://adayim.github.io/causalMed/reference/spec_model.md),
+[`recodes`](https://adayim.github.io/causalMed/reference/recodes.md),
+[`dyn_int`](https://adayim.github.io/causalMed/reference/dyn_int.md),
+[`mediation`](https://adayim.github.io/causalMed/reference/mediation.md)
+for direct and indirect effects, and
+[`vignette("causalMed-03-gformula")`](https://adayim.github.io/causalMed/articles/causalMed-03-gformula.md).
 
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-## Toy longitudinal data (long format)
 data(nonsurvivaldata)
 
-## Specify models in temporal order, e.g.:
-mod1<-spec_model(A ~ A_lag1  +V,var_type= "binary",mod_type = "exposure")
-mod2<-spec_model(L ~ A + L_lag1  +V,var_type  = "normal",mod_type = "covariate")
-mod3<-spec_model(Y ~  A + L  + V,var_type = "binary",mod_type = "outcome")
-models1<-list(mod1,mod2,mod3)
-
-## Define interventions over T time points:
-ints <- list(natural = NULL,
-             always = 1
-             )
-
-fit <- gformula(
-  data = sim_data0,
-  id_var = 'id',
-  base_vars = "V",
-  exposure = "A",
-  time_var = "time",
-  models = models1,
-  intervention = ints,
-  ref_int = 1,
-  init_recode = recodes(A_lag1 = 0, L_lag1 = 0),
-  in_recode = recodes(A_lag1 = A, L_lag1 = L),
-  out_recode = NULL,
-  return_fitted = TRUE,
-  mc_sample = 100000,
-  return_data = TRUE,
-  R = 500,
-  quiet = TRUE,
-  seed = 250817
+# Models in the order the variables are generated: A -> L1 -> L2 -> Y
+models <- list(
+  spec_model(A ~ V + lag1_A + lag1_L1 + lag1_L2 + time,
+             var_type = "binary", mod_type = "exposure"),
+  spec_model(L1 ~ V + A + lag1_L1 + time,
+             var_type = "normal", mod_type = "covariate"),
+  spec_model(L2 ~ V + A + lag1_L2 + time,
+             var_type = "binary", mod_type = "covariate"),
+  spec_model(Y_bin ~ V + A + L1 + L2,
+             var_type = "binary", mod_type = "outcome")
 )
 
-print(fit)
-summary(fit)
-} # }
+fit <- gformula(
+  data = nonsurvivaldata, id_var = "id", time_var = "time",
+  base_vars = "V", exposure = "A", models = models,
+  intervention = list(natural = NULL, always = 1, never = 0),
+  init_recode = recodes(lag1_A = 0, lag1_L1 = 0, lag1_L2 = 0),
+  in_recode   = recodes(lag1_A = A, lag1_L1 = L1, lag1_L2 = L2),
+  mc_sample = 2000,
+  R = 1,          # use R > 1 (e.g. 500) for bootstrap confidence intervals
+  quiet = TRUE
+)
+fit
+#> Call:
+#> gformula(data = nonsurvivaldata, id_var = "id", base_vars = "V", 
+#>     exposure = "A", time_var = "time", models = models, intervention = list(natural = NULL, 
+#>         always = 1, never = 0), init_recode = recodes(lag1_A = 0, 
+#>         lag1_L1 = 0, lag1_L2 = 0), in_recode = recodes(lag1_A = A, 
+#>         lag1_L1 = L1, lag1_L2 = L2), mc_sample = 2000, R = 1, 
+#>     quiet = TRUE)
+#> 
+#> --- Analysis setup ---
+#>   Exposure     : A
+#>   Outcome      : Y_bin  [mean outcome at t = 4, end of follow-up]
+#>   Time variable: time  (5 time points: 0 ... 4)
+#>   ID variable  : id
+#>   Baseline vars: V
+#>   Data         : 3,000 individuals, 15,000 observations
+#>   MC sample    : 2000
+#>   Bootstrap R  : none
+#>   Seed         : 12345
+#>   Reference    : natural
+#> 
+#> --- Mean outcome by intervention --- 
+#>    Intervention    Est
+#>          <fctr>  <num>
+#> 1:      natural 0.2258
+#> 2:       always 0.2443
+#> 3:        never 0.1022
+#>   Observed (nonparametric) mean of Y_bin at t = 4 (end of follow-up): 0.2333
+#>   (informal model check: compare with the natural-course intervention)
+#> 
+#> --- Contrasts vs. reference intervention --- 
+#>        Intervention  Risk_type Estimate
+#>              <char>     <char>    <num>
+#> 1: always - natural Difference   0.0185
+#> 2: always / natural      Ratio   1.0820
+#> 3:  never - natural Difference  -0.1236
+#> 4:  never / natural      Ratio   0.4525
 ```

@@ -72,10 +72,8 @@ time-varying treatment and repeated-measured multiple mediators.
 ## Details
 
 The within-visit ordering is **A \\\to\\ L \\\to\\ M1 \\\to\\ M2 \\\to\\
-Y**; the full data-generating equations are translated from the SAS
-`%simdata` macro in the paper's supplementary material and are
-reproduced in `data-raw/yamamurodata.R` in the package source
-repository.
+Y**; the data-generating equations are those of the SAS `%simdata` macro
+in the supplementary material of Yamamuro et al. (2021).
 
 The published study design generates 1000 replicate datasets of \\n =
 1000\\ subjects and averages the estimates. A single replicate of that
@@ -96,8 +94,7 @@ SE in parentheses):
 | Interventional indirect effect via M2       | \\-0.97\\ (0.009) |
 | Decomposition residual (TE \\-\\ overall)   | \\0.10\\ (0.016)  |
 
-The residual is non-zero because the total effect holds the exposure
-fixed and lets the mediators follow their fitted models, while the
-direct and indirect effects draw them from a permuted pool; see the
-*Mediator pool* section of
+The residual arises because the total effect lets the mediators follow
+their fitted models, while the direct and indirect effects draw them
+from a permuted pool; see Details of
 [`mediation`](https://adayim.github.io/causalMed/reference/mediation.md).

@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -61,7 +61,7 @@
       <h1>causalMed and gfoRmula: A Comparative Overview</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/adayim/causalMed/blob/0.1.2/vignettes/causalMed-04-vs-gfoRmula.Rmd" class="external-link"><code>vignettes/causalMed-04-vs-gfoRmula.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/adayim/causalMed/blob/master/vignettes/causalMed-04-vs-gfoRmula.Rmd" class="external-link"><code>vignettes/causalMed-04-vs-gfoRmula.Rmd</code></a></small>
       <div class="d-none name"><code>causalMed-04-vs-gfoRmula.Rmd</code></div>
     </div>
 
@@ -71,97 +71,41 @@
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
 <p><code>gfoRmula</code> (McGrath et al. 2020) is the established CRAN
-reference implementation of the parametric g-formula in R.
-<code>causalMed</code> builds directly on the same statistical
-foundation and treats <code>gfoRmula</code> as its benchmark for
-total-effect estimation.</p>
-<p>This vignette describes:</p>
-<ol style="list-style-type: decimal">
-<li>The shared statistical foundation of both packages</li>
-<li>Their common lineage in the GFORMULA-SAS reference macro</li>
-<li>What <code>gfoRmula</code> offers that <code>causalMed</code>
-currently does not</li>
-<li>The mediation extension that motivated <code>causalMed</code>
-</li>
-<li>Side-by-side total-effect estimates from the two packages</li>
-<li>Guidance on when to use each package</li>
-</ol>
+implementation of the parametric g-formula in R, and
+<code>causalMed</code> uses it as the benchmark for its total-effect
+function, <code><a href="../reference/gformula.html">gformula()</a></code>. This vignette sets out what the two
+packages share, what <code>gfoRmula</code> offers that
+<code>causalMed</code> does not, what <code>causalMed</code> adds, and
+how their estimates compare on the same data.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/adayim/causalMed" class="external-link">causalMed</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r-datatable.com" class="external-link">data.table</a></span><span class="op">)</span></span></code></pre></div>
-<hr>
 </div>
 <div class="section level2">
-<h2 id="shared-statistical-foundation">Shared Statistical Foundation<a class="anchor" aria-label="anchor" href="#shared-statistical-foundation"></a>
+<h2 id="shared-foundation">Shared foundation<a class="anchor" aria-label="anchor" href="#shared-foundation"></a>
 </h2>
-<p>Both packages implement the same parametric g-formula algorithm:
-Monte Carlo forward simulation under user-specified interventions on a
-longitudinal dataset in long format (one row per subject per time
-point). At each time step, covariate and outcome models fitted on the
-observed data are applied in temporal order, the intervention is imposed
-on the exposure variable, and the predicted outcomes are accumulated
-across simulated individuals. Confidence intervals are obtained by
-non-parametric bootstrap resampling at the individual level.</p>
-<hr>
-</div>
-<div class="section level2">
-<h2 id="relationship-to-gformula-sas">Relationship to GFORMULA-SAS<a class="anchor" aria-label="anchor" href="#relationship-to-gformula-sas"></a>
-</h2>
-<p>The original reference implementation of the parametric g-formula is
-the <strong>GFORMULA SAS macro</strong> (Logan, Young, Taubman, Hernán
-and colleagues; available from the Harvard Causal Inference group).
-<code>gfoRmula</code> is the R port of that macro, and
-<code>causalMed</code>’s total-effect engine (<code><a href="../reference/gformula.html">gformula()</a></code>)
-targets the same algorithm. All three share the identical core: fit
-parametric models on the observed long data, Monte Carlo–resample
-baseline records, forward-simulate the covariate → exposure → outcome
-sequence one time step at a time, compute survival risk as
+<p>Both packages implement the same algorithm, that of the GFORMULA SAS
+macro (Logan, Young, Taubman, Hernán and colleagues), of which
+<code>gfoRmula</code> is the R port: fit parametric models to the
+long-format data, resample baseline records into a Monte Carlo cohort,
+simulate the time-varying variables forward one time step at a time
+under each intervention, compute survival risk as
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><msub><mo>∏</mo><mi>t</mi></msub><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>h</mi><mi>t</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">1 - \prod_t (1 - h_t)</annotation></semantics></math>
-with censoring disabled under intervention, and bootstrap over subjects
-for confidence intervals. The <code>causalMed</code> regression tests
-cross-check total-effect estimates against <code>gfoRmula</code> (the R
-twin of the SAS macro) to Monte Carlo noise.</p>
-<p>Two points of clarification:</p>
-<ul>
-<li>
-<strong>GFORMULA-SAS estimates total effects only.</strong> It
-contains no mediator decomposition. The direct/indirect machinery in
-<code>causalMed</code> (see the mediation section below) is an
-<em>extension</em> beyond what GFORMULA-SAS or <code>gfoRmula</code>
-provide. The mediator-permutation step <code>causalMed</code> uses for
-interventional effects follows a <em>separate</em> SAS macro,
-<code>mGFORMULA</code> (Lin et al. 2017), not the total-effect GFORMULA
-macro.</li>
-<li>
-<strong>The SAS macro has a much larger declarative
-vocabulary.</strong> It exposes up to eight covariate distribution
-types, keyword-driven functional forms of covariate history (lags,
-cumulative averages, restricted cubic splines via <code>ptype</code>),
-several packaged intervention types (threshold, increment, sampling from
-the observed distribution), competing-event handling, and additional
-end-of-follow-up outcome models. <code>causalMed</code> exposes a
-smaller surface: model formulas plus
-<code>recode</code>/<code><a href="../reference/dyn_int.html">dyn_int()</a></code> expressions and
-<code>custom_fit</code>/<code>custom_sim</code>. Part of what the macro
-requests by keyword can be written by hand through that surface, and
-part is not implemented at all. The specific gaps are itemised
-below.</li>
-</ul>
-<hr>
+with censoring removed under intervention, and bootstrap subjects for
+confidence intervals.</p>
+<p>The GFORMULA macro and <code>gfoRmula</code> estimate total effects
+only. The direct and indirect effects of <code>causalMed</code> go
+beyond both; its interventional mediator permutation follows a separate
+SAS macro, <code>mGFORMULA</code> (Lin et al. 2017).</p>
 </div>
 <div class="section level2">
-<h2 id="what-gformula-offers-that-causalmed-does-not">What gfoRmula Offers That causalMed Does Not<a class="anchor" aria-label="anchor" href="#what-gformula-offers-that-causalmed-does-not"></a>
+<h2 id="what-gformula-offers-that-causalmed-does-not">What gfoRmula offers that causalMed does not<a class="anchor" aria-label="anchor" href="#what-gformula-offers-that-causalmed-does-not"></a>
 </h2>
-<p><code>gfoRmula</code> is the more mature and feature-complete package
-for total-effect g-formula estimation. Users with purely total-effect
-analyses should consider <code>gfoRmula</code> as their primary tool.
-Key capabilities in <code>gfoRmula</code> not currently available in
-<code>causalMed</code> include:</p>
-<div class="section level3">
-<h3 id="richer-covariate-distribution-types">Richer covariate distribution types<a class="anchor" aria-label="anchor" href="#richer-covariate-distribution-types"></a>
-</h3>
-<p><code>gfoRmula</code> supports several covariate types beyond binary
-and normal that <code>causalMed</code> does not yet implement:</p>
+<p><code>gfoRmula</code> is the more mature and complete package for
+total-effect estimation, with a dedicated publication (McGrath et
+al. 2020), documentation and vignettes. <code>causalMed</code> is at an
+earlier stage of development.</p>
+<p><strong>More covariate types.</strong></p>
 <table class="table">
 <thead><tr class="header">
 <th>Covariate type</th>
@@ -170,17 +114,10 @@ and normal that <code>causalMed</code> does not yet implement:</p>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td><code>"binary"</code></td>
-<td align="center">✓</td>
-<td align="center">✓</td>
-</tr>
-<tr class="even">
-<td><code>"normal"</code></td>
-<td align="center">✓</td>
-<td align="center">✓</td>
-</tr>
-<tr class="odd">
-<td><code>"categorical"</code></td>
+<td>
+<code>"binary"</code>, <code>"normal"</code>,
+<code>"categorical"</code>
+</td>
 <td align="center">✓</td>
 <td align="center">✓</td>
 </tr>
@@ -192,171 +129,67 @@ response)</td>
 <td align="center">—</td>
 </tr>
 <tr class="odd">
-<td>
-<code>"zero-inflated normal"</code> (point mass at 0)</td>
+<td><code>"zero-inflated normal"</code></td>
 <td align="center">✓</td>
 <td align="center">—</td>
 </tr>
 <tr class="even">
-<td>
-<code>"truncated normal"</code> (left-truncated)</td>
+<td><code>"truncated normal"</code></td>
 <td align="center">✓</td>
 <td align="center">—</td>
 </tr>
 <tr class="odd">
-<td>
-<code>"absorbing"</code> (once 1, always 1)</td>
+<td><code>"absorbing"</code></td>
 <td align="center">✓</td>
 <td align="center">—</td>
 </tr>
 <tr class="even">
-<td>
-<code>"categorical time"</code> (time as categorical predictor)</td>
+<td><code>"categorical time"</code></td>
 <td align="center">✓</td>
 <td align="center">—</td>
 </tr>
 </tbody>
 </table>
-<p><strong>On range truncation.</strong> Both packages clip simulated
-normal draws to the range of the variable observed in the data, and both
-do so <em>by default</em>. In <code>causalMed</code> this is
-<code>spec_model(truncate = TRUE)</code>, the default, clipping to
-<code><a href="https://rdrr.io/r/base/range.html" class="external-link">range()</a></code> of the response; in <code>gfoRmula</code> it is the
-<code>sim_trunc</code> argument, whose documentation reads “Logical
-scalar indicating whether to truncate simulated covariates to their
-range in the observed data set” and whose default is <code>TRUE</code>.
-Setting <code>spec_model(truncate = FALSE)</code> corresponds to
-<code>sim_trunc = FALSE</code>.</p>
-<p>Note that <code>gfoRmula</code>’s <code>"bounded normal"</code> is a
-distinct covariate <em>type</em>, not this truncation: it fits the model
-on a response rescaled to <code>[0, 1]</code> and transforms the
-simulated value back. <code>causalMed</code> does not implement it.</p>
-<p>For the remaining distributions (e.g. a biomarker that can be zero or
-a treatment that is absorbing once initiated), <code>gfoRmula</code>
-implements them and <code>causalMed</code> does not.
-<code>causalMed</code>’s <code>custom_fit</code> and
-<code>custom_sim</code> arguments to <code><a href="../reference/spec_model.html">spec_model()</a></code> allow a
-user-supplied fitting function and sampler, which shifts the
-responsibility for the distributional choice, and for validating it,
-onto the user.</p>
-</div>
-<div class="section level3">
-<h3 id="competing-events">Competing events<a class="anchor" aria-label="anchor" href="#competing-events"></a>
-</h3>
-<p><code>gfoRmula</code> provides explicit support for competing events
-via the <code>compevent_name</code> argument, modelling and eliminating
-the competing risk in the simulation. <code>causalMed</code> targets the
-risk under eliminated loss to follow-up but does not have a dedicated
-competing-event interface.</p>
-</div>
-<div class="section level3">
-<h3 id="full-function-custom-interventions">Full-function custom interventions<a class="anchor" aria-label="anchor" href="#full-function-custom-interventions"></a>
-</h3>
-<p><code>gfoRmula</code>’s custom intervention interface accepts
-arbitrary R functions with access to the full simulated dataset, the
-time index, and all parameter values at each step. This gives more
-control for complex multi-variable interventions. <code>causalMed</code>
-offers <code><a href="../reference/dyn_int.html">dyn_int()</a></code>, which captures an R expression evaluated
-inside the simulated dataset at each step. The current time step is in
-scope (the <code>time_var</code> column is refreshed before every step),
-so a rule may reference it directly
+<p>Both packages clip simulated normal values to the observed range by
+default: <code>spec_model(truncate = TRUE)</code> in
+<code>causalMed</code> and <code>sim_trunc = TRUE</code> in
+<code>gfoRmula</code>, documented there as “whether to truncate
+simulated covariates to their range in the observed data set”.
+<code>gfoRmula</code>’s <code>"bounded normal"</code> is a different
+thing, a covariate type fitted on a response rescaled to
+<code>[0, 1]</code>. For the other types, <code>causalMed</code> offers
+only <code>var_type = "custom"</code> with user-written fitting and
+simulation functions, which leaves the choice and validation of the
+distribution to the user.</p>
+<p><strong>Competing events.</strong> <code>gfoRmula</code> models
+competing events through <code>compevent_name</code>;
+<code>causalMed</code> has no competing-event interface.</p>
+<p><strong>Intervention functions.</strong> <code>gfoRmula</code>
+interventions are R functions that receive the simulated data and the
+time index, and can be limited to chosen time points
+(<code>int_times</code>). <code>causalMed</code> uses
+<code><a href="../reference/dyn_int.html">dyn_int()</a></code>, an expression evaluated in the simulated data at
+each step; the current <code>time_var</code> value is in scope
 (e.g. <code>dyn_int(as.numeric(A &gt; 0 &amp; time &gt;= 2))</code>),
-and history-dependent rules can be built by maintaining lagged columns
-through the recode mechanism (<code>in_recode</code> /
-<code>out_recode</code>). The practical difference is that
-<code>causalMed</code> does not pass a single pooled data-frame object
-to a user function the way <code>gfoRmula</code>’s full function
-interface does; multi-step logic is expressed instead through recodes
-plus the captured expression.</p>
-</div>
-<div class="section level3">
-<h3 id="cran-stability-and-community-support">CRAN stability and community support<a class="anchor" aria-label="anchor" href="#cran-stability-and-community-support"></a>
-</h3>
-<p><code>gfoRmula</code> is an established CRAN package with a dedicated
-publication (McGrath et al. 2020), reference documentation and
-vignettes, and ongoing development by the CausalAB group at Harvard.
-<code>causalMed</code> is a development-stage package and should be used
-with appropriate caution.</p>
-<hr>
-</div>
+and history-dependent rules use lagged columns maintained with the
+recode hooks.</p>
 </div>
 <div class="section level2">
-<h2 id="what-causalmed-adds-causal-mediation-analysis">What causalMed Adds: Causal Mediation Analysis<a class="anchor" aria-label="anchor" href="#what-causalmed-adds-causal-mediation-analysis"></a>
+<h2 id="what-causalmed-adds-mediation">What causalMed adds: mediation<a class="anchor" aria-label="anchor" href="#what-causalmed-adds-mediation"></a>
 </h2>
-<p>The sole motivation for <code>causalMed</code> is to extend the
-standard parametric g-formula with the <strong>survival mediational
-g-formula</strong> (Lin et al. 2017; Zheng &amp; van der Laan 2017) for
-decomposing total effects into direct and indirect components.
-<code>gfoRmula</code> does not support mediation analysis.</p>
-<p><code>causalMed</code> offers two mediation estimands, selected via
-<code>mediation_type</code>:</p>
-<ul>
-<li><p><strong><code>"I"</code>, interventional IDE/IIE</strong> (Lin et
-al. 2017): the mediator distribution is marginalised over confounders by
-randomly permuting mediator values simulated under the reference
-exposure. Does not require the cross-world independence
-assumption.</p></li>
-<li><p><strong><code>"N"</code>, natural NDE/NIE</strong> (Zheng &amp;
-van der Laan 2017): the mediator model is evaluated with the exposure
-history set to the alternative regime while keeping the individual’s own
-covariate history. Zheng &amp; van der Laan (2017, Lemma 1) identify
-these effects under sequential randomization and positivity; reading
-them as individual-level natural effects additionally requires a
-cross-world assumption that is not expected to hold when a
-mediator–outcome confounder is affected by prior exposure.</p></li>
-</ul>
-<p>For natural effects, two estimators are available: the parametric
-g-formula plug-in (<code>estimator = "gcomp"</code>, the default, with
-bootstrap CIs) and a targeted maximum likelihood estimator
-(<code>estimator = "tmle"</code>, Zheng &amp; van der Laan 2017 §4.3),
-for which that paper establishes multiple robustness under correctly
-specified nuisance models, and which reports Wald CIs from the efficient
-influence curve without bootstrapping. <code>gfoRmula</code> offers
-neither, since it does not do mediation.</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Model list must include a mediator (mod_type = "mediator")</span></span>
-<span><span class="va">models_med</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="../reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">L</span> <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">A_lag1</span> <span class="op">+</span> <span class="va">L_lag1</span> <span class="op">+</span> <span class="va">time</span>,</span>
-<span>             var_type <span class="op">=</span> <span class="st">"normal"</span>, mod_type <span class="op">=</span> <span class="st">"covariate"</span><span class="op">)</span>,</span>
-<span>  <span class="fu"><a href="../reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">A</span> <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">A_lag1</span> <span class="op">+</span> <span class="va">L</span> <span class="op">+</span> <span class="va">time</span>,</span>
-<span>             var_type <span class="op">=</span> <span class="st">"binary"</span>, mod_type <span class="op">=</span> <span class="st">"exposure"</span><span class="op">)</span>,</span>
-<span>  <span class="fu"><a href="../reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">M</span> <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">A</span> <span class="op">+</span> <span class="va">L</span> <span class="op">+</span> <span class="va">M_lag1</span> <span class="op">+</span> <span class="va">time</span>,</span>
-<span>             var_type <span class="op">=</span> <span class="st">"normal"</span>, mod_type <span class="op">=</span> <span class="st">"mediator"</span><span class="op">)</span>,</span>
-<span>  <span class="fu"><a href="../reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">A</span> <span class="op">+</span> <span class="va">M</span> <span class="op">+</span> <span class="va">L</span>,</span>
-<span>             var_type <span class="op">=</span> <span class="st">"binary"</span>, mod_type <span class="op">=</span> <span class="st">"outcome"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">fit_med</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mediation.html">mediation</a></span><span class="op">(</span></span>
-<span>  data           <span class="op">=</span> <span class="va">dat_med</span>,</span>
-<span>  id_var         <span class="op">=</span> <span class="st">"id"</span>,</span>
-<span>  time_var       <span class="op">=</span> <span class="st">"time"</span>,</span>
-<span>  base_vars      <span class="op">=</span> <span class="st">"V"</span>,</span>
-<span>  exposure       <span class="op">=</span> <span class="st">"A"</span>,</span>
-<span>  outcome        <span class="op">=</span> <span class="st">"Y"</span>,</span>
-<span>  models         <span class="op">=</span> <span class="va">models_med</span>,</span>
-<span>  mediation_type <span class="op">=</span> <span class="st">"I"</span>,     <span class="co"># interventional IDE/IIE (Lin et al. 2017)</span></span>
-<span>  init_recode    <span class="op">=</span> <span class="fu"><a href="../reference/recodes.html">recodes</a></span><span class="op">(</span>A_lag1 <span class="op">=</span> <span class="fl">0</span>, L_lag1 <span class="op">=</span> <span class="fl">0</span>, M_lag1 <span class="op">=</span> <span class="fl">0</span><span class="op">)</span>,</span>
-<span>  in_recode      <span class="op">=</span> <span class="fu"><a href="../reference/recodes.html">recodes</a></span><span class="op">(</span>A_lag1 <span class="op">=</span> <span class="va">A</span>, L_lag1 <span class="op">=</span> <span class="va">L</span>, M_lag1 <span class="op">=</span> <span class="va">M</span><span class="op">)</span>,</span>
-<span>  mc_sample      <span class="op">=</span> <span class="fl">10000</span>,</span>
-<span>  R              <span class="op">=</span> <span class="fl">200</span>,</span>
-<span>  seed           <span class="op">=</span> <span class="fl">20250915</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">fit_med</span><span class="op">$</span><span class="va">estimate</span></span></code></pre></div>
-<p>The <code>estimate</code> table returns the indirect effect, direct
-effect, total effect, and proportion mediated on both the
-risk-difference and risk-ratio scales. See
-<code><a href="../articles/causalMed-02-mediation.html">vignette("causalMed-02-mediation")</a></code> for the rest: the
-estimands, reading the decomposition, survival outcomes, multiple
-mediators, censoring, natural effects, and the targeted (TMLE)
-estimator.</p>
-<hr>
+<p><code>gfoRmula</code> does not do mediation analysis.
+<code><a href="../reference/mediation.html">mediation()</a></code> decomposes the effect of a time-varying
+exposure into direct and indirect effects, as interventional effects
+(<code>mediation_type = "I"</code>; Lin et al. 2017), with one or more
+mediators, or natural effects (<code>"N"</code>; Zheng &amp; van der
+Laan 2017), estimated by g-computation or targeted minimum loss-based
+estimation. See <code><a href="../articles/causalMed-01-overview.html">vignette("causalMed-01-overview")</a></code> for a
+quick start and <code><a href="../articles/causalMed-02-mediation.html">vignette("causalMed-02-mediation")</a></code> for the
+details.</p>
 </div>
 <div class="section level2">
-<h2 id="api-differences">API Differences<a class="anchor" aria-label="anchor" href="#api-differences"></a>
+<h2 id="interfaces">Interfaces<a class="anchor" aria-label="anchor" href="#interfaces"></a>
 </h2>
-<p>Beyond features, the two packages differ in how models and history
-functions are specified:</p>
 <table class="table">
 <colgroup>
 <col width="28%">
@@ -370,68 +203,47 @@ functions are specified:</p>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td>Model specification</td>
+<td>Models</td>
+<td>One <code><a href="../reference/spec_model.html">spec_model()</a></code> per variable (formula,
+<code>var_type</code>, <code>mod_type</code>), in a list</td>
 <td>
-<code><a href="../reference/spec_model.html">spec_model()</a></code> per variable: formula +
-<code>var_type</code> + <code>mod_type</code> in a list</td>
-<td>Separate <code>covparams</code>, <code>ymodel</code>,
-<code>covtypes</code>, <code>covnames</code>, <code>outcome_type</code>
-arguments</td>
+<code>covnames</code>, <code>covtypes</code>,
+<code>covparams</code>, <code>ymodel</code>,
+<code>outcome_type</code>
+</td>
 </tr>
 <tr class="even">
-<td>Lag / history</td>
-<td>
-<code>init_recode</code> / <code>in_recode</code> via
-<code><a href="../reference/recodes.html">recodes()</a></code> (arbitrary expressions)</td>
-<td>Built-in <code>lagged</code>, <code>cumavg</code> functions via
-<code>histories</code> / <code>histvars</code>
+<td>Histories</td>
+<td>Expressions in <code>init_recode</code>, <code>in_recode</code>,
+<code>out_recode</code> via <code><a href="../reference/recodes.html">recodes()</a></code>
+</td>
+<td>History functions such as <code>lagged</code> and
+<code>cumavg</code>, via <code>histories</code> and
+<code>histvars</code>
 </td>
 </tr>
 <tr class="odd">
-<td>End-of-step transforms</td>
-<td>
-<code>out_recode</code> hook</td>
-<td>Not available</td>
-</tr>
-<tr class="even">
 <td>Interventions</td>
-<td>Named list, any number</td>
-<td>Up to 3 (<code>intervention1.X</code>, <code>intervention2.X</code>,
-<code>intervention3.X</code>)</td>
-</tr>
-<tr class="odd">
-<td>Risk contrasts</td>
-<td>Computed automatically (<code>ref_int</code>)</td>
-<td>Manual post-processing of <code>$result</code>
-</td>
-</tr>
-<tr class="even">
-<td>Output</td>
-<td>S3 object with <code>print</code>/<code>summary</code>
-</td>
-<td>List with <code>$result</code> data.table</td>
+<td>Named list of <code>NULL</code> (natural course), static values or
+<code><a href="../reference/dyn_int.html">dyn_int()</a></code> rules</td>
+<td>
+<code>intervention&lt;i&gt;.&lt;variable&gt;</code> arguments
+holding an intervention function and its values</td>
 </tr>
 </tbody>
 </table>
-<p>These are design choices reflecting different trade-offs, not
-deficiencies in either package. <code>gfoRmula</code>’s explicit
-argument structure makes each model’s role transparent;
-<code>causalMed</code>’s list-based approach may be more concise when
-many models are specified.</p>
-<hr>
 </div>
 <div class="section level2">
-<h2 id="numerical-validation-side-by-side-examples">Numerical Validation: Side-by-Side Examples<a class="anchor" aria-label="anchor" href="#numerical-validation-side-by-side-examples"></a>
+<h2 id="side-by-side-estimates">Side-by-side estimates<a class="anchor" aria-label="anchor" href="#side-by-side-estimates"></a>
 </h2>
-<p>For total-effect analyses the two packages implement the same
-estimator, so with matching model specifications and matching truncation
-settings they are expected to agree up to Monte Carlo error. We check
-that with both a binary end-of-follow-up outcome and a survival
-outcome.</p>
+<p>For total effects the two packages implement the same estimator, so
+with the same models and truncation settings their estimates should
+agree up to Monte Carlo error. We compare them on a binary
+end-of-follow-up outcome and a survival outcome.</p>
 <div class="section level3">
 <h3 id="data-preparation">Data preparation<a class="anchor" aria-label="anchor" href="#data-preparation"></a>
 </h3>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"nonsurvivaldata"</span>, package <span class="op">=</span> <span class="st">"causalMed"</span><span class="op">)</span></span>
 <span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/as.data.table.html" class="external-link">as.data.table</a></span><span class="op">(</span><span class="va">nonsurvivaldata</span><span class="op">)</span></span>
 <span><span class="va">dat</span><span class="op">[</span>, <span class="va">time</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/r/base/integer.html" class="external-link">as.integer</a></span><span class="op">(</span><span class="va">time</span><span class="op">)</span><span class="op">]</span></span>
@@ -440,19 +252,17 @@ outcome.</p>
 <span><span class="co"># Lag recodes (applied inside the Monte Carlo loop)</span></span>
 <span><span class="va">init_rc</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/recodes.html">recodes</a></span><span class="op">(</span>lag1_A <span class="op">=</span> <span class="fl">0</span>, lag1_L1 <span class="op">=</span> <span class="fl">0</span>, lag1_L2 <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
 <span><span class="va">in_rc</span>   <span class="op">&lt;-</span> <span class="fu"><a href="../reference/recodes.html">recodes</a></span><span class="op">(</span>lag1_A <span class="op">=</span> <span class="va">A</span>, lag1_L1 <span class="op">=</span> <span class="va">L1</span>, lag1_L2 <span class="op">=</span> <span class="va">L2</span><span class="op">)</span></span></code></pre></div>
-<p>The example models below use a deliberately simplified
-<code>L → A</code> within-period ordering (confounders conditioned on
-the lagged exposure) rather than the <code>A → L</code> process
-documented in <code><a href="../reference/nonsurvivaldata.html">?nonsurvivaldata</a></code>. Both packages receive the
-identical specification, so the head-to-head comparison is unaffected;
-in applied work, match the ordering to your assumed data-generating
-process.</p>
+<p>These models use a simplified <code>L → A</code> ordering within each
+period, not the <code>A → L</code> process of
+<code><a href="../reference/nonsurvivaldata.html">?nonsurvivaldata</a></code>. Both packages receive the same
+specification, so the comparison is unaffected; in applied work the
+order should match the assumed data-generating process.</p>
 </div>
 <div class="section level3">
 <h3 id="example-1-binary-end-of-follow-up-outcome">Example 1: Binary end-of-follow-up outcome<a class="anchor" aria-label="anchor" href="#example-1-binary-end-of-follow-up-outcome"></a>
 </h3>
 <p><strong>causalMed</strong></p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">models_cm</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="../reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">L1</span> <span class="op">~</span> <span class="va">lag1_A</span> <span class="op">+</span> <span class="va">lag1_L1</span> <span class="op">+</span> <span class="va">V</span> <span class="op">+</span> <span class="va">time</span>,</span>
 <span>             var_type <span class="op">=</span> <span class="st">"normal"</span>, mod_type <span class="op">=</span> <span class="st">"covariate"</span><span class="op">)</span>,</span>
@@ -488,7 +298,7 @@ process.</p>
 <span><span class="co">#&gt; 2:       always 0.2550366</span></span>
 <span><span class="co">#&gt; 3:        never 0.1029334</span></span></code></pre></div>
 <p><strong>gfoRmula</strong></p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/message.html" class="external-link">suppressPackageStartupMessages</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"gfoRmula"</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">fit_gf</span> <span class="op">&lt;-</span> <span class="fu">gfoRmula</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/gfoRmula/man/gformula.html" class="external-link">gformula</a></span><span class="op">(</span></span>
@@ -523,28 +333,27 @@ process.</p>
 <span><span class="co">#&gt; 2:     4   0.2562084</span></span>
 <span><span class="co">#&gt; 3:     4   0.1047391</span></span></code></pre></div>
 <p><strong>Side-by-side at final time point</strong></p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">gf_res</span> <span class="op">&lt;-</span> <span class="va">fit_gf</span><span class="op">$</span><span class="va">result</span><span class="op">[</span><span class="va">k</span> <span class="op">==</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">fit_gf</span><span class="op">$</span><span class="va">result</span><span class="op">$</span><span class="va">k</span><span class="op">)</span>,</span>
 <span>                         <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Interv."</span>, <span class="st">"g-form mean"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="va">gf_res</span><span class="op">[</span>, <span class="va">Intervention</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"natural"</span>, <span class="st">"always"</span>, <span class="st">"never"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/setattr.html" class="external-link">setnames</a></span><span class="op">(</span><span class="va">gf_res</span>, <span class="st">"g-form mean"</span>, <span class="st">"gfoRmula"</span><span class="op">)</span></span>
-<span><span class="va">gf_res</span><span class="op">[</span>, <span class="va">gfoRmula</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">gfoRmula</span>, <span class="fl">4</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="va">gf_res</span><span class="op">[</span>, <span class="fu">`:=`</span><span class="op">(</span>gfoRmula <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">gfoRmula</span>, <span class="fl">4</span><span class="op">)</span>, Interv. <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span><span class="op">]</span></span>
 <span></span>
 <span><span class="va">cm_res</span> <span class="op">&lt;-</span> <span class="va">fit_cm</span><span class="op">$</span><span class="va">effect_size</span><span class="op">[</span>, <span class="fu">.</span><span class="op">(</span><span class="va">Intervention</span>, causalMed <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">Est</span>, <span class="fl">4</span><span class="op">)</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/merge.html" class="external-link">merge</a></span><span class="op">(</span><span class="va">cm_res</span>, <span class="va">gf_res</span>, by <span class="op">=</span> <span class="st">"Intervention"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Key: &lt;Intervention&gt;</span></span>
-<span><span class="co">#&gt;    Intervention causalMed Interv. gfoRmula</span></span>
-<span><span class="co">#&gt;          &lt;char&gt;     &lt;num&gt;   &lt;num&gt;    &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:       always    0.2550       1   0.2562</span></span>
-<span><span class="co">#&gt; 2:      natural    0.2346       0   0.2365</span></span>
-<span><span class="co">#&gt; 3:        never    0.1029       2   0.1047</span></span></code></pre></div>
-<hr>
+<span><span class="co">#&gt;    Intervention causalMed gfoRmula</span></span>
+<span><span class="co">#&gt;          &lt;char&gt;     &lt;num&gt;    &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1:       always    0.2550   0.2562</span></span>
+<span><span class="co">#&gt; 2:      natural    0.2346   0.2365</span></span>
+<span><span class="co">#&gt; 3:        never    0.1029   0.1047</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="example-2-survival-time-to-event-outcome">Example 2: Survival (time-to-event) outcome<a class="anchor" aria-label="anchor" href="#example-2-survival-time-to-event-outcome"></a>
 </h3>
 <p><strong>causalMed</strong></p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"survivaldata"</span>, package <span class="op">=</span> <span class="st">"causalMed"</span><span class="op">)</span></span>
 <span><span class="va">dat_s</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/as.data.table.html" class="external-link">as.data.table</a></span><span class="op">(</span><span class="va">survivaldata</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/setorder.html" class="external-link">setorder</a></span><span class="op">(</span><span class="va">dat_s</span>, <span class="va">id</span>, <span class="va">time</span><span class="op">)</span></span>
@@ -582,7 +391,7 @@ process.</p>
 <span><span class="co">#&gt; 2:        never 0.4036755</span></span>
 <span><span class="co">#&gt; 3:       always 0.7849632</span></span></code></pre></div>
 <p><strong>gfoRmula</strong></p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">T_max</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">dat_s</span><span class="op">$</span><span class="va">time</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">fit_gf_s</span> <span class="op">&lt;-</span> <span class="fu">gfoRmula</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/gfoRmula/man/gformula.html" class="external-link">gformula</a></span><span class="op">(</span></span>
@@ -590,12 +399,12 @@ process.</p>
 <span>  id           <span class="op">=</span> <span class="st">"id"</span>,</span>
 <span>  time_name    <span class="op">=</span> <span class="st">"time"</span>,</span>
 <span>  time_points  <span class="op">=</span> <span class="va">T_max</span>,</span>
-<span>  covnames     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>, <span class="st">"L"</span><span class="op">)</span>,</span>
-<span>  covtypes     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"binary"</span>, <span class="st">"normal"</span><span class="op">)</span>,</span>
+<span>  covnames     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"L"</span>, <span class="st">"A"</span><span class="op">)</span>,              <span class="co"># same order as the causalMed list</span></span>
+<span>  covtypes     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"normal"</span>, <span class="st">"binary"</span><span class="op">)</span>,</span>
 <span>  basecovs     <span class="op">=</span> <span class="st">"V"</span>,</span>
 <span>  covparams    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>covmodels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
-<span>    <span class="va">A</span> <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">lag1_A</span> <span class="op">+</span> <span class="va">lag1_L</span> <span class="op">+</span> <span class="va">L</span> <span class="op">+</span> <span class="va">time</span>,</span>
-<span>    <span class="va">L</span> <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">lag1_L</span> <span class="op">+</span> <span class="va">time</span></span>
+<span>    <span class="va">L</span> <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">lag1_L</span> <span class="op">+</span> <span class="va">time</span>,</span>
+<span>    <span class="va">A</span> <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">lag1_A</span> <span class="op">+</span> <span class="va">lag1_L</span> <span class="op">+</span> <span class="va">L</span> <span class="op">+</span> <span class="va">time</span></span>
 <span>  <span class="op">)</span><span class="op">)</span>,</span>
 <span>  ymodel       <span class="op">=</span> <span class="va">Y</span> <span class="op">~</span> <span class="va">lag1_A</span> <span class="op">+</span> <span class="va">A</span> <span class="op">+</span> <span class="va">L</span> <span class="op">+</span> <span class="va">lag1_L</span> <span class="op">+</span> <span class="va">time</span>,</span>
 <span>  outcome_name <span class="op">=</span> <span class="st">"Y"</span>,</span>
@@ -613,38 +422,35 @@ process.</p>
 <span><span class="va">fit_gf_s</span><span class="op">$</span><span class="va">result</span><span class="op">[</span><span class="va">k</span> <span class="op">==</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">fit_gf_s</span><span class="op">$</span><span class="va">result</span><span class="op">$</span><span class="va">k</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Interv."</span>, <span class="st">"g-form risk"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt;    Interv. g-form risk</span></span>
 <span><span class="co">#&gt;      &lt;num&gt;       &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:       0   0.5671898</span></span>
-<span><span class="co">#&gt; 2:       1   0.4036602</span></span>
-<span><span class="co">#&gt; 3:       2   0.7849508</span></span></code></pre></div>
+<span><span class="co">#&gt; 1:       0   0.6445117</span></span>
+<span><span class="co">#&gt; 2:       1   0.4036506</span></span>
+<span><span class="co">#&gt; 3:       2   0.7849414</span></span></code></pre></div>
 <p><strong>Side-by-side at final time point</strong></p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">gf_s_res</span> <span class="op">&lt;-</span> <span class="va">fit_gf_s</span><span class="op">$</span><span class="va">result</span><span class="op">[</span><span class="va">k</span> <span class="op">==</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">fit_gf_s</span><span class="op">$</span><span class="va">result</span><span class="op">$</span><span class="va">k</span><span class="op">)</span>,</span>
 <span>                              <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Interv."</span>, <span class="st">"g-form risk"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="va">gf_s_res</span><span class="op">[</span>, <span class="va">Intervention</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"natural"</span>, <span class="st">"never"</span>, <span class="st">"always"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/setattr.html" class="external-link">setnames</a></span><span class="op">(</span><span class="va">gf_s_res</span>, <span class="st">"g-form risk"</span>, <span class="st">"gfoRmula"</span><span class="op">)</span></span>
-<span><span class="va">gf_s_res</span><span class="op">[</span>, <span class="va">gfoRmula</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">gfoRmula</span>, <span class="fl">4</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="va">gf_s_res</span><span class="op">[</span>, <span class="fu">`:=`</span><span class="op">(</span>gfoRmula <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">gfoRmula</span>, <span class="fl">4</span><span class="op">)</span>, Interv. <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span><span class="op">]</span></span>
 <span></span>
 <span><span class="va">cm_s_res</span> <span class="op">&lt;-</span> <span class="va">fit_cm_s</span><span class="op">$</span><span class="va">effect_size</span><span class="op">[</span>, <span class="fu">.</span><span class="op">(</span><span class="va">Intervention</span>,</span>
 <span>                                      causalMed <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">Est</span>, <span class="fl">4</span><span class="op">)</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/merge.html" class="external-link">merge</a></span><span class="op">(</span><span class="va">cm_s_res</span>, <span class="va">gf_s_res</span>, by <span class="op">=</span> <span class="st">"Intervention"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Key: &lt;Intervention&gt;</span></span>
-<span><span class="co">#&gt;    Intervention causalMed Interv. gfoRmula</span></span>
-<span><span class="co">#&gt;          &lt;char&gt;     &lt;num&gt;   &lt;num&gt;    &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:       always    0.7850       2   0.7850</span></span>
-<span><span class="co">#&gt; 2:      natural    0.6458       0   0.5672</span></span>
-<span><span class="co">#&gt; 3:        never    0.4037       1   0.4037</span></span></code></pre></div>
-<hr>
+<span><span class="co">#&gt;    Intervention causalMed gfoRmula</span></span>
+<span><span class="co">#&gt;          &lt;char&gt;     &lt;num&gt;    &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1:       always    0.7850   0.7849</span></span>
+<span><span class="co">#&gt; 2:      natural    0.6458   0.6445</span></span>
+<span><span class="co">#&gt; 3:        never    0.4037   0.4037</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="example-3-dynamic-intervention">Example 3: Dynamic intervention<a class="anchor" aria-label="anchor" href="#example-3-dynamic-intervention"></a>
 </h3>
-<p>Both packages support dynamic (rule-based) interventions. Here we
-estimate the risk under “treat only if L1 &gt; 0”. The syntax differs
-between packages but the estimand is the same.</p>
-<p><strong>causalMed</strong>: <code><a href="../reference/dyn_int.html">dyn_int()</a></code> captures the rule
-as an unevaluated expression evaluated inside the simulated dataset at
-each time step:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<p>The risk under “treat only if L1 &gt; 0”. The syntax differs; the
+estimand is the same.</p>
+<p><strong>causalMed</strong>: <code><a href="../reference/dyn_int.html">dyn_int()</a></code> holds the rule as
+an expression, evaluated in the simulated data at each time step:</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_dyn</span> <span class="op">&lt;-</span> <span class="fu">causalMed</span><span class="fu">::</span><span class="fu"><a href="../reference/gformula.html">gformula</a></span><span class="op">(</span></span>
 <span>  data         <span class="op">=</span> <span class="va">dat</span>,</span>
 <span>  id_var       <span class="op">=</span> <span class="st">"id"</span>,</span>
@@ -672,11 +478,10 @@ each time step:</p>
 <span><span class="co">#&gt;                       &lt;char&gt;     &lt;char&gt;        &lt;num&gt;</span></span>
 <span><span class="co">#&gt; 1: treat_if_L1_pos - natural Difference -0.004472208</span></span>
 <span><span class="co">#&gt; 2: treat_if_L1_pos / natural      Ratio  0.980955847</span></span></code></pre></div>
-<p><strong>gfoRmula</strong>: user-supplied function passed as an
-argument:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<p><strong>gfoRmula</strong>: a user-written intervention function:</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">treat_if_L1_pos</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">newdf</span>, <span class="va">pool</span>, <span class="va">intvar</span>, <span class="va">intvals</span>, <span class="va">time_name</span>, <span class="va">t</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">newdf</span><span class="op">[</span>, <span class="op">(</span><span class="va">intvar</span><span class="op">)</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/r/base/integer.html" class="external-link">as.integer</a></span><span class="op">(</span><span class="va">newdf</span><span class="op">[[</span><span class="va">intvar</span><span class="op">]</span><span class="op">]</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span><span class="op">]</span></span>
+<span>  <span class="va">newdf</span><span class="op">[</span>, <span class="op">(</span><span class="va">intvar</span><span class="op">)</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/r/base/integer.html" class="external-link">as.integer</a></span><span class="op">(</span><span class="va">L1</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="op">}</span></span>
 <span></span>
 <span><span class="fu">gfoRmula</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/gfoRmula/man/gformula.html" class="external-link">gformula</a></span><span class="op">(</span></span>
@@ -684,30 +489,16 @@ argument:</p>
 <span>  intervention1.A <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">treat_if_L1_pos</span><span class="op">)</span>,</span>
 <span>  int_descript    <span class="op">=</span> <span class="st">"Treat if L1 &gt; 0"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Both approaches evaluate the rule within the simulated dataset at
-each time step, so the exposure reflects its natural-course draw before
-the threshold is applied. The current time step is available inside the
-<code><a href="../reference/dyn_int.html">dyn_int()</a></code> expression as the tracked <code>time_var</code>
-column
-(e.g. <code>dyn_int(as.numeric(L1 &gt; 0 &amp; time &gt;= 2))</code>),
-and history-dependent rules can be built by maintaining lagged columns
-through <code>in_recode</code> / <code>out_recode</code>. The difference
-from <code>gfoRmula</code> is interface rather than capability:
-<code>gfoRmula</code> hands a user function the full pooled data object,
-whereas <code>causalMed</code> expresses the same logic through its
-recode-plus-expression pattern.</p>
-<hr>
+<p>Both evaluate the rule in the simulated data at each time step.</p>
 </div>
-</div>
-<div class="section level2">
-<h2 id="large-sample-numerical-cross-validation">Large-Sample Numerical Cross-Validation<a class="anchor" aria-label="anchor" href="#large-sample-numerical-cross-validation"></a>
-</h2>
-<p>The comparison below repeats Example 1 with 50,000 Monte Carlo
-replicates rather than 10,000, which shrinks the Monte Carlo component
-of the difference. Both packages fit the same models to the same data
-and implement the same estimator, so what remains is Monte Carlo
-sampling variability rather than algorithmic divergence.</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="section level3">
+<h3 id="larger-monte-carlo-sample">Larger Monte Carlo sample<a class="anchor" aria-label="anchor" href="#larger-monte-carlo-sample"></a>
+</h3>
+<p>Repeating Example 1 with 50,000 rather than 10,000 simulated subjects
+shrinks the Monte Carlo part of the difference. Both packages fit the
+same models to the same data, so what remains is Monte Carlo
+variability.</p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_cv_cm</span> <span class="op">&lt;-</span> <span class="fu">causalMed</span><span class="fu">::</span><span class="fu"><a href="../reference/gformula.html">gformula</a></span><span class="op">(</span></span>
 <span>  data         <span class="op">=</span> <span class="va">dat</span>, id_var <span class="op">=</span> <span class="st">"id"</span>, time_var <span class="op">=</span> <span class="st">"time"</span>, base_vars <span class="op">=</span> <span class="st">"V"</span>,</span>
 <span>  exposure     <span class="op">=</span> <span class="st">"A"</span>, models <span class="op">=</span> <span class="va">models_cm</span>,</span>
@@ -747,79 +538,35 @@ sampling variability rather than algorithmic divergence.</p>
 <span><span class="co">#&gt;   Intervention causalMed gfoRmula Difference</span></span>
 <span><span class="co">#&gt; 1      natural   0.23445  0.23507    0.00062</span></span>
 <span><span class="co">#&gt; 2       always   0.25441  0.25448    0.00007</span></span></code></pre></div>
-<p>The <code>Difference</code> column above is what this run produced.
-The package’s test suite runs the same comparison against
-<code>gfoRmula</code> on a binary end-of-follow-up outcome, a survival
-outcome and a dynamic intervention, asserting agreement at a tolerance
-of 0.005, so what is shown here is not a one-off. That agreement is
-established on those data-generating processes, at those model
-specifications, and does not by itself extend to settings the comparison
-does not cover.</p>
-<hr>
+<p>The <code>Difference</code> column is what this run produced. The
+package’s test suite runs the same comparison against
+<code>gfoRmula</code> for a binary end-of-follow-up outcome, a survival
+outcome and a dynamic intervention, and requires agreement within 0.005.
+That agreement holds for those data-generating processes and model
+specifications, and does not by itself extend to others.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h2>
 <ol style="list-style-type: decimal">
-<li><p>Westreich, D., Cole, S. R., Young, J. G., et al. (2012). The
-parametric g-formula to estimate the effect of HAART on incident AIDS or
-death. <em>Statistics in Medicine</em>, 31, 2000–2009.</p></li>
-<li><p>McGrath, S., Lin, V., Zhang, Z., et al. (2020). gfoRmula: An R
-Package for Estimating the Effects of Sustained Treatment Strategies via
-the Parametric g-Formula. <em>Patterns</em>, 1, 100008.</p></li>
 <li><p>Lin, S. H., Young, J. G., Logan, R., &amp; VanderWeele, T. J.
 (2017). Mediation analysis for a survival outcome with time-varying
 exposures, mediators, and confounders. <em>Statistics in Medicine</em>,
 36(26), 4153–4166.</p></li>
+<li><p>McGrath, S., Lin, V., Zhang, Z., et al. (2020). gfoRmula: An R
+Package for Estimating the Effects of Sustained Treatment Strategies via
+the Parametric g-Formula. <em>Patterns</em>, 1, 100008.</p></li>
 <li><p>Zheng, W., &amp; van der Laan, M. (2017). Longitudinal mediation
 analysis with time-varying mediators and exposures, with application to
 survival outcomes. <em>Journal of Causal Inference</em>, 5(2).</p></li>
 </ol>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/sessionInfo.html" class="external-link">sessionInfo</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="co">#&gt; R version 4.6.1 (2026-06-24)</span></span>
-<span><span class="co">#&gt; Platform: x86_64-pc-linux-gnu</span></span>
-<span><span class="co">#&gt; Running under: Ubuntu 24.04.5 LTS</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Matrix products: default</span></span>
-<span><span class="co">#&gt; BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 </span></span>
-<span><span class="co">#&gt; LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; locale:</span></span>
-<span><span class="co">#&gt;  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       </span></span>
-<span><span class="co">#&gt;  [4] LC_COLLATE=C.UTF-8     LC_MONETARY=C.UTF-8    LC_MESSAGES=C.UTF-8   </span></span>
-<span><span class="co">#&gt;  [7] LC_PAPER=C.UTF-8       LC_NAME=C              LC_ADDRESS=C          </span></span>
-<span><span class="co">#&gt; [10] LC_TELEPHONE=C         LC_MEASUREMENT=C.UTF-8 LC_IDENTIFICATION=C   </span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; time zone: UTC</span></span>
-<span><span class="co">#&gt; tzcode source: system (glibc)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; attached base packages:</span></span>
-<span><span class="co">#&gt; [1] stats     graphics  grDevices utils     datasets  methods   base     </span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; other attached packages:</span></span>
-<span><span class="co">#&gt; [1] data.table_1.18.6.1 causalMed_0.1.2    </span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; loaded via a namespace (and not attached):</span></span>
-<span><span class="co">#&gt;  [1] future.apply_1.20.2 gtable_0.3.6        jsonlite_2.0.0     </span></span>
-<span><span class="co">#&gt;  [4] dplyr_1.2.1         compiler_4.6.1      tidyselect_1.2.1   </span></span>
-<span><span class="co">#&gt;  [7] gfoRmula_1.1.1      stringr_1.6.0       parallel_4.6.1     </span></span>
-<span><span class="co">#&gt; [10] jquerylib_0.1.4     globals_0.19.1      systemfonts_1.3.2  </span></span>
-<span><span class="co">#&gt; [13] scales_1.4.0        textshaping_1.0.5   yaml_2.3.12        </span></span>
-<span><span class="co">#&gt; [16] fastmap_1.2.0       ggplot2_4.0.3       R6_2.6.1           </span></span>
-<span><span class="co">#&gt; [19] generics_0.1.4      knitr_1.52          htmlwidgets_1.6.4  </span></span>
-<span><span class="co">#&gt; [22] future_1.75.0       tibble_3.3.1        desc_1.4.3         </span></span>
-<span><span class="co">#&gt; [25] nnet_7.3-20         bslib_0.12.0        pillar_1.11.1      </span></span>
-<span><span class="co">#&gt; [28] RColorBrewer_1.1-3  rlang_1.3.0         stringi_1.8.9      </span></span>
-<span><span class="co">#&gt; [31] cachem_1.1.0        xfun_0.61           fs_2.1.0           </span></span>
-<span><span class="co">#&gt; [34] sass_0.4.10         S7_0.2.2            otel_0.2.0         </span></span>
-<span><span class="co">#&gt; [37] cli_3.6.6           progressr_1.0.0     pkgdown_2.2.1      </span></span>
-<span><span class="co">#&gt; [40] magrittr_2.0.5      digest_0.6.39       grid_4.6.1         </span></span>
-<span><span class="co">#&gt; [43] lifecycle_1.0.5     vctrs_0.7.3         evaluate_1.0.5     </span></span>
-<span><span class="co">#&gt; [46] glue_1.8.1          listenv_1.0.0       farver_2.1.2       </span></span>
-<span><span class="co">#&gt; [49] codetools_0.2-20    ragg_1.5.2          parallelly_1.48.0  </span></span>
-<span><span class="co">#&gt; [52] rmarkdown_2.32      tools_4.6.1         pkgconfig_2.0.3    </span></span>
-<span><span class="co">#&gt; [55] htmltools_0.5.9</span></span></code></pre></div>
+<p>Package versions used for this comparison:</p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>causalMed <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/packageDescription.html" class="external-link">packageVersion</a></span><span class="op">(</span><span class="st">"causalMed"</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  gfoRmula  <span class="op">=</span> <span class="kw">if</span> <span class="op">(</span><span class="va">has_gfoRmula</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/packageDescription.html" class="external-link">packageVersion</a></span><span class="op">(</span><span class="st">"gfoRmula"</span><span class="op">)</span><span class="op">)</span> <span class="kw">else</span> <span class="cn">NA</span><span class="op">)</span></span>
+<span><span class="co">#&gt; causalMed  gfoRmula </span></span>
+<span><span class="co">#&gt;   "0.1.3"   "1.1.1"</span></span></code></pre></div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

@@ -11,7 +11,7 @@ g-formula and mediation functions under survival settings."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -39,7 +39,7 @@ g-formula and mediation functions under survival settings."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Example Dataset for a Survival Outcome</h1>
-      <small class="dont-index">Source: <a href="https://github.com/adayim/causalMed/blob/0.1.2/R/data.R" class="external-link"><code>R/data.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/adayim/causalMed/blob/master/R/data.R" class="external-link"><code>R/data.R</code></a></small>
       <div class="d-none name"><code>survivaldata.Rd</code></div>
     </div>
 
@@ -133,15 +133,13 @@ first, so no rows are retained for a subject after either. Of the 3000
 subjects, 1822 have the event, 283 are censored and the remaining 895 reach
 the end of the fifth period.</p>
 <p>Censoring depends on \(V\) and on the current confounder \(L\), so it is
-informative marginally, but it is conditionally independent of the
-counterfactual event process given that observed history. The target estimand
-– risk with censoring eliminated – is therefore unchanged by its presence,
-and the true values below are the same as they would be without it. Under
-<code>estimator = "gcomp"</code> the hazard model fitted among those still at risk
-already identifies that risk, so a censoring model is not required; pass one
-as a <code>mod_type = "censor"</code> entry in <code>models</code> to simulate the
-censoring process in the natural course of <code><a href="gformula.html">gformula()</a></code>, or for
-<code>estimator = "tmle"</code>.</p>
+informative marginally but conditionally independent of the counterfactual
+event process given that observed history. The target estimand, the risk
+with censoring eliminated, is therefore unchanged by it, and the true values
+above are the same as they would be without it. With
+<code>estimator = "gcomp"</code> a censoring model is not required; a
+<code>mod_type = "censor"</code> model can be supplied to simulate censoring in the
+natural course of <code><a href="gformula.html">gformula()</a></code>, or for <code>estimator = "tmle"</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

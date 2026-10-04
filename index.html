@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -59,202 +59,69 @@
 <div class="section level1">
 <div class="page-header"><h1 id="causalmed">causalMed<a class="anchor" aria-label="anchor" href="#causalmed"></a>
 </h1></div>
-<p><strong>Causal Mediation Analysis with Time-Varying Exposures, Mediators, and Confounders</strong></p>
-<p><code>causalMed</code> implements the <strong>parametric g-formula</strong> for total effect estimation and extends it with the <strong>survival mediational g-formula</strong> to decompose causal effects into direct and indirect components. The package supports:</p>
+<p><strong>Mediation analysis with time-varying exposures, mediators, and confounders</strong></p>
+<p><code>causalMed</code> uses the parametric g-formula to split the effect of a time-varying exposure into a direct effect and an indirect effect through one or more mediators, including when the confounders are themselves affected by earlier exposure. It estimates:</p>
 <ul>
 <li>
-<strong>Interventional direct and indirect effects</strong> (IDE/IIE): Lin et al. (2017)</li>
+<strong>interventional</strong> direct and indirect effects (<code>mediation_type = "I"</code>, the default; Lin et al. 2017, VanderWeele &amp; Tchetgen Tchetgen 2017), with one or more mediators (Yamamuro et al. 2021);</li>
 <li>
-<strong>Natural direct and indirect effects</strong> (NDE/NIE): Zheng &amp; van der Laan (2017)</li>
+<strong>natural</strong> direct and indirect effects (<code>mediation_type = "N"</code>; Zheng &amp; van der Laan 2017), by g-computation or targeted minimum loss-based estimation;</li>
+<li>
+<strong>total effects</strong> of static or dynamic interventions with <code><a href="reference/gformula.html">gformula()</a></code>, checked against the CRAN package <code>gfoRmula</code> (McGrath et al. 2020).</li>
 </ul>
-<p>Both approaches handle time-varying exposures, mediators, and confounders in longitudinal data, including survival outcomes. The standard g-formula component (total effect estimation) is numerically cross-checked against the <code>gfoRmula</code> CRAN package.</p>
+<p>Outcomes can be continuous or binary at the end of follow-up, or discrete-time survival. Confidence intervals come from a subject-level bootstrap, which can run in parallel.</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Install the development version from GitHub:</span></span>
-<span><span class="co"># install.packages("devtools")</span></span>
-<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"adayim/causalMed"</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="co"># install.packages("remotes")</span></span>
+<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"adayim/causalMed"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="key-features">Key Features<a class="anchor" aria-label="anchor" href="#key-features"></a>
+<h2 id="example-interventional-direct-and-indirect-effects">Example: interventional direct and indirect effects<a class="anchor" aria-label="anchor" href="#example-interventional-direct-and-indirect-effects"></a>
 </h2>
-<ul>
-<li>
-<strong>G-formula for total effects</strong>: Monte Carlo simulation under user-defined static or dynamic (threshold) interventions for binary, continuous, and survival outcomes</li>
-<li>
-<strong>Mediational g-formula</strong>: decomposes total effects into direct and indirect pathways with time-varying mediators and exposure-induced mediator–outcome confounders</li>
-<li>
-<strong>Two mediation estimands</strong>:
-<ul>
-<li>
-<code>mediation_type = "I"</code>: interventional IDE/IIE (VanderWeele &amp; Tchetgen Tchetgen 2017; Lin et al. 2017; Yamamuro et al. 2021). The randomized mediator is drawn as a <strong>joint M(1:T) trajectory</strong> by row-permuting the reference (a*) cohort, matching the SAS <code>mGFORMULA</code> macro and the algorithm of Yamamuro et al. 2021. Does not require cross-world independence. <strong>Multiple mediator models</strong> are supported under this estimand (Yamamuro 2021 §4); per-mediator IIE(M_k) is reported alongside the overall IDE/TE. On what a non-zero interventional indirect effect does and does not establish, see Miles (2023).</li>
-<li>
-<code>mediation_type = "N"</code>: natural NDE/NIE (Zheng &amp; van der Laan 2017), using the conditional mediator distribution with exposure swapping (single mediator only). Their Lemma 1 identifies these effects under sequential randomization and positivity; reading them as <strong>individual-level</strong> natural effects additionally requires a cross-world assumption that is not expected to hold when a confounder of the mediator–outcome relationship is itself affected by the exposure (Avin, Shpitser &amp; Pearl 2005; VanderWeele &amp; Tchetgen Tchetgen 2017). <code><a href="reference/mediation.html">mediation()</a></code> detects covariates modelled as exposure-affected, warns, and repeats the caveat in <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code>. VanderWeele &amp; Tchetgen Tchetgen (2017) propose the interventional estimand for that setting.</li>
-</ul>
-</li>
-<li>
-<strong>Two estimators for natural effects</strong>: the parametric g-formula plug-in (<code>estimator = "gcomp"</code>, the default) or a <strong>targeted minimum loss-based estimator</strong> (<code>estimator = "tmle"</code>, Zheng &amp; van der Laan 2017 §4.3), for which that paper establishes multiple robustness, meaning consistency when only certain subsets of the nuisance models are correct, with Wald confidence intervals from the efficient influence curve, so no bootstrap is needed. Available for <code>mediation_type = "N"</code> only.</li>
-<li>
-<strong>Model specification</strong>: logistic regression (binary), linear regression (normal), multinomial logistic (categorical), and custom simulation functions. Numeric draws are clipped to the observed range of the response by default; use <code>spec_model(truncate = FALSE)</code> to draw from the untruncated fitted distribution.</li>
-<li>
-<strong>Recode hooks</strong> (<code>init_recode</code>, <code>in_recode</code>, <code>out_recode</code>) for lag creation, cumulative variables, and other within-loop transformations</li>
-<li>
-<strong>Bootstrap confidence intervals</strong>: non-parametric bootstrap resampling individuals (preserving longitudinal structure), with percentile and normal-approximation CIs</li>
-<li>
-<strong>Parallel bootstrap</strong>: plug in <code>future::plan(multisession)</code> on Windows or <code>future::plan(multicore)</code> on Unix to parallelise across bootstrap replicates</li>
-</ul>
-</div>
-<div class="section level2">
-<h2 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a>
-</h2>
-<div class="section level3">
-<h3 id="total-effect-standard-parametric-g-formula">Total effect: standard parametric g-formula<a class="anchor" aria-label="anchor" href="#total-effect-standard-parametric-g-formula"></a>
-</h3>
+<p><code>nonsurvivaldata</code> follows 3,000 subjects over five time points: a baseline covariate <code>V</code>, a binary exposure <code>A</code>, confounders <code>L1</code> and <code>L2</code> that respond to <code>A</code>, a mediator <code>M</code>, and a binary outcome <code>Y_bin</code> at the end of follow-up.</p>
+<p>Each time-varying variable gets a model, listed in the order the variables are generated within a time point. Lagged variables are created inside the simulation with <code><a href="reference/recodes.html">recodes()</a></code>: <code>init_recode</code> sets them at the first time point and <code>in_recode</code> updates them at each later one.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/adayim/causalMed" class="external-link">causalMed</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"nonsurvivaldata"</span>, package <span class="op">=</span> <span class="st">"causalMed"</span><span class="op">)</span></span>
+<span><span class="va">models</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">A</span> <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">lag1_A</span> <span class="op">+</span> <span class="va">lag1_L1</span> <span class="op">+</span> <span class="va">lag1_L2</span> <span class="op">+</span> <span class="va">time</span>,</span>
+<span>             var_type <span class="op">=</span> <span class="st">"binary"</span>, mod_type <span class="op">=</span> <span class="st">"exposure"</span><span class="op">)</span>,</span>
+<span>  <span class="fu"><a href="reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">L1</span> <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">A</span> <span class="op">+</span> <span class="va">lag1_L1</span> <span class="op">+</span> <span class="va">time</span>,</span>
+<span>             var_type <span class="op">=</span> <span class="st">"normal"</span>, mod_type <span class="op">=</span> <span class="st">"covariate"</span><span class="op">)</span>,</span>
+<span>  <span class="fu"><a href="reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">L2</span> <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">A</span> <span class="op">+</span> <span class="va">lag1_L2</span> <span class="op">+</span> <span class="va">time</span>,</span>
+<span>             var_type <span class="op">=</span> <span class="st">"binary"</span>, mod_type <span class="op">=</span> <span class="st">"covariate"</span><span class="op">)</span>,</span>
+<span>  <span class="fu"><a href="reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">M</span> <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">A</span> <span class="op">+</span> <span class="va">L1</span> <span class="op">+</span> <span class="va">L2</span> <span class="op">+</span> <span class="va">lag1_M</span> <span class="op">+</span> <span class="va">time</span>,</span>
+<span>             var_type <span class="op">=</span> <span class="st">"normal"</span>, mod_type <span class="op">=</span> <span class="st">"mediator"</span><span class="op">)</span>,</span>
+<span>  <span class="fu"><a href="reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">Y_bin</span> <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">A</span> <span class="op">+</span> <span class="va">M</span> <span class="op">+</span> <span class="va">L1</span> <span class="op">+</span> <span class="va">L2</span>,</span>
+<span>             var_type <span class="op">=</span> <span class="st">"binary"</span>, mod_type <span class="op">=</span> <span class="st">"outcome"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Manage lagged variables</span></span>
-<span><span class="va">init_rc</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/recodes.html">recodes</a></span><span class="op">(</span>lag1_A  <span class="op">=</span> <span class="fl">0</span>,   <span class="co"># At t=0, all lags initialised to 0</span></span>
-<span>                   lag1_L1 <span class="op">=</span> <span class="fl">0</span>,</span>
-<span>                   lag1_L2 <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">in_rc</span>   <span class="op">&lt;-</span> <span class="fu"><a href="reference/recodes.html">recodes</a></span><span class="op">(</span>lag1_A  <span class="op">=</span> <span class="va">A</span>,   <span class="co"># At each subsequent step, copy current values</span></span>
-<span>                   lag1_L1 <span class="op">=</span> <span class="va">L1</span>,</span>
-<span>                   lag1_L2 <span class="op">=</span> <span class="va">L2</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Specify models in temporal order: A → L1 → L2 → Y (exposure first,</span></span>
-<span><span class="co"># current A in the confounder models, matching the documented DGP)</span></span>
-<span><span class="va">m_A</span>  <span class="op">&lt;-</span> <span class="fu"><a href="reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">A</span>     <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">lag1_A</span> <span class="op">+</span> <span class="va">lag1_L1</span> <span class="op">+</span> <span class="va">lag1_L2</span> <span class="op">+</span> <span class="va">time</span>,</span>
-<span>                   var_type <span class="op">=</span> <span class="st">"binary"</span>,  mod_type <span class="op">=</span> <span class="st">"exposure"</span><span class="op">)</span></span>
-<span><span class="va">m_L1</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">L1</span>    <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">A</span> <span class="op">+</span> <span class="va">lag1_L1</span> <span class="op">+</span> <span class="va">time</span>,</span>
-<span>                   var_type <span class="op">=</span> <span class="st">"normal"</span>,  mod_type <span class="op">=</span> <span class="st">"covariate"</span><span class="op">)</span></span>
-<span><span class="va">m_L2</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">L2</span>    <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">A</span> <span class="op">+</span> <span class="va">lag1_L2</span> <span class="op">+</span> <span class="va">time</span>,</span>
-<span>                   var_type <span class="op">=</span> <span class="st">"binary"</span>,  mod_type <span class="op">=</span> <span class="st">"covariate"</span><span class="op">)</span></span>
-<span><span class="va">m_Y</span>  <span class="op">&lt;-</span> <span class="fu"><a href="reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">Y_bin</span> <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">A</span> <span class="op">+</span> <span class="va">L1</span> <span class="op">+</span> <span class="va">L2</span>,</span>
-<span>                   var_type <span class="op">=</span> <span class="st">"binary"</span>,  mod_type <span class="op">=</span> <span class="st">"outcome"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">models_bin</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">m_A</span>, <span class="va">m_L1</span>, <span class="va">m_L2</span>, <span class="va">m_Y</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Define intervention strategies</span></span>
-<span><span class="co"># NULL  = natural course (draw exposure from its fitted model)</span></span>
-<span><span class="co"># 1 / 0 = always treat / never treat</span></span>
-<span><span class="va">ints</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>natural <span class="op">=</span> <span class="cn">NULL</span>, always_treat <span class="op">=</span> <span class="fl">1</span>, never_treat <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Run g-formula</span></span>
-<span><span class="va">fit_bin</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gformula.html">gformula</a></span><span class="op">(</span></span>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/mediation.html">mediation</a></span><span class="op">(</span></span>
 <span>  data        <span class="op">=</span> <span class="va">nonsurvivaldata</span>,</span>
 <span>  id_var      <span class="op">=</span> <span class="st">"id"</span>,</span>
 <span>  time_var    <span class="op">=</span> <span class="st">"time"</span>,</span>
 <span>  base_vars   <span class="op">=</span> <span class="st">"V"</span>,</span>
 <span>  exposure    <span class="op">=</span> <span class="st">"A"</span>,</span>
-<span>  models      <span class="op">=</span> <span class="va">models_bin</span>,</span>
-<span>  intervention <span class="op">=</span> <span class="va">ints</span>,</span>
-<span>  ref_int     <span class="op">=</span> <span class="st">"natural"</span>,</span>
-<span>  init_recode <span class="op">=</span> <span class="va">init_rc</span>,</span>
-<span>  in_recode   <span class="op">=</span> <span class="va">in_rc</span>,</span>
+<span>  outcome     <span class="op">=</span> <span class="st">"Y_bin"</span>,</span>
+<span>  models      <span class="op">=</span> <span class="va">models</span>,</span>
+<span>  init_recode <span class="op">=</span> <span class="fu"><a href="reference/recodes.html">recodes</a></span><span class="op">(</span>lag1_A <span class="op">=</span> <span class="fl">0</span>, lag1_L1 <span class="op">=</span> <span class="fl">0</span>, lag1_L2 <span class="op">=</span> <span class="fl">0</span>, lag1_M <span class="op">=</span> <span class="fl">0</span><span class="op">)</span>,</span>
+<span>  in_recode   <span class="op">=</span> <span class="fu"><a href="reference/recodes.html">recodes</a></span><span class="op">(</span>lag1_A <span class="op">=</span> <span class="va">A</span>, lag1_L1 <span class="op">=</span> <span class="va">L1</span>, lag1_L2 <span class="op">=</span> <span class="va">L2</span>, lag1_M <span class="op">=</span> <span class="va">M</span><span class="op">)</span>,</span>
 <span>  mc_sample   <span class="op">=</span> <span class="fl">10000</span>,</span>
-<span>  R           <span class="op">=</span> <span class="fl">100</span>,  <span class="co"># set R &gt; 1 for bootstrap CIs; kept low here for speed</span></span>
+<span>  R           <span class="op">=</span> <span class="fl">100</span>,   <span class="co"># bootstrap replicates; kept low here for speed</span></span>
 <span>  quiet       <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  seed        <span class="op">=</span> <span class="fl">2025</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">fit_bin</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; gformula(data = nonsurvivaldata, id_var = "id", base_vars = "V", </span></span>
-<span><span class="co">#&gt;     exposure = "A", time_var = "time", models = models_bin, intervention = ints, </span></span>
-<span><span class="co">#&gt;     ref_int = "natural", init_recode = init_rc, in_recode = in_rc, </span></span>
-<span><span class="co">#&gt;     mc_sample = 10000, R = 100, quiet = TRUE, seed = 2025)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; --- Analysis setup ---</span></span>
-<span><span class="co">#&gt;   Exposure     : A</span></span>
-<span><span class="co">#&gt;   Outcome      : Y_bin  [mean outcome at t = 4, end of follow-up]</span></span>
-<span><span class="co">#&gt;   Time variable: time  (5 time points: 0 ... 4)</span></span>
-<span><span class="co">#&gt;   ID variable  : id</span></span>
-<span><span class="co">#&gt;   Baseline vars: V</span></span>
-<span><span class="co">#&gt;   Data         : 3,000 individuals, 15,000 observations</span></span>
-<span><span class="co">#&gt;   MC sample    : 10000</span></span>
-<span><span class="co">#&gt;   Bootstrap R  : 100</span></span>
-<span><span class="co">#&gt;   Seed         : 2025</span></span>
-<span><span class="co">#&gt;   Reference    : natural</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; --- Mean outcome by intervention --- </span></span>
-<span><span class="co">#&gt;    Intervention    Est     Sd 2.5%(pct) 97.5%(pct) 2.5%(norm) 97.5%(norm)</span></span>
-<span><span class="co">#&gt;          &lt;fctr&gt;  &lt;num&gt;  &lt;num&gt;     &lt;num&gt;      &lt;num&gt;      &lt;num&gt;       &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:      natural 0.2349 0.0081    0.2207     0.2487     0.2191      0.2508</span></span>
-<span><span class="co">#&gt; 2: always_treat 0.2522 0.0088    0.2375     0.2681     0.2349      0.2696</span></span>
-<span><span class="co">#&gt; 3:  never_treat 0.1067 0.0163    0.0790     0.1394     0.0748      0.1385</span></span>
-<span><span class="co">#&gt;   Observed (nonparametric) mean of Y_bin at t = 4 (end of follow-up): 0.2333</span></span>
-<span><span class="co">#&gt;   (informal model check: compare with the natural-course intervention)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; --- Contrasts vs. reference intervention --- </span></span>
-<span><span class="co">#&gt;              Intervention  Risk_type Estimate     Sd 2.5%(pct) 97.5%(pct)</span></span>
-<span><span class="co">#&gt;                    &lt;char&gt;     &lt;char&gt;    &lt;num&gt;  &lt;num&gt;     &lt;num&gt;      &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1: always_treat - natural Difference   0.0173 0.0023    0.0125     0.0212</span></span>
-<span><span class="co">#&gt; 2: always_treat / natural      Ratio   1.0737 0.0097    1.0559     1.0922</span></span>
-<span><span class="co">#&gt; 3:  never_treat - natural Difference  -0.1283 0.0164   -0.1549    -0.0908</span></span>
-<span><span class="co">#&gt; 4:  never_treat / natural      Ratio   0.4540 0.0677    0.3431     0.5975</span></span>
-<span><span class="co">#&gt;    2.5%(norm) 97.5%(norm)</span></span>
-<span><span class="co">#&gt;         &lt;num&gt;       &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:     0.0128      0.0219</span></span>
-<span><span class="co">#&gt; 2:     1.0546      1.0928</span></span>
-<span><span class="co">#&gt; 3:    -0.1604     -0.0961</span></span>
-<span><span class="co">#&gt; 4:     0.3213      0.5867</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;   95% CIs: percentile (pct) and normal approximation (norm) from 100 bootstrap replicates.</span></span></code></pre></div>
-<p>The list order must match your assumed data-generating process. Here the exposure is decided first within each period and the confounders respond to it, as documented in <code><a href="reference/nonsurvivaldata.html">?nonsurvivaldata</a></code>.</p>
-</div>
-<div class="section level3">
-<h3 id="mediation-analysis-interventional-ideiie-lin-et-al-2017">Mediation analysis: interventional IDE/IIE (Lin et al. 2017)<a class="anchor" aria-label="anchor" href="#mediation-analysis-interventional-ideiie-lin-et-al-2017"></a>
-</h3>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/adayim/causalMed" class="external-link">causalMed</a></span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"nonsurvivaldata"</span>, package <span class="op">=</span> <span class="st">"causalMed"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Model list must include a mediator model (mod_type = "mediator")</span></span>
-<span><span class="co"># List order must reflect the temporal DAG: A -&gt; L -&gt; M -&gt; Y</span></span>
-<span><span class="va">init_med</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/recodes.html">recodes</a></span><span class="op">(</span>lag1_A <span class="op">=</span> <span class="fl">0</span>, lag1_L1 <span class="op">=</span> <span class="fl">0</span>, lag1_L2 <span class="op">=</span> <span class="fl">0</span>, lag1_M <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
-<span><span class="va">in_med</span>   <span class="op">&lt;-</span> <span class="fu"><a href="reference/recodes.html">recodes</a></span><span class="op">(</span>lag1_A <span class="op">=</span> <span class="va">A</span>, lag1_L1 <span class="op">=</span> <span class="va">L1</span>, lag1_L2 <span class="op">=</span> <span class="va">L2</span>, lag1_M <span class="op">=</span> <span class="va">M</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">models_med</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">A</span>   <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">lag1_L1</span> <span class="op">+</span> <span class="va">lag1_L2</span> <span class="op">+</span> <span class="va">lag1_A</span> <span class="op">+</span> <span class="va">time</span>,</span>
-<span>             var_type <span class="op">=</span> <span class="st">"binary"</span>,  mod_type <span class="op">=</span> <span class="st">"exposure"</span><span class="op">)</span>,</span>
-<span>  <span class="fu"><a href="reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">L1</span>  <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">A</span> <span class="op">+</span> <span class="va">lag1_L1</span> <span class="op">+</span> <span class="va">time</span>,</span>
-<span>             var_type <span class="op">=</span> <span class="st">"normal"</span>,  mod_type <span class="op">=</span> <span class="st">"covariate"</span><span class="op">)</span>,</span>
-<span>  <span class="fu"><a href="reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">L2</span>  <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">A</span> <span class="op">+</span> <span class="va">lag1_L2</span> <span class="op">+</span> <span class="va">time</span>,</span>
-<span>             var_type <span class="op">=</span> <span class="st">"binary"</span>,  mod_type <span class="op">=</span> <span class="st">"covariate"</span><span class="op">)</span>,</span>
-<span>  <span class="fu"><a href="reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">M</span>   <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">A</span> <span class="op">+</span> <span class="va">L1</span> <span class="op">+</span> <span class="va">L2</span> <span class="op">+</span> <span class="va">lag1_M</span> <span class="op">+</span> <span class="va">time</span>,</span>
-<span>             var_type <span class="op">=</span> <span class="st">"normal"</span>,  mod_type <span class="op">=</span> <span class="st">"mediator"</span><span class="op">)</span>,   <span class="co"># &lt;-- mediator</span></span>
-<span>  <span class="fu"><a href="reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">Y_bin</span> <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">A</span> <span class="op">+</span> <span class="va">M</span> <span class="op">+</span> <span class="va">L1</span> <span class="op">+</span> <span class="va">L2</span>,</span>
-<span>             var_type <span class="op">=</span> <span class="st">"binary"</span>,  mod_type <span class="op">=</span> <span class="st">"outcome"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">fit_med</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/mediation.html">mediation</a></span><span class="op">(</span></span>
-<span>  data           <span class="op">=</span> <span class="va">nonsurvivaldata</span>,</span>
-<span>  id_var         <span class="op">=</span> <span class="st">"id"</span>,</span>
-<span>  time_var       <span class="op">=</span> <span class="st">"time"</span>,</span>
-<span>  base_vars      <span class="op">=</span> <span class="st">"V"</span>,</span>
-<span>  exposure       <span class="op">=</span> <span class="st">"A"</span>,</span>
-<span>  outcome        <span class="op">=</span> <span class="st">"Y_bin"</span>,</span>
-<span>  models         <span class="op">=</span> <span class="va">models_med</span>,</span>
-<span>  init_recode    <span class="op">=</span> <span class="va">init_med</span>,</span>
-<span>  in_recode      <span class="op">=</span> <span class="va">in_med</span>,</span>
-<span>  mediation_type <span class="op">=</span> <span class="st">"I"</span>,     <span class="co"># Interventional IDE/IIE</span></span>
-<span>  mc_sample      <span class="op">=</span> <span class="fl">10000</span>,</span>
-<span>  R              <span class="op">=</span> <span class="fl">100</span>,</span>
-<span>  quiet          <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  seed           <span class="op">=</span> <span class="fl">2025</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">fit_med</span><span class="op">)</span></span>
+<span><span class="va">fit</span></span>
 <span><span class="co">#&gt; Call:</span></span>
 <span><span class="co">#&gt; mediation(data = nonsurvivaldata, id_var = "id", base_vars = "V", </span></span>
-<span><span class="co">#&gt;     exposure = "A", outcome = "Y_bin", time_var = "time", models = models_med, </span></span>
-<span><span class="co">#&gt;     init_recode = init_med, in_recode = in_med, mc_sample = 10000, </span></span>
-<span><span class="co">#&gt;     mediation_type = "I", R = 100, quiet = TRUE, seed = 2025)</span></span>
+<span><span class="co">#&gt;     exposure = "A", outcome = "Y_bin", time_var = "time", models = models, </span></span>
+<span><span class="co">#&gt;     init_recode = recodes(lag1_A = 0, lag1_L1 = 0, lag1_L2 = 0, </span></span>
+<span><span class="co">#&gt;         lag1_M = 0), in_recode = recodes(lag1_A = A, lag1_L1 = L1, </span></span>
+<span><span class="co">#&gt;         lag1_L2 = L2, lag1_M = M), mc_sample = 10000, R = 100, </span></span>
+<span><span class="co">#&gt;     quiet = TRUE, seed = 2025)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; --- Analysis setup ---</span></span>
 <span><span class="co">#&gt;   Exposure     : A</span></span>
@@ -321,113 +188,103 @@
 <span><span class="co">#&gt; 5:             NA</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;   95% CIs: percentile (pct) and normal approximation (norm) from 100 bootstrap replicates.</span></span></code></pre></div>
-<p>The <code>estimate</code> component of <code>fit_med</code> contains:</p>
+<p>By default the effects compare always exposed with never exposed; other static regimes are set with <code>exposure_regime</code> and <code>reference_regime</code>. The rows of the decomposition are:</p>
 <table class="table">
 <colgroup>
 <col width="50%">
 <col width="50%">
 </colgroup>
 <thead><tr>
-<th>Effect</th>
-<th>Definition</th>
+<th>Row</th>
+<th>Meaning</th>
 </tr></thead>
 <tbody>
 <tr>
-<td>Indirect effect</td>
-<td>Q(1,1) − Q(1,0): effect through the mediator pathway</td>
+<td>Direct effect</td>
+<td>
+<code>Phi10 - Phi00</code>: effect of the exposure with the mediator drawn from its distribution under no exposure</td>
 </tr>
 <tr>
-<td>Direct effect</td>
-<td>Q(1,0) − Q(0,0): effect not through the mediator</td>
+<td>Indirect effect</td>
+<td>
+<code>Phi11 - Phi10</code>: with exposure, the effect of shifting the mediator’s distribution from its unexposed to its exposed form</td>
 </tr>
 <tr>
 <td>Total effect</td>
-<td>natural plug-in g-formula contrast E[Y₁] − E[Y₀]</td>
+<td>
+<code>nat1 - nat0</code>: the ordinary g-formula total effect</td>
 </tr>
 <tr>
-<td>TE − (Direct + Indirect)</td>
-<td>decomposition residual (interventional only; exactly 0, and omitted, for natural effects)</td>
+<td>TE - (Direct + Indirect)</td>
+<td>the decomposition residual: direct + indirect sum to the interventional overall effect <code>Phi11 - Phi00</code>, not to the total effect</td>
 </tr>
 <tr>
 <td>Mediation Proportion</td>
-<td>Indirect / (Direct + Indirect) × 100%, i.e. a share of the interventional <strong>overall</strong> effect, not of the total effect (Lin et al. 2017, Table 2)</td>
+<td>indirect effect as a percentage of the interventional overall effect</td>
 </tr>
 </tbody>
 </table>
-<p>With <code>R &gt; 1</code>, <code>estimate</code> additionally carries bootstrap SEs and percentile/normal CIs on the RD and RR scales, and the returned object gains <code>boot_estimates</code> (the per-replicate draws), <code>data_summary</code>, and an <code>observed</code> nonparametric benchmark that <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> displays next to the simulated means.</p>
-<p>For <code>mediation_type = "I"</code>, Q(a₁, a₂) is the mean outcome when exposure is set to a₁ and each mediator is a <strong>stochastic draw</strong> from its marginal distribution under exposure a₂. The direct and indirect effects then sum to the <em>interventional overall effect</em> Q(1,1) − Q(0,0), which generally differs from the total effect; their gap is the residual row. For <code>mediation_type = "N"</code> the references use each subject’s own mediator and the decomposition sums exactly to the total effect (no residual row).</p>
-<p>Under <code>mediation_type = "I"</code>, the mediators in <strong>every</strong> intervention (the references Q(0,0) and Q(1,1) as well as the cross-regime Q(1,0)) are drawn as <strong>joint trajectories</strong>: a cohort is simulated under each a* with the exposure held fixed and the mediator following its fitted model, and the intervention assigns each subject the full M(1:T) of a randomly permuted reference-cohort individual (each mediator permuted independently). This matches the SAS <code>mGFORMULA</code> macro (Lin et al. 2017, eAppendix) and Yamamuro et al. 2021 (Figure 3, step 3). No one is removed from the pool once they have an event; the full reference cohort is used at every time step, following the estimation algorithm of Lin et al. (2017). See <code><a href="reference/mediation.html">?mediation</a></code> for details.</p>
 </div>
-<div class="section level3">
-<h3 id="natural-ndenie-zheng--van-der-laan-2017">Natural NDE/NIE (Zheng &amp; van der Laan 2017)<a class="anchor" aria-label="anchor" href="#natural-ndenie-zheng--van-der-laan-2017"></a>
-</h3>
-<p>Change one argument:</p>
+<div class="section level2">
+<h2 id="other-analyses">Other analyses<a class="anchor" aria-label="anchor" href="#other-analyses"></a>
+</h2>
+<p><strong>Natural effects.</strong> Set <code>mediation_type = "N"</code>. Zheng &amp; van der Laan (2017, Lemma 1) identify these effects under sequential randomization and positivity; reading them as individual-level natural effects additionally requires a cross-world assumption that is not expected to hold when a mediator-outcome confounder is affected by the exposure (Avin, Shpitser &amp; Pearl 2005), as <code>L1</code> and <code>L2</code> are here. <code><a href="reference/mediation.html">mediation()</a></code> warns when a covariate model includes the exposure. <code>estimator = "tmle"</code> gives the targeted estimator of Zheng &amp; van der Laan (2017, Section 4.3); see <code><a href="reference/mediation.html">?mediation</a></code> for what it accepts.</p>
+<p><strong>Total effects.</strong> <code><a href="reference/gformula.html">gformula()</a></code> needs no mediator model, and takes a named list of static (<code>1</code>, <code>0</code>) or dynamic (<code><a href="reference/dyn_int.html">dyn_int()</a></code>) interventions:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">models_te</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">models</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>,   <span class="co"># exposure and confounder models from above</span></span>
+<span>               <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">Y_bin</span> <span class="op">~</span> <span class="va">V</span> <span class="op">+</span> <span class="va">A</span> <span class="op">+</span> <span class="va">L1</span> <span class="op">+</span> <span class="va">L2</span>,</span>
+<span>                               var_type <span class="op">=</span> <span class="st">"binary"</span>, mod_type <span class="op">=</span> <span class="st">"outcome"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">fit_te</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gformula.html">gformula</a></span><span class="op">(</span></span>
+<span>  data         <span class="op">=</span> <span class="va">nonsurvivaldata</span>, id_var <span class="op">=</span> <span class="st">"id"</span>, time_var <span class="op">=</span> <span class="st">"time"</span>,</span>
+<span>  base_vars    <span class="op">=</span> <span class="st">"V"</span>, exposure <span class="op">=</span> <span class="st">"A"</span>, models <span class="op">=</span> <span class="va">models_te</span>,</span>
+<span>  intervention <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>natural <span class="op">=</span> <span class="cn">NULL</span>, always <span class="op">=</span> <span class="fl">1</span>, never <span class="op">=</span> <span class="fl">0</span>,</span>
+<span>                      treat_if_L1_pos <span class="op">=</span> <span class="fu"><a href="reference/dyn_int.html">dyn_int</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">lag1_L1</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  init_recode  <span class="op">=</span> <span class="fu"><a href="reference/recodes.html">recodes</a></span><span class="op">(</span>lag1_A <span class="op">=</span> <span class="fl">0</span>, lag1_L1 <span class="op">=</span> <span class="fl">0</span>, lag1_L2 <span class="op">=</span> <span class="fl">0</span><span class="op">)</span>,</span>
+<span>  in_recode    <span class="op">=</span> <span class="fu"><a href="reference/recodes.html">recodes</a></span><span class="op">(</span>lag1_A <span class="op">=</span> <span class="va">A</span>, lag1_L1 <span class="op">=</span> <span class="va">L1</span>, lag1_L2 <span class="op">=</span> <span class="va">L2</span><span class="op">)</span>,</span>
+<span>  R            <span class="op">=</span> <span class="fl">500</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p><strong>Parallel bootstrap.</strong> Set a <code>future</code> plan before the call:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit_natural</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/mediation.html">mediation</a></span><span class="op">(</span></span>
-<span>  <span class="va">...</span>,                     <span class="co"># same arguments as above</span></span>
-<span>  mediation_type <span class="op">=</span> <span class="st">"N"</span>    <span class="co"># natural NDE/NIE (Zheng &amp; van der Laan 2017)</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p>Natural effects condition the mediator model on the individual’s own covariate history but evaluate it with the exposure history set to the alternative regime (exposure swapping). They require stronger sequential no-unmeasured-confounding assumptions than interventional effects. Zheng &amp; van der Laan (2017, Lemma 1) identify them under sequential randomization and positivity; reading them as <strong>individual-level</strong> natural effects additionally requires a cross-world assumption that is not expected to hold when a mediator–outcome confounder is itself affected by prior exposure (Avin, Shpitser &amp; Pearl 2005; VanderWeele &amp; Tchetgen Tchetgen 2017). <code><a href="reference/mediation.html">mediation()</a></code> scans the model formulas for covariates modelled as exposure-affected, warns at run time, and restates the caveat under the decomposition when you <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> the result. That scan cannot verify the causal structure, and its silence does not establish that no such confounder exists. VanderWeele &amp; Tchetgen Tchetgen (2017) propose the randomized interventional analogues (<code>mediation_type = "I"</code>) for that setting.</p>
-<div class="section level4">
-<h4 id="targeted-estimation-tmle">Targeted estimation (TMLE)<a class="anchor" aria-label="anchor" href="#targeted-estimation-tmle"></a>
-</h4>
-<p>For natural effects only, the plug-in simulation can be replaced by the targeted maximum likelihood estimator of Zheng &amp; van der Laan (2017, §4.3):</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit_tmle</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/mediation.html">mediation</a></span><span class="op">(</span></span>
-<span>  <span class="va">...</span>,                     <span class="co"># same arguments as above</span></span>
-<span>  mediation_type <span class="op">=</span> <span class="st">"N"</span>,</span>
-<span>  estimator      <span class="op">=</span> <span class="st">"tmle"</span>  <span class="co"># EIC Wald CIs, no bootstrap</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p>It runs backward targeted regressions instead of forward simulation. Zheng &amp; van der Laan (2017) establish multiple robustness for this estimator, meaning consistency when only certain subsets of the nuisance models are correct, and it reports Wald CIs from the efficient influence curve, so <code>R</code> and <code>mc_sample</code> are ignored. Note that those results are stated for correctly specified nuisance models, and this implementation builds its targeted sequential regressions as additive main-effects working models; see <code><a href="reference/mediation.html">?mediation</a></code> for the detail. It requires an exposure model, a binary outcome, and lag-style recodes only (<code>recodes(lag_A = A)</code>; exposure lags must be first-order; no model recode of the exposure); derived recodes such as splines or cumulative counts need <code>estimator = "gcomp"</code>, whose natural-effect mediator model may read the exposure only directly or through first-order lags. Inspect any positivity warnings it reports before trusting the affected quantities.</p>
-</div>
-</div>
-<div class="section level3">
-<h3 id="enabling-parallel-bootstrap">Enabling parallel bootstrap<a class="anchor" aria-label="anchor" href="#enabling-parallel-bootstrap"></a>
-</h3>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://future.futureverse.org" class="external-link">future</a></span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://future.futureverse.org/reference/plan.html" class="external-link">plan</a></span><span class="op">(</span><span class="va">multisession</span><span class="op">)</span>   <span class="co"># Windows; use plan(multicore) on Unix/macOS</span></span>
-<span></span>
-<span><span class="va">fit_parallel</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/mediation.html">mediation</a></span><span class="op">(</span><span class="va">...</span>, R <span class="op">=</span> <span class="fl">500</span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="https://future.futureverse.org/reference/plan.html" class="external-link">plan</a></span><span class="op">(</span><span class="va">sequential</span><span class="op">)</span>     <span class="co"># reset after use</span></span></code></pre></div>
-</div>
+<code class="sourceCode R"><span><span class="fu">future</span><span class="fu">::</span><span class="fu"><a href="https://future.futureverse.org/reference/plan.html" class="external-link">plan</a></span><span class="op">(</span><span class="fu">future</span><span class="fu">::</span><span class="va"><a href="https://future.futureverse.org/reference/multisession.html" class="external-link">multisession</a></span><span class="op">)</span></span>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/mediation.html">mediation</a></span><span class="op">(</span><span class="va">...</span>, R <span class="op">=</span> <span class="fl">500</span><span class="op">)</span></span>
+<span><span class="fu">future</span><span class="fu">::</span><span class="fu"><a href="https://future.futureverse.org/reference/plan.html" class="external-link">plan</a></span><span class="op">(</span><span class="fu">future</span><span class="fu">::</span><span class="va"><a href="https://future.futureverse.org/reference/sequential.html" class="external-link">sequential</a></span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="data-format">Data format<a class="anchor" aria-label="anchor" href="#data-format"></a>
 </h2>
-<p>Input data must be in <strong>long format</strong> with one row per subject per time point. The time variable should be an ordered integer starting at 0. Lag variables (e.g. <code>lag1_A</code>) must be created by the <code>init_recode</code> / <code>in_recode</code> hooks: the Monte Carlo cohort is built from <code>id_var</code> and <code>base_vars</code> only, so a lag column that merely exists in the input data is not carried into the simulation and the run stops with <code>object 'lag1_A' not found</code>. The <code>nonsurvivaldata</code> bundled with the package illustrates the required structure.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"nonsurvivaldata"</span>, package <span class="op">=</span> <span class="st">"causalMed"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">nonsurvivaldata</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   id time          V         L1 L2 A         M    Y_cont Y_bin lag1_A   lag1_L1</span></span>
-<span><span class="co">#&gt; 1  1    0  0.4365731  0.7601565  0 1 0.3825810        NA    NA     NA        NA</span></span>
-<span><span class="co">#&gt; 2  1    1  0.4365731  0.1041467  1 1 1.2635708        NA    NA      1 0.7601565</span></span>
-<span><span class="co">#&gt; 3  1    2  0.4365731  0.8956876  0 1 0.6277357        NA    NA      1 0.1041467</span></span>
-<span><span class="co">#&gt; 4  1    3  0.4365731  1.6316564  0 1 1.2583611        NA    NA      1 0.8956876</span></span>
-<span><span class="co">#&gt; 5  1    4  0.4365731  1.1148361  0 1 0.4602865 0.1888076     1      1 1.6316564</span></span>
-<span><span class="co">#&gt; 6  2    0 -1.8666578 -0.3374623  0 1 0.3350378        NA    NA     NA        NA</span></span>
-<span><span class="co">#&gt;   lag1_L2    lag1_M</span></span>
-<span><span class="co">#&gt; 1      NA        NA</span></span>
-<span><span class="co">#&gt; 2       0 0.3825810</span></span>
-<span><span class="co">#&gt; 3       1 1.2635708</span></span>
-<span><span class="co">#&gt; 4       0 0.6277357</span></span>
-<span><span class="co">#&gt; 5       0 1.2583611</span></span>
-<span><span class="co">#&gt; 6      NA        NA</span></span></code></pre></div>
+<p>Data must be in long format, one row per subject per time point, with a numeric time variable. For a survival outcome, remove every row after the event and after loss to follow-up. The simulation starts from the subject identifier and the baseline covariates only, so lags and other derived variables must be created with the recode hooks even if they already exist in the data.</p>
+</div>
+<div class="section level2">
+<h2 id="learn-more">Learn more<a class="anchor" aria-label="anchor" href="#learn-more"></a>
+</h2>
+<ul>
+<li>
+<code><a href="articles/causalMed-01-overview.html">vignette("causalMed-01-overview")</a></code>: data format, model specification and quick starts.</li>
+<li>
+<code><a href="articles/causalMed-02-mediation.html">vignette("causalMed-02-mediation")</a></code>: the two estimands, survival outcomes, multiple mediators, censoring, and natural effects.</li>
+<li>
+<code><a href="articles/causalMed-03-gformula.html">vignette("causalMed-03-gformula")</a></code>: total effects, dynamic interventions, custom covariate distributions, and a published replication.</li>
+<li>
+<code><a href="articles/causalMed-04-vs-gfoRmula.html">vignette("causalMed-04-vs-gfoRmula")</a></code>: comparison with <code>gfoRmula</code>.</li>
+</ul>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h2>
-<ol style="list-style-type: decimal">
-<li><p>Westreich, D., Cole, S. R., Young, J. G., et al. (2012). The parametric g-formula to estimate the effect of HAART on incident AIDS or death. <em>Statistics in Medicine</em>, 31, 2000–2009. <a href="https://doi.org/10.1002/sim.5316" class="external-link">doi:10.1002/sim.5316</a></p></li>
-<li><p>McGrath, S., Lin, V., Zhang, Z., et al. (2020). gfoRmula: An R Package for Estimating the Effects of Sustained Treatment Strategies via the Parametric g-Formula. <em>Patterns</em>, 1, 100008. <a href="https://doi.org/10.1016/j.patter.2020.100008" class="external-link">doi:10.1016/j.patter.2020.100008</a></p></li>
-<li><p>Lin, S. H., Young, J. G., Logan, R., &amp; VanderWeele, T. J. (2017). Mediation analysis for a survival outcome with time-varying exposures, mediators, and confounders. <em>Statistics in Medicine</em>, 36(26), 4153–4166. <a href="https://doi.org/10.1002/sim.7426" class="external-link">doi:10.1002/sim.7426</a></p></li>
-<li><p>Zheng, W., &amp; van der Laan, M. (2017). Longitudinal mediation analysis with time-varying mediators and exposures, with application to survival outcomes. <em>Journal of Causal Inference</em>, 5(2). <a href="https://doi.org/10.1515/jci-2016-0006" class="external-link">doi:10.1515/jci-2016-0006</a></p></li>
-<li><p>VanderWeele, T. J., &amp; Tchetgen Tchetgen, E. J. (2017). Mediation analysis with time varying exposures and mediators. <em>Journal of the Royal Statistical Society: Series B</em>, 79(3), 917–938. <a href="https://doi.org/10.1111/rssb.12194" class="external-link">doi:10.1111/rssb.12194</a></p></li>
-<li><p>Yamamuro, S., Shinozaki, T., Iimuro, S., &amp; Matsuyama, Y. (2021). Mediational g-formula for time-varying treatment and repeated-measured multiple mediators: Application to atorvastatin’s effect on cardiovascular disease via cholesterol lowering and anti-inflammatory actions in elderly type 2 diabetics. <em>Statistical Methods in Medical Research</em>, 30(8), 1782–1799. <a href="https://doi.org/10.1177/09622802211025988" class="external-link">doi:10.1177/09622802211025988</a></p></li>
-<li><p>Avin, C., Shpitser, I., &amp; Pearl, J. (2005). Identifiability of path-specific effects. <em>Proceedings of the 19th International Joint Conference on Artificial Intelligence (IJCAI)</em>, 357–363.</p></li>
-<li><p>Miles, C. H. (2023). On the causal interpretation of randomised interventional indirect effects. <em>Journal of the Royal Statistical Society: Series B</em>, 85(4), 1154–1172. <a href="https://doi.org/10.1093/jrsssb/qkad066" class="external-link">doi:10.1093/jrsssb/qkad066</a></p></li>
-</ol>
+<ul>
+<li>Avin, C., Shpitser, I., &amp; Pearl, J. (2005). Identifiability of path-specific effects. <em>Proceedings of the 19th International Joint Conference on Artificial Intelligence</em>, 357–363.</li>
+<li>Lin, S. H., Young, J. G., Logan, R., &amp; VanderWeele, T. J. (2017). Mediation analysis for a survival outcome with time-varying exposures, mediators, and confounders. <em>Statistics in Medicine</em>, 36(26), 4153–4166. <a href="https://doi.org/10.1002/sim.7426" class="external-link">doi:10.1002/sim.7426</a>
+</li>
+<li>McGrath, S., Lin, V., Zhang, Z., et al. (2020). gfoRmula: An R package for estimating the effects of sustained treatment strategies via the parametric g-formula. <em>Patterns</em>, 1, 100008. <a href="https://doi.org/10.1016/j.patter.2020.100008" class="external-link">doi:10.1016/j.patter.2020.100008</a>
+</li>
+<li>VanderWeele, T. J., &amp; Tchetgen Tchetgen, E. J. (2017). Mediation analysis with time varying exposures and mediators. <em>Journal of the Royal Statistical Society: Series B</em>, 79(3), 917–938. <a href="https://doi.org/10.1111/rssb.12194" class="external-link">doi:10.1111/rssb.12194</a>
+</li>
+<li>Yamamuro, S., Shinozaki, T., Iimuro, S., &amp; Matsuyama, Y. (2021). Mediational g-formula for time-varying treatment and repeated-measured multiple mediators. <em>Statistical Methods in Medical Research</em>, 30(8), 1782–1799. <a href="https://doi.org/10.1177/09622802211025988" class="external-link">doi:10.1177/09622802211025988</a>
+</li>
+<li>Zheng, W., &amp; van der Laan, M. (2017). Longitudinal mediation analysis with time-varying mediators and exposures, with application to survival outcomes. <em>Journal of Causal Inference</em>, 5(2). <a href="https://doi.org/10.1515/jci-2016-0006" class="external-link">doi:10.1515/jci-2016-0006</a>
+</li>
+</ul>
 </div>
 </div>
 

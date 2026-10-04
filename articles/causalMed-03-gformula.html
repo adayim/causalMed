@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -61,7 +61,7 @@
       <h1>Estimating Total Effects with the Parametric G-formula</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/adayim/causalMed/blob/0.1.2/vignettes/causalMed-03-gformula.Rmd" class="external-link"><code>vignettes/causalMed-03-gformula.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/adayim/causalMed/blob/master/vignettes/causalMed-03-gformula.Rmd" class="external-link"><code>vignettes/causalMed-03-gformula.Rmd</code></a></small>
       <div class="d-none name"><code>causalMed-03-gformula.Rmd</code></div>
     </div>
 
@@ -75,50 +75,33 @@
 <div class="section level2">
 <h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
 </h2>
-<p><code><a href="../reference/gformula.html">gformula()</a></code> estimates the counterfactual mean outcome had
-everyone followed a given exposure strategy, the <strong>total
-effect</strong> of the strategy, using the standard parametric g-formula
-(Westreich et al. 2012; McGrath et al. 2020): fit a parametric model for
-every time-varying variable, then Monte Carlo simulate each subject
-forward in time under the intervention of interest.</p>
-<p>This vignette covers:</p>
-<ol style="list-style-type: decimal">
-<li>a binary end-of-follow-up outcome,</li>
-<li>a survival (time-to-event) outcome,</li>
-<li>dynamic (rule-based) interventions,</li>
-<li>a published replication, the GvHD analysis of Keil et al. (2014),
-which combines absorbing states, censoring, and spline recodes,</li>
-<li>bootstrap confidence intervals and parallel execution, and</li>
-<li>extracting fitted models and simulated data.</li>
-</ol>
-<p>The shared vocabulary (long-format data, <code><a href="../reference/spec_model.html">spec_model()</a></code>,
-the <code>var_type</code> / <code>mod_type</code> tables, and the
-<code><a href="../reference/recodes.html">recodes()</a></code> lag hooks) is introduced in
-<code><a href="../articles/causalMed-01-overview.html">vignette("causalMed-01-overview")</a></code> and not repeated here,
-and so are custom covariate distributions
-(<code>var_type = "custom"</code>). For mediation (direct/indirect
-decomposition) see <code><a href="../articles/causalMed-02-mediation.html">vignette("causalMed-02-mediation")</a></code>.</p>
+<p><code><a href="../reference/gformula.html">gformula()</a></code> estimates the mean outcome, or risk, had
+everyone followed a given exposure strategy, and so the <strong>total
+effect</strong> of one strategy against another, with the parametric
+g-formula (Westreich et al. 2012; McGrath et al. 2020): it fits a model
+for every time-varying variable, then simulates each subject forward in
+time under each intervention.</p>
+<p>This vignette covers binary and survival outcomes, dynamic
+interventions, custom covariate distributions, a published replication
+(the GvHD analysis of Keil et al. 2014), bootstrap intervals, and
+working with the results. Data format, <code><a href="../reference/spec_model.html">spec_model()</a></code> and the
+<code><a href="../reference/recodes.html">recodes()</a></code> hooks are introduced in
+<code><a href="../articles/causalMed-01-overview.html">vignette("causalMed-01-overview")</a></code>; direct and indirect
+effects are in <code><a href="../articles/causalMed-02-mediation.html">vignette("causalMed-02-mediation")</a></code>.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/adayim/causalMed" class="external-link">causalMed</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r-datatable.com" class="external-link">data.table</a></span><span class="op">)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Attaching package: 'data.table'</span></span>
-<span><span class="co">#&gt; The following object is masked from 'package:base':</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;     %notin%</span></span></code></pre></div>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r-datatable.com" class="external-link">data.table</a></span><span class="op">)</span></span></code></pre></div>
 <hr>
 </div>
 <div class="section level2">
 <h2 id="example-1-binary-end-of-follow-up-outcome">Example 1: binary end-of-follow-up outcome<a class="anchor" aria-label="anchor" href="#example-1-binary-end-of-follow-up-outcome"></a>
 </h2>
-<p><code>nonsurvivaldata</code> (see the overview vignette and
-<code><a href="../reference/nonsurvivaldata.html">?nonsurvivaldata</a></code>) follows 3 000 subjects over five time
-points; within each period the data-generating ordering is <strong>A →
-L</strong>: the exposure is decided first and the confounders respond to
-it. The model list mirrors that ordering: exposure model first, current
-<code>A</code> in each confounder model. In your own analyses, always
-match the list order and each model’s conditioning to <em>your</em>
-assumed data-generating process.</p>
+<p><code>nonsurvivaldata</code> follows 3,000 subjects over five time
+points. Within each period the exposure comes first and the confounders
+respond to it (<code><a href="../reference/nonsurvivaldata.html">?nonsurvivaldata</a></code>), so the exposure model is
+listed first and the confounder models include the current
+<code>A</code>. The list order should always match the assumed
+data-generating process.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"nonsurvivaldata"</span><span class="op">)</span></span>
 <span></span>
@@ -177,22 +160,21 @@ assumed data-generating process.</p>
 <span><span class="co">#&gt; 2: always_treat / natural      Ratio  1.07370051</span></span>
 <span><span class="co">#&gt; 3:  never_treat - natural Difference -0.12826810</span></span>
 <span><span class="co">#&gt; 4:  never_treat / natural      Ratio  0.45400334</span></span></code></pre></div>
-<p>The <code>effect_size</code> table gives the estimated mean outcome
-under each intervention. The <code>estimate</code> table gives contrasts
-(risk difference and risk ratio) against the reference intervention.</p>
+<p><code>effect_size</code> gives the mean outcome under each
+intervention; <code>estimate</code> gives the risk difference and risk
+ratio against the reference.</p>
 <hr>
 </div>
 <div class="section level2">
 <h2 id="example-2-survival-time-to-event-outcome">Example 2: survival (time-to-event) outcome<a class="anchor" aria-label="anchor" href="#example-2-survival-time-to-event-outcome"></a>
 </h2>
-<p>For survival outcomes use <code>mod_type = "survival"</code>. The
-model estimates the discrete-time hazard at each time point; the package
-accumulates these into a cumulative incidence,
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><msub><mo>∏</mo><mi>t</mi></msub><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>h</mi><mi>t</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">1 - \prod_t (1 - h_t)</annotation></semantics></math>,
-so the reported quantities are risks of the event by the end of
-follow-up. The data must contain one row per subject per period
-<strong>at risk</strong>: once the event occurs, no later rows for that
-subject may be present (see <code><a href="../reference/survivaldata.html">?survivaldata</a></code>).</p>
+<p>For a survival outcome, a <code>mod_type = "survival"</code> model
+gives the discrete-time hazard, which is accumulated into the cumulative
+incidence
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><msub><mo>∏</mo><mi>t</mi></msub><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>h</mi><mi>t</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">1 - \prod_t (1 - h_t)</annotation></semantics></math>:
+the reported quantities are risks of the event by the end of follow-up.
+The data need one row per subject per period <strong>at risk</strong>,
+with no rows after the event (<code><a href="../reference/survivaldata.html">?survivaldata</a></code>).</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"survivaldata"</span><span class="op">)</span></span>
 <span></span>
@@ -240,18 +222,16 @@ subject may be present (see <code><a href="../reference/survivaldata.html">?surv
 <div class="section level2">
 <h2 id="dynamic-threshold-interventions">Dynamic (threshold) interventions<a class="anchor" aria-label="anchor" href="#dynamic-threshold-interventions"></a>
 </h2>
-<p>A <strong>dynamic intervention</strong> assigns exposure by a rule
-evaluated on each subject’s simulated values. Wrap the rule in
-<code><a href="../reference/dyn_int.html">dyn_int()</a></code>; the expression is evaluated inside the simulated
-dataset at every time step.</p>
-<p>One scoping rule to keep in mind: the rule runs at the exposure
-model’s position in the model list. Variables simulated <em>earlier</em>
-in the list (and the exposure’s own natural-course draw) hold their
-current-period values; variables simulated <em>later</em>, here
-<code>L1</code>, which responds to <code>A</code>, still hold the
-previous period’s values. A rule for an exposure decided at the start of
-each period therefore conditions on the previous period’s
-covariates:</p>
+<p>A <strong>dynamic intervention</strong> sets the exposure by a rule
+applied to each subject’s simulated values, written with
+<code><a href="../reference/dyn_int.html">dyn_int()</a></code> and evaluated in the simulated data at every time
+step.</p>
+<p>The rule runs at the exposure model’s position in the list. Variables
+listed <em>earlier</em> (and the exposure’s own natural-course draw)
+hold current-period values; variables listed <em>later</em>, here
+<code>L1</code>, still hold the previous period’s values. A rule for an
+exposure decided at the start of each period therefore uses the previous
+period’s covariates:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_dyn</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gformula.html">gformula</a></span><span class="op">(</span></span>
 <span>  data        <span class="op">=</span> <span class="va">nonsurvivaldata</span>,</span>
@@ -283,50 +263,82 @@ covariates:</p>
 <span><span class="co">#&gt;                            &lt;char&gt;     &lt;char&gt;       &lt;num&gt;</span></span>
 <span><span class="co">#&gt; 1: treat_if_prev_L1_pos - natural Difference -0.01257164</span></span>
 <span><span class="co">#&gt; 2: treat_if_prev_L1_pos / natural      Ratio  0.94648651</span></span></code></pre></div>
-<p>Compound rules work too: any expression over in-scope columns is
-allowed, e.g.
+<p>Any expression over the columns in scope is allowed, e.g.
 <code>dyn_int(as.numeric(A &gt; 0 &amp; lag1_L1 &gt; median(lag1_L1)))</code>,
-where <code>A</code> is the natural-course draw the rule can
-override.</p>
+where <code>A</code> is the natural-course draw that the rule
+overrides.</p>
+<hr>
+</div>
+<div class="section level2">
+<h2 id="custom-covariate-distributions">Custom covariate distributions<a class="anchor" aria-label="anchor" href="#custom-covariate-distributions"></a>
+</h2>
+<p><code>var_type = "custom"</code> covers distributions without a
+built-in type, such as a zero-inflated normal (a point mass at zero,
+Gaussian otherwise), here as a two-part model. <code>custom_fit</code>
+may return any object that <code>custom_sim</code> knows how to use,
+here a list of two fits:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Part 1: is the value positive?  Part 2: its level, among the positives.</span></span>
+<span><span class="va">zin_fit</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">formula</span>, <span class="va">data</span>, <span class="va">...</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">y</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/model.extract.html" class="external-link">model.response</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/model.frame.html" class="external-link">model.frame</a></span><span class="op">(</span><span class="va">formula</span>, data <span class="op">=</span> <span class="va">data</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="va">fit_any</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/update.html" class="external-link">update</a></span><span class="op">(</span><span class="va">formula</span>, <span class="fu"><a href="https://rdrr.io/r/base/AsIs.html" class="external-link">I</a></span><span class="op">(</span><span class="va">.</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span> <span class="op">~</span> <span class="va">.</span><span class="op">)</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">data</span><span class="op">)</span></span>
+<span>  <span class="va">fit_pos</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">formula</span>, data <span class="op">=</span> <span class="va">data</span><span class="op">[</span><span class="va">y</span> <span class="op">&gt;</span> <span class="fl">0</span>, <span class="op">]</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>any <span class="op">=</span> <span class="va">fit_any</span>, pos <span class="op">=</span> <span class="va">fit_pos</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">zin_sim</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">model</span>, <span class="va">newdt</span>, <span class="va">...</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">p_any</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">model</span><span class="op">$</span><span class="va">any</span>, newdata <span class="op">=</span> <span class="va">newdt</span>, type <span class="op">=</span> <span class="st">"response"</span><span class="op">)</span></span>
+<span>  <span class="va">m_pos</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">model</span><span class="op">$</span><span class="va">pos</span>, newdata <span class="op">=</span> <span class="va">newdt</span><span class="op">)</span></span>
+<span>  <span class="va">is_pos</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">newdt</span><span class="op">)</span>, <span class="fl">1</span>, <span class="va">p_any</span><span class="op">)</span></span>
+<span>  <span class="va">pos</span>    <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">pmax</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">newdt</span><span class="op">)</span>, <span class="va">m_pos</span>, <span class="fu"><a href="https://rdrr.io/r/stats/sigma.html" class="external-link">sigma</a></span><span class="op">(</span><span class="va">model</span><span class="op">$</span><span class="va">pos</span><span class="op">)</span><span class="op">)</span>, <span class="fl">0</span><span class="op">)</span></span>
+<span>  <span class="va">is_pos</span> <span class="op">*</span> <span class="va">pos</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">m_zin</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/spec_model.html">spec_model</a></span><span class="op">(</span></span>
+<span>  <span class="va">X</span> <span class="op">~</span> <span class="va">A</span> <span class="op">+</span> <span class="va">L</span> <span class="op">+</span> <span class="va">time</span>,</span>
+<span>  var_type   <span class="op">=</span> <span class="st">"custom"</span>,</span>
+<span>  mod_type   <span class="op">=</span> <span class="st">"covariate"</span>,</span>
+<span>  custom_fit <span class="op">=</span> <span class="va">zin_fit</span>,</span>
+<span>  custom_sim <span class="op">=</span> <span class="va">zin_sim</span>,</span>
+<span>  truncate   <span class="op">=</span> <span class="cn">FALSE</span>   <span class="co"># zin_sim controls its own range</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p><code>custom_fit(formula, data, ...)</code> is called once, when the
+models are fitted; <code>custom_sim(model, newdata)</code> is called at
+every time step and returns one value per row. <code>custom_fit</code>
+must be defined at the top level (or be a namespace-qualified function)
+so that it can be found when the models are fitted. Choosing and
+checking the distribution is the analyst’s responsibility.</p>
 <hr>
 </div>
 <div class="section level2">
 <h2 id="a-published-example-preventing-gvhd-keil-et-al--2014">A published example: preventing GvHD (Keil et al. 2014)<a class="anchor" aria-label="anchor" href="#a-published-example-preventing-gvhd-keil-et-al--2014"></a>
 </h2>
-<p>The toy examples above isolate one feature at a time. A realistic
-analysis usually combines several. The package ships <code>gvhd</code>,
-the person-day bone-marrow transplant data used in the parametric
-g-formula illustration of Keil et al. (2014), and the code below
-reproduces that analysis: the counterfactual risk of death by day 1825
-had graft-versus-host disease (GvHD) <strong>never</strong> occurred,
-versus the natural course.</p>
-<p>This single example exercises features the toy examples do not:</p>
+<p>The package ships <code>gvhd</code>, the person-day bone marrow
+transplant data of the parametric g-formula illustration of Keil et
+al. (2014). The code below reproduces that analysis: the risk of death
+by day 1825 had graft-versus-host disease (GvHD) <strong>never</strong>
+occurred, against the natural course. It combines several features:</p>
 <ul>
 <li>
-<strong>five models</strong> in temporal order: relapse → platelet
-recovery → GvHD (exposure) → censoring → death (survival hazard). The
-covariates here are measured <em>before</em> the day’s exposure, so they
-precede it in the list, which is the paper’s ordering rather than the
-A-first ordering of the examples above;</li>
+<strong>five models</strong>: relapse → platelet recovery → GvHD
+(exposure) → censoring → death (hazard). Here the covariates are
+measured before the day’s exposure, so they come first, as in the
+paper;</li>
 <li>
-<strong>absorbing states</strong> via <code>subset =</code> (each
-state is modelled only among those not yet in it) plus an
-<code>out_recode</code> carry-forward that locks the state at 1
-afterwards;</li>
-<li>a <strong>censoring model</strong>
-(<code>mod_type = "censor"</code>);</li>
+<strong>absorbing states</strong>: each state is modelled only among
+those not yet in it (<code>subset =</code>), and <code>out_recode</code>
+keeps it at 1 afterwards;</li>
+<li>a <strong>censoring model</strong>;</li>
 <li>
 <strong>restricted cubic splines</strong> of age and day, and day
-counters, built through the three recode hooks working together;</li>
-<li>real daily-scale survival data (137 subjects, 1 825 days).</li>
+counters, built with the three recode hooks;</li>
+<li>daily data: 137 subjects over 1,825 days.</li>
 </ul>
-<p>The models follow Appendix 2 of the paper (see <code><a href="../reference/gvhd.html">?gvhd</a></code>).
-First, the time-fixed baseline transforms: restricted cubic splines of
-age (<code>agecurs1</code>/<code>agecurs2</code>, knots 17, 25.4, 30,
-41.4) and of day (<code>daycurs1</code>/<code>daycurs2</code>, knots
-83.6, 401.4, 947, 1862.2), plus
-<code>agesq</code>/<code>daysq</code>:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<p>The models follow Appendix 2 of the paper (<code><a href="../reference/gvhd.html">?gvhd</a></code>). First
+the time-fixed transforms: restricted cubic splines of age (knots 17,
+25.4, 30, 41.4) and of day (knots 83.6, 401.4, 947, 1862.2), and their
+squares:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"gvhd"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">gvhd</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/with.html" class="external-link">within</a></span><span class="op">(</span><span class="va">gvhd</span>, <span class="op">{</span></span>
@@ -343,12 +355,10 @@ age (<code>agecurs1</code>/<code>agecurs2</code>, knots 17, 25.4, 30,
 <span>              <span class="op">(</span><span class="va">day</span> <span class="op">&gt;</span> <span class="fl">1862.2</span><span class="op">)</span> <span class="op">*</span> <span class="op">(</span><span class="op">(</span><span class="va">day</span> <span class="op">-</span> <span class="fl">1862.2</span><span class="op">)</span> <span class="op">/</span> <span class="fl">83.6</span><span class="op">)</span><span class="op">^</span><span class="fl">3</span> <span class="op">*</span> <span class="op">(</span><span class="fl">947.0</span> <span class="op">-</span> <span class="fl">401.4</span><span class="op">)</span> <span class="op">-</span></span>
 <span>              <span class="op">(</span><span class="va">day</span> <span class="op">&gt;</span> <span class="fl">947.0</span><span class="op">)</span>  <span class="op">*</span> <span class="op">(</span><span class="op">(</span><span class="va">day</span> <span class="op">-</span> <span class="fl">947.0</span><span class="op">)</span>  <span class="op">/</span> <span class="fl">83.6</span><span class="op">)</span><span class="op">^</span><span class="fl">3</span> <span class="op">*</span> <span class="op">(</span><span class="fl">1862.2</span> <span class="op">-</span> <span class="fl">401.4</span><span class="op">)</span> <span class="op">/</span> <span class="op">(</span><span class="fl">1862.2</span> <span class="op">-</span> <span class="fl">947.0</span><span class="op">)</span></span>
 <span><span class="op">}</span><span class="op">)</span></span></code></pre></div>
-<p>The five models, in temporal order. Each time-varying state is
-absorbing, so its model is fitted and simulated only among those not yet
-in it (<code>subset = ...m1 == 0</code>); the death hazard interacts the
-day spline with <code>gvhd</code> so the direct effect can vary over
-time:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<p>The five models. Each state’s model applies only among those not yet
+in it (<code>subset = ...m1 == 0</code>), and the death hazard interacts
+the day spline with <code>gvhd</code>:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">models_gvhd</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="../reference/spec_model.html">spec_model</a></span><span class="op">(</span><span class="va">relapse</span> <span class="op">~</span> <span class="va">all</span> <span class="op">+</span> <span class="va">cmv</span> <span class="op">+</span> <span class="va">male</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">gvhdm1</span> <span class="op">+</span> <span class="va">daysgvhd</span> <span class="op">+</span> <span class="va">platnormm1</span> <span class="op">+</span></span>
 <span>               <span class="va">daysnoplatnorm</span> <span class="op">+</span> <span class="va">agecurs1</span> <span class="op">+</span> <span class="va">agecurs2</span> <span class="op">+</span> <span class="va">day</span> <span class="op">+</span> <span class="va">daysq</span> <span class="op">+</span> <span class="va">wait</span>,</span>
@@ -367,14 +377,12 @@ time:</p>
 <span>               <span class="va">day</span> <span class="op">*</span> <span class="va">gvhd</span> <span class="op">+</span> <span class="va">daycurs1</span> <span class="op">*</span> <span class="va">gvhd</span> <span class="op">+</span> <span class="va">daycurs2</span> <span class="op">*</span> <span class="va">gvhd</span>,</span>
 <span>             var_type <span class="op">=</span> <span class="st">"binary"</span>, mod_type <span class="op">=</span> <span class="st">"survival"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>The three recode hooks cooperate: <code>init_recode</code> seeds day
-1 (states at 0, counters at 0, functions of day computed),
-<code>in_recode</code> refreshes the functions of day and the one-day
-lags at the start of each day, and <code>out_recode</code> advances the
-day counters and enforces the absorbing carry-forward at the end of each
-day. The day spline is recomputed each step because the models reference
-it from day one:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<p>The recode hooks: <code>init_recode</code> sets day 1 (states and
+counters at 0, functions of day computed), <code>in_recode</code>
+updates the functions of day and the one-day lags at the start of each
+later day, and <code>out_recode</code> advances the counters and carries
+the absorbing states forward at the end of each day:</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">init_recode</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/recodes.html">recodes</a></span><span class="op">(</span></span>
 <span>  daysq    <span class="op">=</span> <span class="va">day</span><span class="op">^</span><span class="fl">2</span>,</span>
 <span>  daycurs1 <span class="op">=</span> <span class="op">(</span><span class="va">day</span> <span class="op">&gt;</span> <span class="fl">83.6</span><span class="op">)</span>   <span class="op">*</span> <span class="op">(</span><span class="op">(</span><span class="va">day</span> <span class="op">-</span> <span class="fl">83.6</span><span class="op">)</span>   <span class="op">/</span> <span class="fl">83.6</span><span class="op">)</span><span class="op">^</span><span class="fl">3</span> <span class="op">+</span></span>
@@ -408,7 +416,7 @@ it from day one:</p>
 <span>  platnorm <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">platnormm1</span> <span class="op">==</span> <span class="fl">1</span>, <span class="fl">1</span>, <span class="va">platnorm</span><span class="op">)</span>,</span>
 <span>  relapse  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">relapsem1</span> <span class="op">==</span> <span class="fl">1</span>,  <span class="fl">1</span>, <span class="va">relapse</span><span class="op">)</span>,</span>
 <span>  gvhd     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">gvhdm1</span> <span class="op">==</span> <span class="fl">1</span>,     <span class="fl">1</span>, <span class="va">gvhd</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_gvhd</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gformula.html">gformula</a></span><span class="op">(</span><span class="va">gvhd</span>,</span>
 <span>  id_var    <span class="op">=</span> <span class="st">"id"</span>, time_var <span class="op">=</span> <span class="st">"day"</span>, exposure <span class="op">=</span> <span class="st">"gvhd"</span>,</span>
 <span>  base_vars <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age"</span>, <span class="st">"agesq"</span>, <span class="st">"agecurs1"</span>, <span class="st">"agecurs2"</span>, <span class="st">"male"</span>, <span class="st">"cmv"</span>, <span class="st">"all"</span>, <span class="st">"wait"</span><span class="op">)</span>,</span>
@@ -418,37 +426,30 @@ it from day one:</p>
 <span>  mc_sample <span class="op">=</span> <span class="fl">20000</span>, R <span class="op">=</span> <span class="fl">1</span>, quiet <span class="op">=</span> <span class="cn">TRUE</span>, seed <span class="op">=</span> <span class="fl">20260703</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">fit_gvhd</span><span class="op">$</span><span class="va">effect_size</span></span>
-<span><span class="co">#&gt;    Intervention      Est</span></span>
-<span><span class="co">#&gt;          &lt;fctr&gt;    &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:      natural 0.611763</span></span>
-<span><span class="co">#&gt; 2:        never 0.587719</span></span>
+<span><span class="co">#&gt;    Intervention       Est</span></span>
+<span><span class="co">#&gt;          &lt;fctr&gt;     &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1:      natural 0.6093279</span></span>
+<span><span class="co">#&gt; 2:        never 0.5881213</span></span>
 <span><span class="va">fit_gvhd</span><span class="op">$</span><span class="va">estimate</span></span>
 <span><span class="co">#&gt;       Intervention  Risk_type    Estimate</span></span>
 <span><span class="co">#&gt;             &lt;char&gt;     &lt;char&gt;       &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1: never - natural Difference -0.02404395</span></span>
-<span><span class="co">#&gt; 2: never / natural      Ratio  0.96069728</span></span></code></pre></div>
-<p>The two rows above are the simulated 5-year risks of death under the
-natural course and under the “never GvHD” strategy, and their contrast.
-This reproduces the analysis specification of Keil et al. (2014). Read
-that paper for the substantive interpretation and for the assumptions it
-rests on; the purpose here is to show the machinery on a published
-example, not to draw a clinical conclusion.</p>
-<p>With 1 825 daily time steps this Monte Carlo loop takes a few
-minutes, which is why this vignette is <strong>precomputed</strong>: the
-code above was run once when the vignette was assembled, so its output
-is real while the shipped vignette builds instantly. Set
-<code>R &gt; 1</code> for bootstrap confidence intervals (much slower
-again on this dataset).</p>
+<span><span class="co">#&gt; 1: never - natural Difference -0.02120662</span></span>
+<span><span class="co">#&gt; 2: never / natural      Ratio  0.96519671</span></span></code></pre></div>
+<p>These are the simulated 5-year risks of death under the natural
+course and under “never GvHD”, and their contrast, following the
+specification of Keil et al. (2014); see that paper for the
+interpretation and the assumptions. With 1,825 daily time steps the
+simulation takes a few minutes, and bootstrap intervals
+(<code>R &gt; 1</code>) take much longer.</p>
 <hr>
 </div>
 <div class="section level2">
 <h2 id="bootstrap-confidence-intervals">Bootstrap Confidence Intervals<a class="anchor" aria-label="anchor" href="#bootstrap-confidence-intervals"></a>
 </h2>
-<p>Set <code>R &gt; 1</code> to obtain percentile and
-normal-approximation confidence intervals. The bootstrap resamples whole
-subjects (all time points together), preserving the longitudinal
-correlation structure.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<p>Set <code>R &gt; 1</code> for percentile and normal-approximation
+confidence intervals. The bootstrap resamples whole subjects, keeping
+each subject’s time points together.</p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_boot</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gformula.html">gformula</a></span><span class="op">(</span></span>
 <span>  data        <span class="op">=</span> <span class="va">nonsurvivaldata</span>,</span>
 <span>  id_var      <span class="op">=</span> <span class="st">"id"</span>,</span>
@@ -493,13 +494,8 @@ correlation structure.</p>
 <span><span class="co">#&gt; 4:         2       always 0.2511462</span></span>
 <span><span class="co">#&gt; 5:         3      natural 0.2310667</span></span>
 <span><span class="co">#&gt; 6:         3       always 0.2498870</span></span></code></pre></div>
-<p>Like the GvHD example, the bootstrap here runs for real at precompute
-time; on CRAN and CI the shipped vignette carries this captured output
-without re-running 200 replicates. Enable parallel bootstrap by
-registering a <code>future</code> plan
-(<code><a href="https://future.futureverse.org" class="external-link">library(future); plan(multisession)</a></code>) before the call; see
-<code><a href="../articles/causalMed-01-overview.html">vignette("causalMed-01-overview")</a></code> for the parallel
-details.</p>
+<p>To run the replicates in parallel, set a plan first, e.g.
+<code>future::plan(future::multisession)</code>.</p>
 <hr>
 </div>
 <div class="section level2">
@@ -508,9 +504,9 @@ details.</p>
 <div class="section level3">
 <h3 id="extracting-fitted-models">Extracting fitted models<a class="anchor" aria-label="anchor" href="#extracting-fitted-models"></a>
 </h3>
-<p>Set <code>return_fitted = TRUE</code> to access the full fitted model
-objects and their coefficients:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<p><code>return_fitted = TRUE</code> returns the full fitted model
+objects:</p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_full</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gformula.html">gformula</a></span><span class="op">(</span></span>
 <span>  data        <span class="op">=</span> <span class="va">nonsurvivaldata</span>,</span>
 <span>  id_var      <span class="op">=</span> <span class="st">"id"</span>,</span>
@@ -540,14 +536,12 @@ objects and their coefficients:</p>
 <div class="section level3">
 <h3 id="retrieving-the-simulated-data">Retrieving the simulated data<a class="anchor" aria-label="anchor" href="#retrieving-the-simulated-data"></a>
 </h3>
-<p>Set <code>return_data = TRUE</code> to retrieve the simulated Monte
-Carlo dataset (can be large). It is the <strong>end-of-follow-up
-snapshot</strong>: one row per Monte Carlo subject per intervention,
-holding each variable at its final simulated time step together with the
-accumulated <code>Pred_Y</code>. It is not a row-per-time-point panel:
-the simulation overwrites each variable in place as it steps through
-time.</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<p><code>return_data = TRUE</code> returns the simulated data (it can be
+large) as an <strong>end-of-follow-up snapshot</strong>: one row per
+simulated subject per intervention, each variable at its last simulated
+time step, with the accumulated <code>Pred_Y</code>. Earlier time steps
+are not kept.</p>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gformula.html">gformula</a></span><span class="op">(</span><span class="va">...</span>, return_data <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># One row per MC subject per intervention, at the last time point</span></span>

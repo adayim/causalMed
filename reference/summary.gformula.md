@@ -1,11 +1,8 @@
-# Summary
+# Summarise the results of gformula() or mediation()
 
-Summary method for objects returned by
-[`gformula`](https://adayim.github.io/causalMed/reference/gformula.md)
-or
-[`mediation`](https://adayim.github.io/causalMed/reference/mediation.md).
-Shows the full estimation results followed by fitted model coefficient
-tables.
+Prints the same results as
+[`print.gformula`](https://adayim.github.io/causalMed/reference/print.gformula.md),
+followed by the coefficient table of every fitted model.
 
 ## Usage
 

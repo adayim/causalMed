@@ -13,33 +13,33 @@ check_error(data, id_var, base_vars, exposure, time_var, models)
 
 - data:
 
-  A `data.frame` (long format): one row per `id_var` per `time_var`.
+  A `data.frame` in long format.
 
 - id_var:
 
-  Character scalar. Subject identifier column name.
+  Character. Name of the subject identifier.
 
 - base_vars:
 
-  Character vector of time-fixed baseline covariates (may be empty).
+  Character vector of time-fixed baseline covariates (may be empty),
+  with no missing values. Only these and `id_var` are carried into the
+  simulated cohort; every other variable a model uses, including lags,
+  must be created by the recode hooks.
 
 - exposure:
 
-  Character scalar. Exposure variable to intervene on (must be in
-  `data`).
+  Character. Name of the exposure to intervene on.
 
 - time_var:
 
-  Character scalar. Time variable column name (ordered;
-  integer/numeric).
+  Character. Name of the numeric time variable. Each distinct value is
+  one simulated step, in ascending order.
 
 - models:
 
-  A list of model specifications evaluated in temporal order. The order
-  appeared in the list should reflect the temporal ordering of the
-  variables, in another way data generation process. See
+  List of
   [`spec_model`](https://adayim.github.io/causalMed/reference/spec_model.md)
-  for a recommended constructor.
+  objects, in the order the variables are generated.
 
 ## Value
 

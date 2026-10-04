@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,7 +35,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Error Catching</h1>
-      <small class="dont-index">Source: <a href="https://github.com/adayim/causalMed/blob/0.1.2/R/check.R" class="external-link"><code>R/check.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/adayim/causalMed/blob/master/R/check.R" class="external-link"><code>R/check.R</code></a></small>
       <div class="d-none name"><code>check_error.Rd</code></div>
     </div>
 
@@ -53,29 +53,32 @@
 
 
 <dl><dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
-<dd><p>A <code>data.frame</code> (long format): one row per <code>id_var</code> per <code>time_var</code>.</p></dd>
+<dd><p>A <code>data.frame</code> in long format.</p></dd>
 
 
 <dt id="arg-id-var">id_var<a class="anchor" aria-label="anchor" href="#arg-id-var"></a></dt>
-<dd><p>Character scalar. Subject identifier column name.</p></dd>
+<dd><p>Character. Name of the subject identifier.</p></dd>
 
 
 <dt id="arg-base-vars">base_vars<a class="anchor" aria-label="anchor" href="#arg-base-vars"></a></dt>
-<dd><p>Character vector of time-fixed baseline covariates (may be empty).</p></dd>
+<dd><p>Character vector of time-fixed baseline covariates (may be
+empty), with no missing values. Only these and <code>id_var</code> are carried
+into the simulated cohort; every other variable a model uses, including
+lags, must be created by the recode hooks.</p></dd>
 
 
 <dt id="arg-exposure">exposure<a class="anchor" aria-label="anchor" href="#arg-exposure"></a></dt>
-<dd><p>Character scalar. Exposure variable to intervene on (must be in <code>data</code>).</p></dd>
+<dd><p>Character. Name of the exposure to intervene on.</p></dd>
 
 
 <dt id="arg-time-var">time_var<a class="anchor" aria-label="anchor" href="#arg-time-var"></a></dt>
-<dd><p>Character scalar. Time variable column name (ordered; integer/numeric).</p></dd>
+<dd><p>Character. Name of the numeric time variable. Each distinct
+value is one simulated step, in ascending order.</p></dd>
 
 
 <dt id="arg-models">models<a class="anchor" aria-label="anchor" href="#arg-models"></a></dt>
-<dd><p>A list of model specifications evaluated in temporal order. The order
-appeared in the list should reflect the temporal ordering of the variables, in another
-way data generation process. See <code><a href="spec_model.html">spec_model</a></code> for a recommended constructor.</p></dd>
+<dd><p>List of <code><a href="spec_model.html">spec_model</a></code> objects, in the order the
+variables are generated.</p></dd>
 
 </dl></div>
     <div class="section level2">

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">causalMed</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,7 +35,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Check for the intervention</h1>
-      <small class="dont-index">Source: <a href="https://github.com/adayim/causalMed/blob/0.1.2/R/check.R" class="external-link"><code>R/check.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/adayim/causalMed/blob/master/R/check.R" class="external-link"><code>R/check.R</code></a></small>
       <div class="d-none name"><code>check_intervention.Rd</code></div>
     </div>
 
@@ -53,36 +53,23 @@
 
 
 <dl><dt id="arg-models">models<a class="anchor" aria-label="anchor" href="#arg-models"></a></dt>
-<dd><p>A list of model specifications evaluated in temporal order. The order
-appeared in the list should reflect the temporal ordering of the variables, in another
-way data generation process. See <code><a href="spec_model.html">spec_model</a></code> for a recommended constructor.</p></dd>
+<dd><p>List of <code><a href="spec_model.html">spec_model</a></code> objects, in the order the
+variables are generated.</p></dd>
 
 
 <dt id="arg-intervention">intervention<a class="anchor" aria-label="anchor" href="#arg-intervention"></a></dt>
-<dd><p>A named list specifying exposure interventions. Each
-element is one of:</p><ul><li><p><code>NULL</code> — the natural course (exposure drawn from its fitted model).</p></li>
-<li><p>A numeric/logical scalar or vector (length 1 or equal to the number
-        of <strong>distinct</strong> time points) — a static intervention setting the exposure to that
-        value at every (or each specific) time step.</p></li>
-<li><p>A <code><a href="dyn_int.html">dyn_int</a></code> object — a dynamic (rule-based) intervention
-        whose expression is evaluated inside the simulated dataset at each
-        time step. Column names (including the exposure after its natural-course
-        draw) are in scope, e.g.
-        <code>list(natural = NULL, threshold = dyn_int(as.numeric(A &gt; 0)))</code>.</p></li>
-</ul><p>If <code>intervention</code> is <code>NULL</code>, only the natural course is
-evaluated. A <code>natural</code> element is also added automatically when
-<code>ref_int</code> asks for the natural course and the list contains no
-<code>NULL</code> element; see <code>ref_int</code> and Details.</p></dd>
+<dd><p>Named list of interventions. Each element is
+<code>NULL</code> (the natural course: exposure drawn from its fitted model), a
+0/1 value or vector with one value per distinct time point (a static
+intervention), or a <code><a href="dyn_int.html">dyn_int</a></code> rule, e.g.
+<code>list(natural = NULL, treat_if_high = dyn_int(as.numeric(L1 &gt; 0)))</code>.
+<code>NULL</code> (the default) runs the natural course only.</p></dd>
 
 
 <dt id="arg-ref-int">ref_int<a class="anchor" aria-label="anchor" href="#arg-ref-int"></a></dt>
-<dd><p>Reference intervention for contrasts. Either an integer index
-(<code>0</code> = natural course; <code>1</code>, <code>2</code>, … = elements of
-<code>intervention</code>) or a character name matching an element (e.g.,
-<code>"always"</code>). <code>0</code> and <code>"natural"</code> both resolve to the
-<code>NULL</code> element of <code>intervention</code> if there is one, and otherwise
-add a <code>natural</code> element — which requires an exposure model in
-<code>models</code>. See Details. Default: <code>0</code>.</p></dd>
+<dd><p>Reference for the contrasts: <code>0</code> or <code>"natural"</code>
+(default) for the natural course, or the position or name of an element
+of <code>intervention</code>. See Details.</p></dd>
 
 
 <dt id="arg-time-len">time_len<a class="anchor" aria-label="anchor" href="#arg-time-len"></a></dt>

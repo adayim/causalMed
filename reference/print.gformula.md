@@ -1,9 +1,8 @@
-# Print
+# Print the results of gformula() or mediation()
 
-Print method for objects returned by
-[`gformula`](https://adayim.github.io/causalMed/reference/gformula.md)
-or
-[`mediation`](https://adayim.github.io/causalMed/reference/mediation.md).
+Prints the estimated mean outcome (or risk) under each intervention, the
+contrasts or mediation decomposition, a legend of the interventions, the
+analysis setup, and the observed nonparametric benchmark.
 
 ## Usage
 

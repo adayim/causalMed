@@ -2,19 +2,13 @@
 
 ## Overview
 
-`gfoRmula` (McGrath et al. 2020) is the established CRAN reference
-implementation of the parametric g-formula in R. `causalMed` builds
-directly on the same statistical foundation and treats `gfoRmula` as its
-benchmark for total-effect estimation.
-
-This vignette describes:
-
-1.  The shared statistical foundation of both packages
-2.  Their common lineage in the GFORMULA-SAS reference macro
-3.  What `gfoRmula` offers that `causalMed` currently does not
-4.  The mediation extension that motivated `causalMed`
-5.  Side-by-side total-effect estimates from the two packages
-6.  Guidance on when to use each package
+`gfoRmula` (McGrath et al. 2020) is the established CRAN implementation
+of the parametric g-formula in R, and `causalMed` uses it as the
+benchmark for its total-effect function,
+[`gformula()`](https://adayim.github.io/causalMed/reference/gformula.md).
+This vignette sets out what the two packages share, what `gfoRmula`
+offers that `causalMed` does not, what `causalMed` adds, and how their
+estimates compare on the same data.
 
 ``` r
 
@@ -22,243 +16,90 @@ library(causalMed)
 library(data.table)
 ```
 
-------------------------------------------------------------------------
+## Shared foundation
 
-## Shared Statistical Foundation
+Both packages implement the same algorithm, that of the GFORMULA SAS
+macro (Logan, Young, Taubman, Hernán and colleagues), of which
+`gfoRmula` is the R port: fit parametric models to the long-format data,
+resample baseline records into a Monte Carlo cohort, simulate the
+time-varying variables forward one time step at a time under each
+intervention, compute survival risk as $`1 - \prod_t (1 - h_t)`$ with
+censoring removed under intervention, and bootstrap subjects for
+confidence intervals.
 
-Both packages implement the same parametric g-formula algorithm: Monte
-Carlo forward simulation under user-specified interventions on a
-longitudinal dataset in long format (one row per subject per time
-point). At each time step, covariate and outcome models fitted on the
-observed data are applied in temporal order, the intervention is imposed
-on the exposure variable, and the predicted outcomes are accumulated
-across simulated individuals. Confidence intervals are obtained by
-non-parametric bootstrap resampling at the individual level.
+The GFORMULA macro and `gfoRmula` estimate total effects only. The
+direct and indirect effects of `causalMed` go beyond both; its
+interventional mediator permutation follows a separate SAS macro,
+`mGFORMULA` (Lin et al. 2017).
 
-------------------------------------------------------------------------
+## What gfoRmula offers that causalMed does not
 
-## Relationship to GFORMULA-SAS
+`gfoRmula` is the more mature and complete package for total-effect
+estimation, with a dedicated publication (McGrath et al. 2020),
+documentation and vignettes. `causalMed` is at an earlier stage of
+development.
 
-The original reference implementation of the parametric g-formula is the
-**GFORMULA SAS macro** (Logan, Young, Taubman, Hernán and colleagues;
-available from the Harvard Causal Inference group). `gfoRmula` is the R
-port of that macro, and `causalMed`’s total-effect engine
-([`gformula()`](https://adayim.github.io/causalMed/reference/gformula.md))
-targets the same algorithm. All three share the identical core: fit
-parametric models on the observed long data, Monte Carlo–resample
-baseline records, forward-simulate the covariate → exposure → outcome
-sequence one time step at a time, compute survival risk as
-$`1 - \prod_t (1 - h_t)`$ with censoring disabled under intervention,
-and bootstrap over subjects for confidence intervals. The `causalMed`
-regression tests cross-check total-effect estimates against `gfoRmula`
-(the R twin of the SAS macro) to Monte Carlo noise.
-
-Two points of clarification:
-
-- **GFORMULA-SAS estimates total effects only.** It contains no mediator
-  decomposition. The direct/indirect machinery in `causalMed` (see the
-  mediation section below) is an *extension* beyond what GFORMULA-SAS or
-  `gfoRmula` provide. The mediator-permutation step `causalMed` uses for
-  interventional effects follows a *separate* SAS macro, `mGFORMULA`
-  (Lin et al. 2017), not the total-effect GFORMULA macro.
-- **The SAS macro has a much larger declarative vocabulary.** It exposes
-  up to eight covariate distribution types, keyword-driven functional
-  forms of covariate history (lags, cumulative averages, restricted
-  cubic splines via `ptype`), several packaged intervention types
-  (threshold, increment, sampling from the observed distribution),
-  competing-event handling, and additional end-of-follow-up outcome
-  models. `causalMed` exposes a smaller surface: model formulas plus
-  `recode`/[`dyn_int()`](https://adayim.github.io/causalMed/reference/dyn_int.md)
-  expressions and `custom_fit`/`custom_sim`. Part of what the macro
-  requests by keyword can be written by hand through that surface, and
-  part is not implemented at all. The specific gaps are itemised below.
-
-------------------------------------------------------------------------
-
-## What gfoRmula Offers That causalMed Does Not
-
-`gfoRmula` is the more mature and feature-complete package for
-total-effect g-formula estimation. Users with purely total-effect
-analyses should consider `gfoRmula` as their primary tool. Key
-capabilities in `gfoRmula` not currently available in `causalMed`
-include:
-
-### Richer covariate distribution types
-
-`gfoRmula` supports several covariate types beyond binary and normal
-that `causalMed` does not yet implement:
+**More covariate types.**
 
 | Covariate type | gfoRmula | causalMed |
 |----|:--:|:--:|
-| `"binary"` | ✓ | ✓ |
-| `"normal"` | ✓ | ✓ |
-| `"categorical"` | ✓ | ✓ |
+| `"binary"`, `"normal"`, `"categorical"` | ✓ | ✓ |
 | `"bounded normal"` (model fitted on a rescaled response) | ✓ | — |
-| `"zero-inflated normal"` (point mass at 0) | ✓ | — |
-| `"truncated normal"` (left-truncated) | ✓ | — |
-| `"absorbing"` (once 1, always 1) | ✓ | — |
-| `"categorical time"` (time as categorical predictor) | ✓ | — |
+| `"zero-inflated normal"` | ✓ | — |
+| `"truncated normal"` | ✓ | — |
+| `"absorbing"` | ✓ | — |
+| `"categorical time"` | ✓ | — |
 
-**On range truncation.** Both packages clip simulated normal draws to
-the range of the variable observed in the data, and both do so *by
-default*. In `causalMed` this is `spec_model(truncate = TRUE)`, the
-default, clipping to [`range()`](https://rdrr.io/r/base/range.html) of
-the response; in `gfoRmula` it is the `sim_trunc` argument, whose
-documentation reads “Logical scalar indicating whether to truncate
-simulated covariates to their range in the observed data set” and whose
-default is `TRUE`. Setting `spec_model(truncate = FALSE)` corresponds to
-`sim_trunc = FALSE`.
+Both packages clip simulated normal values to the observed range by
+default: `spec_model(truncate = TRUE)` in `causalMed` and
+`sim_trunc = TRUE` in `gfoRmula`, documented there as “whether to
+truncate simulated covariates to their range in the observed data set”.
+`gfoRmula`’s `"bounded normal"` is a different thing, a covariate type
+fitted on a response rescaled to `[0, 1]`. For the other types,
+`causalMed` offers only `var_type = "custom"` with user-written fitting
+and simulation functions, which leaves the choice and validation of the
+distribution to the user.
 
-Note that `gfoRmula`’s `"bounded normal"` is a distinct covariate
-*type*, not this truncation: it fits the model on a response rescaled to
-`[0, 1]` and transforms the simulated value back. `causalMed` does not
-implement it.
+**Competing events.** `gfoRmula` models competing events through
+`compevent_name`; `causalMed` has no competing-event interface.
 
-For the remaining distributions (e.g. a biomarker that can be zero or a
-treatment that is absorbing once initiated), `gfoRmula` implements them
-and `causalMed` does not. `causalMed`’s `custom_fit` and `custom_sim`
-arguments to
-[`spec_model()`](https://adayim.github.io/causalMed/reference/spec_model.md)
-allow a user-supplied fitting function and sampler, which shifts the
-responsibility for the distributional choice, and for validating it,
-onto the user.
-
-### Competing events
-
-`gfoRmula` provides explicit support for competing events via the
-`compevent_name` argument, modelling and eliminating the competing risk
-in the simulation. `causalMed` targets the risk under eliminated loss to
-follow-up but does not have a dedicated competing-event interface.
-
-### Full-function custom interventions
-
-`gfoRmula`’s custom intervention interface accepts arbitrary R functions
-with access to the full simulated dataset, the time index, and all
-parameter values at each step. This gives more control for complex
-multi-variable interventions. `causalMed` offers
+**Intervention functions.** `gfoRmula` interventions are R functions
+that receive the simulated data and the time index, and can be limited
+to chosen time points (`int_times`). `causalMed` uses
 [`dyn_int()`](https://adayim.github.io/causalMed/reference/dyn_int.md),
-which captures an R expression evaluated inside the simulated dataset at
-each step. The current time step is in scope (the `time_var` column is
-refreshed before every step), so a rule may reference it directly
+an expression evaluated in the simulated data at each step; the current
+`time_var` value is in scope
 (e.g. `dyn_int(as.numeric(A > 0 & time >= 2))`), and history-dependent
-rules can be built by maintaining lagged columns through the recode
-mechanism (`in_recode` / `out_recode`). The practical difference is that
-`causalMed` does not pass a single pooled data-frame object to a user
-function the way `gfoRmula`’s full function interface does; multi-step
-logic is expressed instead through recodes plus the captured expression.
+rules use lagged columns maintained with the recode hooks.
 
-### CRAN stability and community support
+## What causalMed adds: mediation
 
-`gfoRmula` is an established CRAN package with a dedicated publication
-(McGrath et al. 2020), reference documentation and vignettes, and
-ongoing development by the CausalAB group at Harvard. `causalMed` is a
-development-stage package and should be used with appropriate caution.
-
-------------------------------------------------------------------------
-
-## What causalMed Adds: Causal Mediation Analysis
-
-The sole motivation for `causalMed` is to extend the standard parametric
-g-formula with the **survival mediational g-formula** (Lin et al. 2017;
-Zheng & van der Laan 2017) for decomposing total effects into direct and
-indirect components. `gfoRmula` does not support mediation analysis.
-
-`causalMed` offers two mediation estimands, selected via
-`mediation_type`:
-
-- **`"I"`, interventional IDE/IIE** (Lin et al. 2017): the mediator
-  distribution is marginalised over confounders by randomly permuting
-  mediator values simulated under the reference exposure. Does not
-  require the cross-world independence assumption.
-
-- **`"N"`, natural NDE/NIE** (Zheng & van der Laan 2017): the mediator
-  model is evaluated with the exposure history set to the alternative
-  regime while keeping the individual’s own covariate history. Zheng &
-  van der Laan (2017, Lemma 1) identify these effects under sequential
-  randomization and positivity; reading them as individual-level natural
-  effects additionally requires a cross-world assumption that is not
-  expected to hold when a mediator–outcome confounder is affected by
-  prior exposure.
-
-For natural effects, two estimators are available: the parametric
-g-formula plug-in (`estimator = "gcomp"`, the default, with bootstrap
-CIs) and a targeted maximum likelihood estimator (`estimator = "tmle"`,
-Zheng & van der Laan 2017 §4.3), for which that paper establishes
-multiple robustness under correctly specified nuisance models, and which
-reports Wald CIs from the efficient influence curve without
-bootstrapping. `gfoRmula` offers neither, since it does not do
-mediation.
-
-``` r
-
-# Model list must include a mediator (mod_type = "mediator")
-models_med <- list(
-  spec_model(L ~ V + A_lag1 + L_lag1 + time,
-             var_type = "normal", mod_type = "covariate"),
-  spec_model(A ~ V + A_lag1 + L + time,
-             var_type = "binary", mod_type = "exposure"),
-  spec_model(M ~ V + A + L + M_lag1 + time,
-             var_type = "normal", mod_type = "mediator"),
-  spec_model(Y ~ V + A + M + L,
-             var_type = "binary", mod_type = "outcome")
-)
-
-fit_med <- mediation(
-  data           = dat_med,
-  id_var         = "id",
-  time_var       = "time",
-  base_vars      = "V",
-  exposure       = "A",
-  outcome        = "Y",
-  models         = models_med,
-  mediation_type = "I",     # interventional IDE/IIE (Lin et al. 2017)
-  init_recode    = recodes(A_lag1 = 0, L_lag1 = 0, M_lag1 = 0),
-  in_recode      = recodes(A_lag1 = A, L_lag1 = L, M_lag1 = M),
-  mc_sample      = 10000,
-  R              = 200,
-  seed           = 20250915
-)
-
-fit_med$estimate
-```
-
-The `estimate` table returns the indirect effect, direct effect, total
-effect, and proportion mediated on both the risk-difference and
-risk-ratio scales. See
+`gfoRmula` does not do mediation analysis.
+[`mediation()`](https://adayim.github.io/causalMed/reference/mediation.md)
+decomposes the effect of a time-varying exposure into direct and
+indirect effects, as interventional effects (`mediation_type = "I"`; Lin
+et al. 2017), with one or more mediators, or natural effects (`"N"`;
+Zheng & van der Laan 2017), estimated by g-computation or targeted
+minimum loss-based estimation. See
+[`vignette("causalMed-01-overview")`](https://adayim.github.io/causalMed/articles/causalMed-01-overview.md)
+for a quick start and
 [`vignette("causalMed-02-mediation")`](https://adayim.github.io/causalMed/articles/causalMed-02-mediation.md)
-for the rest: the estimands, reading the decomposition, survival
-outcomes, multiple mediators, censoring, natural effects, and the
-targeted (TMLE) estimator.
+for the details.
 
-------------------------------------------------------------------------
-
-## API Differences
-
-Beyond features, the two packages differ in how models and history
-functions are specified:
+## Interfaces
 
 | Aspect | causalMed | gfoRmula |
 |----|----|----|
-| Model specification | [`spec_model()`](https://adayim.github.io/causalMed/reference/spec_model.md) per variable: formula + `var_type` + `mod_type` in a list | Separate `covparams`, `ymodel`, `covtypes`, `covnames`, `outcome_type` arguments |
-| Lag / history | `init_recode` / `in_recode` via [`recodes()`](https://adayim.github.io/causalMed/reference/recodes.md) (arbitrary expressions) | Built-in `lagged`, `cumavg` functions via `histories` / `histvars` |
-| End-of-step transforms | `out_recode` hook | Not available |
-| Interventions | Named list, any number | Up to 3 (`intervention1.X`, `intervention2.X`, `intervention3.X`) |
-| Risk contrasts | Computed automatically (`ref_int`) | Manual post-processing of `$result` |
-| Output | S3 object with `print`/`summary` | List with `$result` data.table |
+| Models | One [`spec_model()`](https://adayim.github.io/causalMed/reference/spec_model.md) per variable (formula, `var_type`, `mod_type`), in a list | `covnames`, `covtypes`, `covparams`, `ymodel`, `outcome_type` |
+| Histories | Expressions in `init_recode`, `in_recode`, `out_recode` via [`recodes()`](https://adayim.github.io/causalMed/reference/recodes.md) | History functions such as `lagged` and `cumavg`, via `histories` and `histvars` |
+| Interventions | Named list of `NULL` (natural course), static values or [`dyn_int()`](https://adayim.github.io/causalMed/reference/dyn_int.md) rules | `intervention<i>.<variable>` arguments holding an intervention function and its values |
 
-These are design choices reflecting different trade-offs, not
-deficiencies in either package. `gfoRmula`’s explicit argument structure
-makes each model’s role transparent; `causalMed`’s list-based approach
-may be more concise when many models are specified.
+## Side-by-side estimates
 
-------------------------------------------------------------------------
-
-## Numerical Validation: Side-by-Side Examples
-
-For total-effect analyses the two packages implement the same estimator,
-so with matching model specifications and matching truncation settings
-they are expected to agree up to Monte Carlo error. We check that with
-both a binary end-of-follow-up outcome and a survival outcome.
+For total effects the two packages implement the same estimator, so with
+the same models and truncation settings their estimates should agree up
+to Monte Carlo error. We compare them on a binary end-of-follow-up
+outcome and a survival outcome.
 
 ### Data preparation
 
@@ -274,13 +115,12 @@ init_rc <- recodes(lag1_A = 0, lag1_L1 = 0, lag1_L2 = 0)
 in_rc   <- recodes(lag1_A = A, lag1_L1 = L1, lag1_L2 = L2)
 ```
 
-The example models below use a deliberately simplified `L → A`
-within-period ordering (confounders conditioned on the lagged exposure)
-rather than the `A → L` process documented in
+These models use a simplified `L → A` ordering within each period, not
+the `A → L` process of
 [`?nonsurvivaldata`](https://adayim.github.io/causalMed/reference/nonsurvivaldata.md).
-Both packages receive the identical specification, so the head-to-head
-comparison is unaffected; in applied work, match the ordering to your
-assumed data-generating process.
+Both packages receive the same specification, so the comparison is
+unaffected; in applied work the order should match the assumed
+data-generating process.
 
 ### Example 1: Binary end-of-follow-up outcome
 
@@ -371,19 +211,17 @@ gf_res <- fit_gf$result[k == max(fit_gf$result$k),
                          c("Interv.", "g-form mean")]
 gf_res[, Intervention := c("natural", "always", "never")]
 setnames(gf_res, "g-form mean", "gfoRmula")
-gf_res[, gfoRmula := round(gfoRmula, 4)]
+gf_res[, `:=`(gfoRmula = round(gfoRmula, 4), Interv. = NULL)]
 
 cm_res <- fit_cm$effect_size[, .(Intervention, causalMed = round(Est, 4))]
 merge(cm_res, gf_res, by = "Intervention")
 #> Key: <Intervention>
-#>    Intervention causalMed Interv. gfoRmula
-#>          <char>     <num>   <num>    <num>
-#> 1:       always    0.2550       1   0.2562
-#> 2:      natural    0.2346       0   0.2365
-#> 3:        never    0.1029       2   0.1047
+#>    Intervention causalMed gfoRmula
+#>          <char>     <num>    <num>
+#> 1:       always    0.2550   0.2562
+#> 2:      natural    0.2346   0.2365
+#> 3:        never    0.1029   0.1047
 ```
-
-------------------------------------------------------------------------
 
 ### Example 2: Survival (time-to-event) outcome
 
@@ -440,12 +278,12 @@ fit_gf_s <- gfoRmula::gformula(
   id           = "id",
   time_name    = "time",
   time_points  = T_max,
-  covnames     = c("A", "L"),
-  covtypes     = c("binary", "normal"),
+  covnames     = c("L", "A"),              # same order as the causalMed list
+  covtypes     = c("normal", "binary"),
   basecovs     = "V",
   covparams    = list(covmodels = c(
-    A ~ V + lag1_A + lag1_L + L + time,
-    L ~ V + lag1_L + time
+    L ~ V + lag1_L + time,
+    A ~ V + lag1_A + lag1_L + L + time
   )),
   ymodel       = Y ~ lag1_A + A + L + lag1_L + time,
   outcome_name = "Y",
@@ -463,9 +301,9 @@ fit_gf_s <- gfoRmula::gformula(
 fit_gf_s$result[k == max(fit_gf_s$result$k), c("Interv.", "g-form risk")]
 #>    Interv. g-form risk
 #>      <num>       <num>
-#> 1:       0   0.5671898
-#> 2:       1   0.4036602
-#> 3:       2   0.7849508
+#> 1:       0   0.6445117
+#> 2:       1   0.4036506
+#> 3:       2   0.7849414
 ```
 
 **Side-by-side at final time point**
@@ -476,31 +314,28 @@ gf_s_res <- fit_gf_s$result[k == max(fit_gf_s$result$k),
                               c("Interv.", "g-form risk")]
 gf_s_res[, Intervention := c("natural", "never", "always")]
 setnames(gf_s_res, "g-form risk", "gfoRmula")
-gf_s_res[, gfoRmula := round(gfoRmula, 4)]
+gf_s_res[, `:=`(gfoRmula = round(gfoRmula, 4), Interv. = NULL)]
 
 cm_s_res <- fit_cm_s$effect_size[, .(Intervention,
                                       causalMed = round(Est, 4))]
 merge(cm_s_res, gf_s_res, by = "Intervention")
 #> Key: <Intervention>
-#>    Intervention causalMed Interv. gfoRmula
-#>          <char>     <num>   <num>    <num>
-#> 1:       always    0.7850       2   0.7850
-#> 2:      natural    0.6458       0   0.5672
-#> 3:        never    0.4037       1   0.4037
+#>    Intervention causalMed gfoRmula
+#>          <char>     <num>    <num>
+#> 1:       always    0.7850   0.7849
+#> 2:      natural    0.6458   0.6445
+#> 3:        never    0.4037   0.4037
 ```
-
-------------------------------------------------------------------------
 
 ### Example 3: Dynamic intervention
 
-Both packages support dynamic (rule-based) interventions. Here we
-estimate the risk under “treat only if L1 \> 0”. The syntax differs
-between packages but the estimand is the same.
+The risk under “treat only if L1 \> 0”. The syntax differs; the estimand
+is the same.
 
 **causalMed**:
 [`dyn_int()`](https://adayim.github.io/causalMed/reference/dyn_int.md)
-captures the rule as an unevaluated expression evaluated inside the
-simulated dataset at each time step:
+holds the rule as an expression, evaluated in the simulated data at each
+time step:
 
 ``` r
 
@@ -533,12 +368,12 @@ fit_dyn$estimate
 #> 2: treat_if_L1_pos / natural      Ratio  0.980955847
 ```
 
-**gfoRmula**: user-supplied function passed as an argument:
+**gfoRmula**: a user-written intervention function:
 
 ``` r
 
 treat_if_L1_pos <- function(newdf, pool, intvar, intvals, time_name, t) {
-  newdf[, (intvar) := as.integer(newdf[[intvar]] > 0)]
+  newdf[, (intvar) := as.integer(L1 > 0)]
 }
 
 gfoRmula::gformula(
@@ -548,27 +383,14 @@ gfoRmula::gformula(
 )
 ```
 
-Both approaches evaluate the rule within the simulated dataset at each
-time step, so the exposure reflects its natural-course draw before the
-threshold is applied. The current time step is available inside the
-[`dyn_int()`](https://adayim.github.io/causalMed/reference/dyn_int.md)
-expression as the tracked `time_var` column
-(e.g. `dyn_int(as.numeric(L1 > 0 & time >= 2))`), and history-dependent
-rules can be built by maintaining lagged columns through `in_recode` /
-`out_recode`. The difference from `gfoRmula` is interface rather than
-capability: `gfoRmula` hands a user function the full pooled data
-object, whereas `causalMed` expresses the same logic through its
-recode-plus-expression pattern.
+Both evaluate the rule in the simulated data at each time step.
 
-------------------------------------------------------------------------
+### Larger Monte Carlo sample
 
-## Large-Sample Numerical Cross-Validation
-
-The comparison below repeats Example 1 with 50,000 Monte Carlo
-replicates rather than 10,000, which shrinks the Monte Carlo component
-of the difference. Both packages fit the same models to the same data
-and implement the same estimator, so what remains is Monte Carlo
-sampling variability rather than algorithmic divergence.
+Repeating Example 1 with 50,000 rather than 10,000 simulated subjects
+shrinks the Monte Carlo part of the difference. Both packages fit the
+same models to the same data, so what remains is Monte Carlo
+variability.
 
 ``` r
 
@@ -613,79 +435,34 @@ data.frame(
 #> 2       always   0.25441  0.25448    0.00007
 ```
 
-The `Difference` column above is what this run produced. The package’s
-test suite runs the same comparison against `gfoRmula` on a binary
+The `Difference` column is what this run produced. The package’s test
+suite runs the same comparison against `gfoRmula` for a binary
 end-of-follow-up outcome, a survival outcome and a dynamic intervention,
-asserting agreement at a tolerance of 0.005, so what is shown here is
-not a one-off. That agreement is established on those data-generating
-processes, at those model specifications, and does not by itself extend
-to settings the comparison does not cover.
-
-------------------------------------------------------------------------
+and requires agreement within 0.005. That agreement holds for those
+data-generating processes and model specifications, and does not by
+itself extend to others.
 
 ## References
 
-1.  Westreich, D., Cole, S. R., Young, J. G., et al. (2012). The
-    parametric g-formula to estimate the effect of HAART on incident
-    AIDS or death. *Statistics in Medicine*, 31, 2000–2009.
+1.  Lin, S. H., Young, J. G., Logan, R., & VanderWeele, T. J. (2017).
+    Mediation analysis for a survival outcome with time-varying
+    exposures, mediators, and confounders. *Statistics in Medicine*,
+    36(26), 4153–4166.
 
 2.  McGrath, S., Lin, V., Zhang, Z., et al. (2020). gfoRmula: An R
     Package for Estimating the Effects of Sustained Treatment Strategies
     via the Parametric g-Formula. *Patterns*, 1, 100008.
 
-3.  Lin, S. H., Young, J. G., Logan, R., & VanderWeele, T. J. (2017).
-    Mediation analysis for a survival outcome with time-varying
-    exposures, mediators, and confounders. *Statistics in Medicine*,
-    36(26), 4153–4166.
-
-4.  Zheng, W., & van der Laan, M. (2017). Longitudinal mediation
+3.  Zheng, W., & van der Laan, M. (2017). Longitudinal mediation
     analysis with time-varying mediators and exposures, with application
     to survival outcomes. *Journal of Causal Inference*, 5(2).
 
+Package versions used for this comparison:
+
 ``` r
 
-sessionInfo()
-#> R version 4.6.1 (2026-06-24)
-#> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.5 LTS
-#> 
-#> Matrix products: default
-#> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
-#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
-#> 
-#> locale:
-#>  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       
-#>  [4] LC_COLLATE=C.UTF-8     LC_MONETARY=C.UTF-8    LC_MESSAGES=C.UTF-8   
-#>  [7] LC_PAPER=C.UTF-8       LC_NAME=C              LC_ADDRESS=C          
-#> [10] LC_TELEPHONE=C         LC_MEASUREMENT=C.UTF-8 LC_IDENTIFICATION=C   
-#> 
-#> time zone: UTC
-#> tzcode source: system (glibc)
-#> 
-#> attached base packages:
-#> [1] stats     graphics  grDevices utils     datasets  methods   base     
-#> 
-#> other attached packages:
-#> [1] data.table_1.18.6.1 causalMed_0.1.2    
-#> 
-#> loaded via a namespace (and not attached):
-#>  [1] future.apply_1.20.2 gtable_0.3.6        jsonlite_2.0.0     
-#>  [4] dplyr_1.2.1         compiler_4.6.1      tidyselect_1.2.1   
-#>  [7] gfoRmula_1.1.1      stringr_1.6.0       parallel_4.6.1     
-#> [10] jquerylib_0.1.4     globals_0.19.1      systemfonts_1.3.2  
-#> [13] scales_1.4.0        textshaping_1.0.5   yaml_2.3.12        
-#> [16] fastmap_1.2.0       ggplot2_4.0.3       R6_2.6.1           
-#> [19] generics_0.1.4      knitr_1.52          htmlwidgets_1.6.4  
-#> [22] future_1.75.0       tibble_3.3.1        desc_1.4.3         
-#> [25] nnet_7.3-20         bslib_0.12.0        pillar_1.11.1      
-#> [28] RColorBrewer_1.1-3  rlang_1.3.0         stringi_1.8.9      
-#> [31] cachem_1.1.0        xfun_0.61           fs_2.1.0           
-#> [34] sass_0.4.10         S7_0.2.2            otel_0.2.0         
-#> [37] cli_3.6.6           progressr_1.0.0     pkgdown_2.2.1      
-#> [40] magrittr_2.0.5      digest_0.6.39       grid_4.6.1         
-#> [43] lifecycle_1.0.5     vctrs_0.7.3         evaluate_1.0.5     
-#> [46] glue_1.8.1          listenv_1.0.0       farver_2.1.2       
-#> [49] codetools_0.2-20    ragg_1.5.2          parallelly_1.48.0  
-#> [52] rmarkdown_2.32      tools_4.6.1         pkgconfig_2.0.3    
-#> [55] htmltools_0.5.9
+c(causalMed = as.character(packageVersion("causalMed")),
+  gfoRmula  = if (has_gfoRmula) as.character(packageVersion("gfoRmula")) else NA)
+#> causalMed  gfoRmula 
+#>   "0.1.3"   "1.1.1"
 ```

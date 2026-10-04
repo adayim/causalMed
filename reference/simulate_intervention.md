@@ -26,25 +26,22 @@ simulate_intervention(
 
 - data:
 
-  A `data.frame` (long format): one row per `id_var` per `time_var`.
+  A `data.frame` in long format.
 
 - models:
 
-  A list of model specifications evaluated in temporal order. The order
-  appeared in the list should reflect the temporal ordering of the
-  variables, in another way data generation process. See
+  List of
   [`spec_model`](https://adayim.github.io/causalMed/reference/spec_model.md)
-  for a recommended constructor.
+  objects, in the order the variables are generated.
 
 - exposure:
 
-  Character scalar. Exposure variable to intervene on (must be in
-  `data`).
+  Character. Name of the exposure to intervene on.
 
 - time_var:
 
-  Character scalar. Time variable column name (ordered;
-  integer/numeric).
+  Character. Name of the numeric time variable. Each distinct value is
+  one simulated step, in ascending order.
 
 - time_seq:
 
@@ -52,55 +49,35 @@ simulate_intervention(
 
 - intervention:
 
-  A named list specifying exposure interventions. Each element is one
-  of:
-
-  - `NULL` — the natural course (exposure drawn from its fitted model).
-
-  - A numeric/logical scalar or vector (length 1 or equal to the number
-    of **distinct** time points) — a static intervention setting the
-    exposure to that value at every (or each specific) time step.
-
-  - A
-    [`dyn_int`](https://adayim.github.io/causalMed/reference/dyn_int.md)
-    object — a dynamic (rule-based) intervention whose expression is
-    evaluated inside the simulated dataset at each time step. Column
-    names (including the exposure after its natural-course draw) are in
-    scope, e.g.
-    `list(natural = NULL, threshold = dyn_int(as.numeric(A > 0)))`.
-
-  If `intervention` is `NULL`, only the natural course is evaluated. A
-  `natural` element is also added automatically when `ref_int` asks for
-  the natural course and the list contains no `NULL` element; see
-  `ref_int` and Details.
+  Named list of interventions. Each element is `NULL` (the natural
+  course: exposure drawn from its fitted model), a 0/1 value or vector
+  with one value per distinct time point (a static intervention), or a
+  [`dyn_int`](https://adayim.github.io/causalMed/reference/dyn_int.md)
+  rule, e.g.
+  `list(natural = NULL, treat_if_high = dyn_int(as.numeric(L1 > 0)))`.
+  `NULL` (the default) runs the natural course only.
 
 - init_recode:
 
-  Optional expression/function applied once at time 0 before the Monte
-  Carlo loop (e.g., initializing baseline-derived variables). Should be
-  defined with
-  [`recodes`](https://adayim.github.io/causalMed/reference/recodes.md).
-  See Details.
+  [`recodes`](https://adayim.github.io/causalMed/reference/recodes.md)
+  applied at the first time step, before the models are evaluated, e.g.
+  to set lags to their baseline value.
 
 - in_recode:
 
-  Optional expression/function applied at the \*\*start\*\* of each time
-  step (e.g., entry-time functional forms). Should be defined with
-  [`recodes`](https://adayim.github.io/causalMed/reference/recodes.md).
-  See Details.
+  [`recodes`](https://adayim.github.io/causalMed/reference/recodes.md)
+  applied at the start of each later time step, before the models are
+  evaluated, e.g. to update lags.
 
 - out_recode:
 
-  Optional expression/function applied at the \*\*end\*\* of each time
-  step (e.g., create lags, cumulative counts). Should be defined with
-  [`recodes`](https://adayim.github.io/causalMed/reference/recodes.md).
-  See Details.
+  [`recodes`](https://adayim.github.io/causalMed/reference/recodes.md)
+  applied at the end of each time step, the first included, e.g. to
+  advance cumulative counts or carry an absorbing state forward.
 
 - return_data:
 
-  Logical. If `TRUE`, return the stacked simulated data (all
-  interventions) including predicted outcomes; may be large. Default
-  `FALSE`.
+  Logical. Return the simulated data (default `FALSE`; can be large).
 
 - med_pool:
 
