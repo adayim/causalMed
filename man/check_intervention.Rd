@@ -7,35 +7,19 @@
 check_intervention(models, intervention, ref_int, time_len)
 }
 \arguments{
-\item{models}{A list of model specifications evaluated in temporal order. The order
-appeared in the list should reflect the temporal ordering of the variables, in another
-way data generation process. See \code{\link{spec_model}} for a recommended constructor.}
+\item{models}{List of \code{\link{spec_model}} objects, in the order the
+variables are generated.}
 
-\item{intervention}{A named list specifying exposure interventions. Each
-element is one of:
-\itemize{
-  \item \code{NULL} — the natural course (exposure drawn from its fitted model).
-  \item A numeric/logical scalar or vector (length 1 or equal to the number
-        of \strong{distinct} time points) — a static intervention setting the exposure to that
-        value at every (or each specific) time step.
-  \item A \code{\link{dyn_int}} object — a dynamic (rule-based) intervention
-        whose expression is evaluated inside the simulated dataset at each
-        time step. Column names (including the exposure after its natural-course
-        draw) are in scope, e.g.
-        \code{list(natural = NULL, threshold = dyn_int(as.numeric(A > 0)))}.
-}
-If \code{intervention} is \code{NULL}, only the natural course is
-evaluated. A \code{natural} element is also added automatically when
-\code{ref_int} asks for the natural course and the list contains no
-\code{NULL} element; see \code{ref_int} and Details.}
+\item{intervention}{Named list of interventions. Each element is
+\code{NULL} (the natural course: exposure drawn from its fitted model), a
+0/1 value or vector with one value per distinct time point (a static
+intervention), or a \code{\link{dyn_int}} rule, e.g.
+\code{list(natural = NULL, treat_if_high = dyn_int(as.numeric(L1 > 0)))}.
+\code{NULL} (the default) runs the natural course only.}
 
-\item{ref_int}{Reference intervention for contrasts. Either an integer index
-(\code{0} = natural course; \code{1}, \code{2}, … = elements of
-\code{intervention}) or a character name matching an element (e.g.,
-\code{"always"}). \code{0} and \code{"natural"} both resolve to the
-\code{NULL} element of \code{intervention} if there is one, and otherwise
-add a \code{natural} element — which requires an exposure model in
-\code{models}. See Details. Default: \code{0}.}
+\item{ref_int}{Reference for the contrasts: \code{0} or \code{"natural"}
+(default) for the natural course, or the position or name of an element
+of \code{intervention}. See Details.}
 
 \item{time_len}{length of the time in the data.}
 }

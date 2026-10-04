@@ -1,8 +1,43 @@
-#' Define parameters for recoding
-#' 
-#' @description Capture expressions for variable assignment.
-#' @param ... Named expressions (e.g., daysq = day^2).
-#' @return A list of expressions with class 'causalMed_recodes'.
+#' Recode variables inside the simulation
+#'
+#' @description
+#' Captures named expressions, unevaluated, to be evaluated inside the
+#' simulated data. They are used for the \code{init_recode}, \code{in_recode}
+#' and \code{out_recode} hooks of \code{\link{gformula}} and
+#' \code{\link{mediation}}, and for the \code{recode} argument of
+#' \code{\link{spec_model}}. Expressions are evaluated in order, so a later one
+#' can use the result of an earlier one.
+#'
+#' The simulated cohort starts with only the subject identifier and the
+#' baseline covariates, so every lag, counter or other derived variable a model
+#' uses must be created here, even if it already exists in the data:
+#' \itemize{
+#'   \item \code{init_recode}: at the first time step, before the models are
+#'     evaluated (initial values).
+#'   \item \code{in_recode}: at the start of every later time step, before the
+#'     models are evaluated (lags, functions of time).
+#'   \item \code{out_recode}: at the end of every time step, the first
+#'     included, after the models are evaluated (cumulative counts, carrying an
+#'     absorbing state forward). A variable it updates needs a starting value
+#'     from \code{init_recode}.
+#' }
+#'
+#' @param ... Named expressions, e.g. \code{lag1_A = A} or
+#'   \code{daysq = day^2}.
+#' @return A list of unevaluated expressions of class
+#'   \code{"causalMed_recodes"}.
+#' @examples
+#' # One-period lags: 0 at the first time step, then the previous value
+#' init <- recodes(lag1_A = 0, lag1_L = 0)
+#' upd  <- recodes(lag1_A = A, lag1_L = L)
+#'
+#' # A function of the time variable, e.g. for in_recode
+#' recodes(day_sq = day^2)
+#'
+#' # A running count of exposed steps: start at 0 (init_recode), add the
+#' # current step's exposure at the end of each step (out_recode)
+#' init <- recodes(cum_A = 0)
+#' upd  <- recodes(cum_A = cum_A + A)
 #' @export
 recodes <- function(...) {
   # 1. Capture arguments as unevaluated expressions
@@ -59,9 +94,10 @@ apply_recodes <- function(data, recode_params) {
 # The in_recode entries that only copy the exposure (recodes(lag_A = A)): the
 # first-order exposure lags. in_recode runs at the start of every step after
 # the first, before the exposure is set, so at step k >= 2 such a column holds
-# the exposure of step k - 1. (An out_recode copy is NOT one: out_recode also
-# skips the first step, so it still holds its init value at step 2.) Uses the
-# TMLE engine's lag map so both "N" estimators share one definition.
+# the exposure of step k - 1. Only these are set to the other regime by the
+# "N" swap; an out_recode copy of the exposure holds the same value but is not
+# set, so check_natural_exposure_history() rejects a mediator that reads it.
+# Uses the TMLE engine's lag map so both "N" estimators share one definition.
 exposure_lag_cols <- function(in_recode, exposure) {
   lag_map <- .tmle_lag_map(in_recode)
   as.character(names(lag_map)[vapply(lag_map, identical, logical(1), exposure)])

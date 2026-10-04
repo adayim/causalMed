@@ -145,11 +145,13 @@
 #'     constant among the rows used to fit the outcome model and must
 #'     \strong{not} appear in its formula: the term is not estimable and would
 #'     be dropped (with a warning) from the simulation.
-#'   \item The \code{lag1_*} columns are \code{NA} at \code{time == 0}, so a
-#'     baseline value must be supplied through \code{init_recode}, e.g.
+#'   \item The \code{lag1_*} columns are \code{NA} at \code{time == 0}, so the
+#'     rows at \code{time == 0} are dropped when a model that reads them is
+#'     fitted. In the simulation, as for any data, a lag must be given its
+#'     first value by \code{init_recode}, e.g.
 #'     \code{init_recode = recodes(lag1_A = 0, lag1_L1 = 0)}. (The lag columns
 #'     of \code{\link{survivaldata}} are 0-filled at baseline instead, so no
-#'     initialisation is strictly required there.)
+#'     rows are dropped there; the simulation still needs \code{init_recode}.)
 #' }
 #'
 #' @seealso \code{\link{survivaldata}} for the survival-outcome counterpart.
@@ -231,15 +233,13 @@
 #' the end of the fifth period.
 #'
 #' Censoring depends on \eqn{V} and on the current confounder \eqn{L}, so it is
-#' informative marginally, but it is conditionally independent of the
-#' counterfactual event process given that observed history. The target estimand
-#' -- risk with censoring eliminated -- is therefore unchanged by its presence,
-#' and the true values below are the same as they would be without it. Under
-#' \code{estimator = "gcomp"} the hazard model fitted among those still at risk
-#' already identifies that risk, so a censoring model is not required; pass one
-#' as a \code{mod_type = "censor"} entry in \code{models} to simulate the
-#' censoring process in the natural course of \code{gformula()}, or for
-#' \code{estimator = "tmle"}.
+#' informative marginally but conditionally independent of the counterfactual
+#' event process given that observed history. The target estimand, the risk
+#' with censoring eliminated, is therefore unchanged by it, and the true values
+#' above are the same as they would be without it. With
+#' \code{estimator = "gcomp"} a censoring model is not required; a
+#' \code{mod_type = "censor"} model can be supplied to simulate censoring in the
+#' natural course of \code{gformula()}, or for \code{estimator = "tmle"}.
 #'
 #' @source Simulated from the parametric process given under Details.
 "survivaldata"
@@ -276,10 +276,9 @@
 #'
 #' @details
 #' The within-visit ordering is \strong{A \eqn{\to} L \eqn{\to} M1 \eqn{\to}
-#' M2 \eqn{\to} Y}; the full data-generating equations are translated from the
-#' SAS \code{\%simdata} macro in the paper's supplementary material and are
-#' reproduced in \code{data-raw/yamamurodata.R} in the package source
-#' repository.
+#' M2 \eqn{\to} Y}; the data-generating equations are those of the SAS
+#' \code{\%simdata} macro in the supplementary material of Yamamuro et al.
+#' (2021).
 #'
 #' The published study design generates 1000 replicate datasets of
 #' \eqn{n = 1000} subjects and averages the estimates. A single replicate of
@@ -298,10 +297,9 @@
 #'   Interventional indirect effect via M2 \tab \eqn{-0.97} (0.009) \cr
 #'   Decomposition residual (TE \eqn{-} overall) \tab \eqn{0.10} (0.016) \cr
 #' }
-#' The residual is non-zero because the total effect holds the exposure fixed and
-#' lets the mediators follow their fitted models, while the direct and indirect
-#' effects draw them from a permuted pool; see the \emph{Mediator pool} section
-#' of \code{\link{mediation}}.
+#' The residual arises because the total effect lets the mediators follow their
+#' fitted models, while the direct and indirect effects draw them from a
+#' permuted pool; see Details of \code{\link{mediation}}.
 #'
 #' @source Simulated from the data-generating process of Yamamuro, S.,
 #'   Shinozaki, T., Iimuro, S., & Matsuyama, Y. (2021). Mediational g-formula

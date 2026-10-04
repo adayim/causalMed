@@ -63,9 +63,11 @@
 }
 
 
-#' Print
+#' Print the results of gformula() or mediation()
 #'
-#' Print method for objects returned by \code{\link{gformula}} or \code{\link{mediation}}.
+#' Prints the estimated mean outcome (or risk) under each intervention, the
+#' contrasts or mediation decomposition, a legend of the interventions, the
+#' analysis setup, and the observed nonparametric benchmark.
 #'
 #' @param x Object of class \code{"gformula"}.
 #' @param models Logical. If \code{TRUE}, print fitted model details (call and
@@ -375,14 +377,26 @@ print.gformula <- function(x,
       }
     }
 
-    # Mediation Proportion is unstable when the total effect is near zero.
-    if (is_mediation && !is.null(x$estimate) &&
-        all(c("perct_lcl", "perct_ucl") %in% names(x$estimate))) {
-      te_row <- x$estimate[x$estimate$Effect == "Total effect", ]
-      if (nrow(te_row) == 1L &&
-          is.finite(te_row$perct_lcl) && is.finite(te_row$perct_ucl) &&
-          te_row$perct_lcl <= 0 && te_row$perct_ucl >= 0) {
-        cat("  Warning: the Total effect 95% CI includes 0; the Mediation Proportion\n")
+    # gformula() SDs and percentile limits use the finite replicates only;
+    # say how many were not.
+    bi <- x$boot_estimates$interventions
+    if (!is_mediation && !is.null(bi)) {
+      n_rep <- length(unique(bi$replicate))
+      bad   <- tapply(!is.finite(bi$Est), bi$Intervention, sum)
+      bad   <- bad[!is.na(bad) & bad > 0]
+      if (length(bad) > 0) {
+        cat("  Note: non-finite bootstrap draws excluded from the CIs:\n")
+        for (nm in names(bad))
+          cat(sprintf("    %s: %d/%d replicates\n", nm, as.integer(bad[[nm]]), n_rep))
+      }
+    }
+
+    # The Mediation Proportion is unstable when its denominator is near zero.
+    if (is_mediation && !is.null(x$estimate)) {
+      den <- .pm_denominator_ci(x, is_interv)
+      if (!is.null(den) && den$ci[1L] <= 0 && den$ci[2L] >= 0) {
+        cat(sprintf("  Warning: the %s 95%% CI includes 0; the Mediation Proportion\n",
+                    den$label))
         cat("           is numerically unstable and should be interpreted with caution.\n")
       }
     }
@@ -400,6 +414,31 @@ print.gformula <- function(x,
 
 
 # Internal helper ---------------------------------------------------------------
+# Bootstrap percentile interval of the Mediation Proportion's denominator, with
+# a label, or NULL when there is none to show. The proportion is Indirect /
+# (Direct + Indirect) (pm_from_phi()). Under "N" that denominator is the Total
+# effect row. Under "I" it is the interventional overall effect, which differs
+# from the Total effect by the decomposition residual and has no row of its
+# own, so its interval is taken from the per-replicate effects.
+.pm_denominator_ci <- function(x, is_interv) {
+  if (is_interv) {
+    be <- x$boot_estimates$effects
+    if (is.null(be)) return(NULL)
+    keep <- be$Effect == "Direct effect" | grepl("^Indirect effect", be$Effect)
+    oe   <- tapply(be$RD[keep], be$replicate[keep], sum)
+    oe   <- oe[is.finite(oe)]
+    if (length(oe) < 2L) return(NULL)
+    return(list(label = "Direct + Indirect effect",
+                ci    = unname(stats::quantile(oe, c(0.025, 0.975)))))
+  }
+  est <- x$estimate
+  if (!all(c("perct_lcl", "perct_ucl") %in% names(est))) return(NULL)
+  te <- est[est$Effect == "Total effect", ]
+  if (nrow(te) != 1L || !is.finite(te$perct_lcl) || !is.finite(te$perct_ucl))
+    return(NULL)
+  list(label = "Total effect", ci = c(te$perct_lcl, te$perct_ucl))
+}
+
 # Render the fitted-model block shared by print.gformula(models = TRUE) and
 # summary.gformula(). `full = TRUE` prints each model's recodes and, when the
 # object was built with return_fitted = TRUE, its complete summary();
@@ -454,11 +493,10 @@ print.gformula <- function(x,
 }
 
 
-#' Summary
+#' Summarise the results of gformula() or mediation()
 #'
-#' Summary method for objects returned by \code{\link{gformula}} or
-#' \code{\link{mediation}}. Shows the full estimation results followed by
-#' fitted model coefficient tables.
+#' Prints the same results as \code{\link{print.gformula}}, followed by the
+#' coefficient table of every fitted model.
 #'
 #' @param object Object of class \code{"gformula"}.
 #' @param digits Integer. Number of decimal places used when rounding

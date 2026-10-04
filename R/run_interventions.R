@@ -296,7 +296,7 @@ fit_spec_models <- function(models, data) {
 
     fitmodel <- run_withwarning_collect(
       eval(mods$call),
-      msg = sprintf("Outcome model: %s", rsp_vars)
+      msg = sprintf("Model for '%s' (%s)", rsp_vars, mods$mod_type)
     )
 
     # Aliased (NA) coefficients arise whenever the design is rank deficient --
@@ -403,6 +403,17 @@ fit_spec_models <- function(models, data) {
       # estimable coefficients' names, or their column positions when coef()
       # came back unnamed.
       beta_cols  = beta_cols,
+      # The factor levels and contrasts the model was fitted with, so that
+      # lin_pred() builds the same design matrix predict() would (NULL when
+      # the fit has none, or is a custom class without them).
+      xlevels    = tryCatch(fitmodel$xlevels, error = function(e) NULL),
+      contrasts  = tryCatch(fitmodel$contrasts, error = function(e) NULL),
+      # The columns the model's prediction reads, so the simulation copies
+      # only those (NULL when the fit has no terms; see model_rows()).
+      pred_vars  = if (is.null(Xterms)) NULL else all.vars(Xterms),
+      # A zero-length vector of the response's type in the data (a factor
+      # keeps its levels), used to return categorical draws in that type.
+      rsp_proto  = data[[rsp_vars]][0],
       linkinv    = if (inherits(fitmodel, "glm")) family(fitmodel)$linkinv
                    else identity,
       # suppressWarnings: sigma.default probes nobs(), which emits a
@@ -426,13 +437,42 @@ fit_spec_models <- function(models, data) {
 
 # Linear predictor from the pre-extracted design terms and coefficients.
 # Shared by sim_value() (drawing), simulate_data() (outcome/hazard prediction)
-# and the TMLE engine's dens_value(), so all three treat a rank-deficient fit
-# the same way. `beta_cols` is NULL for the usual full-rank case, in which case
-# this is exactly the original `model.matrix() %*% beta` BLAS call.
+# and the TMLE engine's dens_value(), so all three build the design matrix the
+# way predict() does:
+#   - `xlev` and `contrasts.arg`: factor and character predictors are coded
+#     with the levels and contrasts of the fit. Without them model.matrix()
+#     re-derived each factor from the values present, in alphabetical order,
+#     so a simulated categorical variable whose levels are not alphabetical
+#     (lo < mid < hi) had its dummy columns multiplied by the wrong
+#     coefficients, silently.
+#   - `na.pass`: a row with a missing predictor gets an NA in its own
+#     position. model.matrix()'s default na.omit dropped the row, and
+#     rbinom()/rnorm() then recycled the shorter vector across the other
+#     subjects.
+#   - offset() terms are added, as predict() adds them; model.matrix() leaves
+#     them out.
+# `beta_cols` is NULL for the usual full-rank case.
 lin_pred <- function(model, newdt) {
-  mm <- model.matrix(model$Xterms, data = newdt)
+  mf <- stats::model.frame(model$Xterms, newdt, na.action = stats::na.pass,
+                           xlev = model$xlevels)
+  mm <- stats::model.matrix(model$Xterms, mf, contrasts.arg = model$contrasts)
   if (!is.null(model$beta_cols)) mm <- mm[, model$beta_cols, drop = FALSE]
-  drop(mm %*% model$beta)
+  lp  <- drop(mm %*% model$beta)
+  off <- stats::model.offset(mf)
+  if (is.null(off)) lp else lp + off
+}
+
+# The rows of `data` selected by `cond`, as the fresh copy a model is evaluated
+# on. A model predicted through lin_pred() or predict() reads only its own
+# predictors, so only those columns are copied; a custom_sim function is handed
+# every column, because what it reads cannot be known.
+model_rows <- function(data, cond, model) {
+  if (!is.null(model$custom_sim) || is.null(model$pred_vars)) return(data[cond])
+  cols <- intersect(model$pred_vars, names(data))
+  # An intercept-only model reads no column; a zero-column table would also
+  # lose the row count.
+  if (length(cols) == 0L) return(data[cond])
+  data[cond, cols, with = FALSE]
 }
 
 #' Monte Carlo simulation
@@ -657,8 +697,11 @@ simulate_intervention <- function(data,
       }
     }
 
-    # Recode data after simulating
-    if (!is.null(out_recode) & t_index != min_time) {
+    # Recode data after simulating, at every step including the first. A
+    # running count or an absorbing state updated here must see the first
+    # step's simulated values, which init_recode, run before them, cannot
+    # supply.
+    if (!is.null(out_recode)) {
       apply_recodes(data, out_recode)
     }
   }

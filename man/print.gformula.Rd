@@ -2,7 +2,7 @@
 % Please edit documentation in R/print.r
 \name{print.gformula}
 \alias{print.gformula}
-\title{Print}
+\title{Print the results of gformula() or mediation()}
 \usage{
 \method{print}{gformula}(x, models = FALSE, digits = max(3, getOption("digits") - 3), ...)
 }
@@ -19,5 +19,7 @@ numeric output. Default \code{max(3, getOption("digits") - 3)}.}
 \item{...}{Not used.}
 }
 \description{
-Print method for objects returned by \code{\link{gformula}} or \code{\link{mediation}}.
+Prints the estimated mean outcome (or risk) under each intervention, the
+contrasts or mediation decomposition, a legend of the interventions, the
+analysis setup, and the observed nonparametric benchmark.
 }
