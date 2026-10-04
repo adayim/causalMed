@@ -45,10 +45,9 @@ against known values.
 }
 \details{
 The within-visit ordering is \strong{A \eqn{\to} L \eqn{\to} M1 \eqn{\to}
-M2 \eqn{\to} Y}; the full data-generating equations are translated from the
-SAS \code{\%simdata} macro in the paper's supplementary material and are
-reproduced in \code{data-raw/yamamurodata.R} in the package source
-repository.
+M2 \eqn{\to} Y}; the data-generating equations are those of the SAS
+\code{\%simdata} macro in the supplementary material of Yamamuro et al.
+(2021).
 
 The published study design generates 1000 replicate datasets of
 \eqn{n = 1000} subjects and averages the estimates. A single replicate of
@@ -67,9 +66,8 @@ SE in parentheses):
   Interventional indirect effect via M2 \tab \eqn{-0.97} (0.009) \cr
   Decomposition residual (TE \eqn{-} overall) \tab \eqn{0.10} (0.016) \cr
 }
-The residual is non-zero because the total effect holds the exposure fixed and
-lets the mediators follow their fitted models, while the direct and indirect
-effects draw them from a permuted pool; see the \emph{Mediator pool} section
-of \code{\link{mediation}}.
+The residual arises because the total effect lets the mediators follow their
+fitted models, while the direct and indirect effects draw them from a
+permuted pool; see Details of \code{\link{mediation}}.
 }
 \keyword{datasets}

@@ -97,11 +97,13 @@ Two consequences for model specification:
     constant among the rows used to fit the outcome model and must
     \strong{not} appear in its formula: the term is not estimable and would
     be dropped (with a warning) from the simulation.
-  \item The \code{lag1_*} columns are \code{NA} at \code{time == 0}, so a
-    baseline value must be supplied through \code{init_recode}, e.g.
+  \item The \code{lag1_*} columns are \code{NA} at \code{time == 0}, so the
+    rows at \code{time == 0} are dropped when a model that reads them is
+    fitted. In the simulation, as for any data, a lag must be given its
+    first value by \code{init_recode}, e.g.
     \code{init_recode = recodes(lag1_A = 0, lag1_L1 = 0)}. (The lag columns
     of \code{\link{survivaldata}} are 0-filled at baseline instead, so no
-    initialisation is strictly required there.)
+    rows are dropped there; the simulation still needs \code{init_recode}.)
 }
 }
 \seealso{

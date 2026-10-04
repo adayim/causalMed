@@ -2,7 +2,7 @@
 % Please edit documentation in R/print.r
 \name{summary.gformula}
 \alias{summary.gformula}
-\title{Summary}
+\title{Summarise the results of gformula() or mediation()}
 \usage{
 \method{summary}{gformula}(object, digits = max(3, getOption("digits") - 3), ...)
 }
@@ -15,7 +15,6 @@ numeric output. Default \code{max(3, getOption("digits") - 3)}.}
 \item{...}{Not used.}
 }
 \description{
-Summary method for objects returned by \code{\link{gformula}} or
-\code{\link{mediation}}. Shows the full estimation results followed by
-fitted model coefficient tables.
+Prints the same results as \code{\link{print.gformula}}, followed by the
+coefficient table of every fitted model.
 }

@@ -7,19 +7,22 @@
 check_error(data, id_var, base_vars, exposure, time_var, models)
 }
 \arguments{
-\item{data}{A \code{data.frame} (long format): one row per \code{id_var} per \code{time_var}.}
+\item{data}{A \code{data.frame} in long format.}
 
-\item{id_var}{Character scalar. Subject identifier column name.}
+\item{id_var}{Character. Name of the subject identifier.}
 
-\item{base_vars}{Character vector of time-fixed baseline covariates (may be empty).}
+\item{base_vars}{Character vector of time-fixed baseline covariates (may be
+empty), with no missing values. Only these and \code{id_var} are carried
+into the simulated cohort; every other variable a model uses, including
+lags, must be created by the recode hooks.}
 
-\item{exposure}{Character scalar. Exposure variable to intervene on (must be in \code{data}).}
+\item{exposure}{Character. Name of the exposure to intervene on.}
 
-\item{time_var}{Character scalar. Time variable column name (ordered; integer/numeric).}
+\item{time_var}{Character. Name of the numeric time variable. Each distinct
+value is one simulated step, in ascending order.}
 
-\item{models}{A list of model specifications evaluated in temporal order. The order
-appeared in the list should reflect the temporal ordering of the variables, in another
-way data generation process. See \code{\link{spec_model}} for a recommended constructor.}
+\item{models}{List of \code{\link{spec_model}} objects, in the order the
+variables are generated.}
 }
 \value{
 No value is returned.

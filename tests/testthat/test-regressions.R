@@ -664,7 +664,8 @@ testthat::test_that("a categorical mediator keeps its levels through the interve
   models <- list(
     spec_model(A ~ V + lag1_A + time, var_type = "binary", mod_type = "exposure"),
     spec_model(L1 ~ V + A + lag1_L1 + time, var_type = "normal", mod_type = "covariate"),
-    spec_model(Mcat ~ V + A + L1 + time, var_type = "categorical", mod_type = "mediator"),
+    spec_model(Mcat ~ V + A + L1 + time, var_type = "categorical",
+               mod_type = "mediator", trace = FALSE),
     spec_model(Y_bin ~ V + A + Mcat + L1, var_type = "binary", mod_type = "outcome")
   )
 
@@ -996,4 +997,221 @@ testthat::test_that("default exposure regimes reproduce the pre-regime-feature e
     testthat::expect_equal(got_rd, want$estimate, tolerance = 0,
                            label = paste0("estimate$RD [", mtype, "]"))
   }
+})
+
+
+# ---- 2026-09-28 engine review ------------------------------------------------
+
+testthat::test_that("a normal outcome's predicted mean is not clamped to (0, 1)", {
+  # simulate_data() clamped every "outcome" prediction to (1e-10, 1 - 1e-10),
+  # so a continuous outcome averaging above 1 came back as exactly 1 under
+  # every intervention, and negative predicted means were raised to 0. OLS is
+  # equivariant under an affine rescaling of the response, and both runs
+  # consume the same random numbers, so the means must rescale exactly.
+  data("nonsurvivaldata", package = "causalMed")
+  d <- data.table::as.data.table(nonsurvivaldata)
+  d[, Y_big := 100 * Y_cont + 50]
+  run <- function(y_model) gformula(
+    data = d, id_var = "id", base_vars = "V", exposure = "A", time_var = "time",
+    models = list(
+      spec_model(A ~ V + lag1_A + time, var_type = "binary", mod_type = "exposure"),
+      spec_model(L1 ~ V + A + lag1_L1 + time, var_type = "normal", mod_type = "covariate"),
+      y_model),
+    intervention = list(always = 1, never = 0), ref_int = "never",
+    init_recode = recodes(lag1_A = 0, lag1_L1 = 0),
+    in_recode   = recodes(lag1_A = A, lag1_L1 = L1),
+    mc_sample = 400, R = 1, quiet = TRUE, seed = 1)
+  small <- run(spec_model(Y_cont ~ V + A + L1, var_type = "normal", mod_type = "outcome"))
+  big   <- run(spec_model(Y_big  ~ V + A + L1, var_type = "normal", mod_type = "outcome"))
+  testthat::expect_equal(big$effect_size$Est, 100 * small$effect_size$Est + 50,
+                         tolerance = 1e-8)
+})
+
+
+testthat::test_that("categorical draws keep the fitted level order", {
+  testthat::skip_if_not_installed("Hmisc")
+  # Categorical draws came back as text and lin_pred() let model.matrix()
+  # re-derive the factor from the values present, in alphabetical order. With
+  # levels lo < mid < hi the dummies were multiplied by the wrong coefficients
+  # (indirect effect -0.001 instead of 0.012 at mc_sample = 20000), silently.
+  # Relabelling the same categories changes nothing else -- same fits, same
+  # draws -- so the estimates must be identical.
+  data("nonsurvivaldata", package = "causalMed")
+  fit_with <- function(labels) {
+    dat <- data.table::as.data.table(data.table::copy(nonsurvivaldata))
+    data.table::set(dat, j = "Mcat",
+                    value = cut(dat$M, breaks = 3, labels = labels))
+    models <- list(
+      spec_model(A ~ V + lag1_A + time, var_type = "binary", mod_type = "exposure"),
+      spec_model(L1 ~ V + A + lag1_L1 + time, var_type = "normal", mod_type = "covariate"),
+      spec_model(Mcat ~ V + A + L1 + time, var_type = "categorical",
+                 mod_type = "mediator", trace = FALSE),
+      spec_model(Y_bin ~ V + A + Mcat + L1, var_type = "binary", mod_type = "outcome"))
+    suppressWarnings(mediation(
+      data = dat, id_var = "id", base_vars = "V", exposure = "A",
+      outcome = "Y_bin", time_var = "time", models = models,
+      init_recode = recodes(lag1_A = 0, lag1_L1 = 0),
+      in_recode   = recodes(lag1_A = A, lag1_L1 = L1),
+      mediation_type = "I", mc_sample = 300, R = 1, quiet = TRUE, seed = 5,
+      return_data = TRUE, return_fitted = TRUE))
+  }
+  a <- fit_with(c("lo", "mid", "hi"))
+  b <- fit_with(c("a_lo", "b_mid", "c_hi"))
+  testthat::expect_equal(a$estimate$RD, b$estimate$RD, tolerance = 0)
+
+  # The simulated mediator is a factor with the fitted levels, and the engine's
+  # outcome prediction is what predict() gives on the simulated data.
+  sim <- as.data.frame(a$sim_data)
+  testthat::expect_identical(levels(sim$Mcat), c("lo", "mid", "hi"))
+  testthat::expect_equal(
+    sim$Pred_Y,
+    unname(stats::predict(a$fitted_models$Y_bin, newdata = sim, type = "response")),
+    tolerance = 1e-10)
+})
+
+
+testthat::test_that("numeric-coded, two-level and one-row categorical draws work", {
+  testthat::skip_if_not_installed("Hmisc")
+  # A two-level response or a single row makes predict.multinom() return a
+  # vector, which rMultinom() rejected ("argument of length 0"); a
+  # numeric-coded variable came back as text, which the numeric predictor of
+  # the models reading it could not take ("non-conformable arguments").
+  data("nonsurvivaldata", package = "causalMed")
+  dat <- data.table::as.data.table(data.table::copy(nonsurvivaldata))
+  data.table::set(dat, j = "Mnum", value = as.integer(cut(dat$M, breaks = 3)) - 1L)
+  data.table::set(dat, j = "L2f", value = factor(ifelse(dat$L2 == 1, "yes", "no")))
+  models <- list(
+    spec_model(A ~ V + lag1_A + time, var_type = "binary", mod_type = "exposure"),
+    spec_model(Mnum ~ V + A + time, var_type = "categorical",
+               mod_type = "covariate", trace = FALSE),
+    spec_model(L2f ~ V + A + time, var_type = "categorical",
+               mod_type = "covariate", trace = FALSE),
+    spec_model(Y_bin ~ V + A + Mnum + L2f, var_type = "binary", mod_type = "outcome"))
+  fit <- suppressWarnings(gformula(
+    data = dat, id_var = "id", base_vars = "V", exposure = "A", time_var = "time",
+    models = models, intervention = NULL,
+    init_recode = recodes(lag1_A = 0), in_recode = recodes(lag1_A = A),
+    mc_sample = 300, R = 1, quiet = TRUE, seed = 3, return_data = TRUE))
+  testthat::expect_true(is.finite(fit$effect_size$Est))
+  testthat::expect_true(is.integer(fit$sim_data$Mnum))
+  testthat::expect_true(all(fit$sim_data$Mnum %in% 0:2))
+  testthat::expect_identical(levels(fit$sim_data$L2f), c("no", "yes"))
+
+  fm <- causalMed:::fit_spec_models(models[2L], dat)[[1L]]
+  testthat::expect_length(causalMed:::sim_value(fm, dat[1L]), 1L)
+})
+
+
+testthat::test_that("missing baseline covariates are rejected before the simulation", {
+  # The Monte Carlo cohort is drawn from the baseline rows. A missing value was
+  # dropped by model.matrix() and rbinom()/rnorm() then recycled the shorter
+  # vector of draws across the other subjects: with V missing for 10% of
+  # subjects and read only by the exposure and covariate models, the run
+  # completed at 0.223 instead of the complete-case 0.234.
+  data("nonsurvivaldata", package = "causalMed")
+  d <- data.table::as.data.table(nonsurvivaldata)
+  d[id %in% 1:3, V := NA]
+  testthat::expect_error(
+    gformula(data = d, id_var = "id", base_vars = "V", exposure = "A",
+             time_var = "time", models = make_models(), intervention = NULL,
+             init_recode = recodes(lag1_A = 0, lag1_L1 = 0),
+             in_recode   = recodes(lag1_A = A, lag1_L1 = L1),
+             mc_sample = 100, R = 1, quiet = TRUE),
+    "Baseline variable(s) {V} have missing values on 15 row(s) of 3 subject(s)",
+    fixed = TRUE)
+})
+
+
+testthat::test_that("lin_pred() matches predict(): offsets, factor levels, missing rows in place", {
+  # lin_pred() called model.matrix() alone, which (a) re-derives a character or
+  # factor predictor's levels alphabetically, (b) drops rows with a missing
+  # predictor, shortening the result, and (c) leaves out offset() terms.
+  data("nonsurvivaldata", package = "causalMed")
+  d <- data.table::as.data.table(nonsurvivaldata)
+  d[, off := 0.8 * V]
+  d[, Lf := factor(ifelse(L2 == 1, "yes", "no"), levels = c("yes", "no"))]
+  fm <- causalMed:::fit_spec_models(list(
+    spec_model(A ~ lag1_A + Lf + time + offset(off),
+               var_type = "binary", mod_type = "exposure")), d)[[1L]]
+  # Lf as text, as categorical draws used to arrive; a missing lag in row 2.
+  nd <- data.table::data.table(lag1_A = c(1, NA, 0), Lf = c("no", "yes", "yes"),
+                               time = 4, off = c(-2, 0, 2))
+  lp <- causalMed:::lin_pred(fm, nd)
+  testthat::expect_length(lp, 3L)
+  testthat::expect_true(is.na(lp[2L]))
+  ref <- stats::predict(fm$fitted, type = "link", newdata = data.frame(
+    lag1_A = c(1, 0), Lf = factor(c("no", "yes"), levels = c("yes", "no")),
+    time = 4, off = c(-2, 2)))
+  testthat::expect_equal(unname(lp[c(1L, 3L)]), unname(ref), tolerance = 1e-12)
+})
+
+
+testthat::test_that("out_recode runs at every time step, the first included", {
+  # It was skipped at the first step, like in_recode, so every running count
+  # missed step 1; init_recode, run before step 1 is simulated, cannot supply
+  # a value that depends on it.
+  data("nonsurvivaldata", package = "causalMed")
+  fit <- gformula(data = nonsurvivaldata, id_var = "id", base_vars = "V",
+                  exposure = "A", time_var = "time", models = make_models(),
+                  intervention = list(always = 1), ref_int = "always",
+                  init_recode = recodes(lag1_A = 0, lag1_L1 = 0,
+                                        n_steps = 0, cum_A = 0),
+                  in_recode   = recodes(lag1_A = A, lag1_L1 = L1),
+                  out_recode  = recodes(n_steps = n_steps + 1, cum_A = cum_A + A),
+                  mc_sample = 50, R = 1, quiet = TRUE, seed = 1,
+                  return_data = TRUE)
+  # nonsurvivaldata has 5 time points, and A = 1 at each under "always".
+  testthat::expect_true(all(fit$sim_data$n_steps == 5))
+  testthat::expect_true(all(fit$sim_data$cum_A == 5))
+})
+
+
+testthat::test_that("binary draws use the fitted probability without clamping", {
+  # sim_value() floored every probability at 1e-5 (and capped it at
+  # 1 - 1e-5), adding events wherever the fitted probability was smaller;
+  # gfoRmula draws rbinom(n, 1, p) with p as fitted. Here p = plogis(-40), so
+  # 1e6 draws give no event, where the floor gave about 10.
+  mod <- list(var_type = "binary", custom_sim = NULL, truncate = TRUE,
+              Xterms = stats::delete.response(stats::terms(y ~ x)),
+              beta = c(-40, 0), beta_cols = NULL, linkinv = stats::plogis)
+  set.seed(1)
+  draws <- causalMed:::sim_value(mod, data.table::data.table(x = numeric(1e6)))
+  testthat::expect_length(draws, 1e6)
+  testthat::expect_equal(sum(draws), 0)
+})
+
+
+testthat::test_that("the proportion-mediated warning checks the proportion's own denominator", {
+  # Under "I" the proportion is Indirect / (Direct + Indirect); print() used to
+  # check the Total effect's interval instead, which differs from that
+  # denominator by the decomposition residual.
+  f  <- causalMed:::.pm_denominator_ci
+  be <- data.table::data.table(
+    replicate = rep(1:200, each = 3L),
+    Effect    = rep(c("Indirect effect", "Direct effect", "Total effect"), 200L),
+    RD        = as.vector(rbind(0.01, seq(-0.05, 0.03, length.out = 200L), 0.2)))
+  x <- list(estimate = data.frame(Effect = "Total effect",
+                                  perct_lcl = 0.18, perct_ucl = 0.22),
+            boot_estimates = list(effects = be))
+  den_i <- f(x, is_interv = TRUE)
+  testthat::expect_identical(den_i$label, "Direct + Indirect effect")
+  testthat::expect_true(den_i$ci[1L] <= 0 && den_i$ci[2L] >= 0)
+  den_n <- f(x, is_interv = FALSE)
+  testthat::expect_identical(den_n$label, "Total effect")
+  testthat::expect_equal(den_n$ci, c(0.18, 0.22))
+})
+
+
+testthat::test_that("model-fitting warnings name the model and its role", {
+  # Every model's fitting warnings were labelled "Outcome model: <variable>".
+  # maxit = 1 makes glm() warn "algorithm did not converge" deterministically.
+  cm_env <- causalMed:::causalmed_env
+  cm_env$warning <- NULL
+  d <- data.table::data.table(x = c(0, 1, 0, 1, 0, 1, 1, 0),
+                              z = c(0, 0, 1, 1, 0, 1, 1, 0))
+  invisible(causalMed:::fit_spec_models(
+    list(spec_model(z ~ x, var_type = "binary", mod_type = "covariate",
+                    control = list(maxit = 1))), d))
+  testthat::expect_true(any(grepl("Model for 'z' (covariate)", cm_env$warning,
+                                  fixed = TRUE)))
 })

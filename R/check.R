@@ -53,6 +53,26 @@ check_error <- function(data,
     stop("The time variable must be numeric.", domain = "causalMed")
   }
 
+  bvars <- setdiff(base_vars, c(id_var, time_var))
+
+  # `base_vars` must be complete. The Monte Carlo cohort is drawn from the
+  # (id_var, base_vars) rows, so a missing value is carried into the
+  # simulation, where no model can be evaluated for that subject. It used to
+  # be dropped by model.matrix() and the shorter vector of draws recycled
+  # across the other subjects.
+  has_na <- vapply(bvars, function(v) anyNA(data[[v]]), logical(1))
+  if (any(has_na)) {
+    miss <- Reduce(`|`, lapply(bvars[has_na], function(v) is.na(data[[v]])))
+    stop(sprintf(paste0(
+      "Baseline variable(s) {%s} have missing values on %d row(s) of %d ",
+      "subject(s). The Monte Carlo cohort is sampled from these rows, and the ",
+      "models cannot be evaluated for a subject with a missing baseline ",
+      "value. Supply complete baseline data."),
+      paste(bvars[has_na], collapse = ", "), sum(miss),
+      length(unique(data[[id_var]][miss]))),
+      call. = FALSE, domain = "causalMed")
+  }
+
   # `base_vars` must be time-fixed. The Monte Carlo cohort is drawn from
   # unique(data[, c(id_var, base_vars)]); a column that varies within a subject
   # contributes several rows for that subject, so the sampler silently
@@ -60,7 +80,6 @@ check_error <- function(data,
   # the run is still meaningful, but the baseline distribution is not the one
   # the user intended. Implemented with base tapply to avoid adding data.table
   # NSE columns to utils::globalVariables().
-  bvars <- setdiff(base_vars, c(id_var, time_var))
   if (length(bvars) > 0) {
     varying <- bvars[vapply(bvars, function(v) {
       any(tapply(data[[v]], data[[id_var]],

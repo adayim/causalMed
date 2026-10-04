@@ -21,50 +21,34 @@ vignette: >
 
 ## Introduction
 
-`gformula()` estimates the counterfactual mean outcome had everyone followed a
-given exposure strategy, the **total effect** of the strategy, using the
-standard parametric g-formula (Westreich et al. 2012; McGrath et al. 2020):
-fit a parametric model for every time-varying variable, then Monte Carlo
-simulate each subject forward in time under the intervention of interest.
+`gformula()` estimates the mean outcome, or risk, had everyone followed a given
+exposure strategy, and so the **total effect** of one strategy against another,
+with the parametric g-formula (Westreich et al. 2012; McGrath et al. 2020): it
+fits a model for every time-varying variable, then simulates each subject
+forward in time under each intervention.
 
-This vignette covers:
-
-1. a binary end-of-follow-up outcome,
-2. a survival (time-to-event) outcome,
-3. dynamic (rule-based) interventions,
-4. a published replication, the GvHD analysis of Keil et al. (2014), which
-   combines absorbing states, censoring, and spline recodes,
-5. bootstrap confidence intervals and parallel execution, and
-6. extracting fitted models and simulated data.
-
-The shared vocabulary (long-format data, `spec_model()`, the `var_type` /
-`mod_type` tables, and the `recodes()` lag hooks) is introduced in
-`vignette("causalMed-01-overview")` and not repeated here, and so are custom
-covariate distributions (`var_type = "custom"`). For mediation
-(direct/indirect decomposition) see `vignette("causalMed-02-mediation")`.
+This vignette covers binary and survival outcomes, dynamic interventions, custom
+covariate distributions, a published replication (the GvHD analysis of Keil et
+al. 2014), bootstrap intervals, and working with the results. Data format,
+`spec_model()` and the `recodes()` hooks are introduced in
+`vignette("causalMed-01-overview")`; direct and indirect effects are in
+`vignette("causalMed-02-mediation")`.
 
 
 ``` r
 library(causalMed)
 library(data.table)
-#> 
-#> Attaching package: 'data.table'
-#> The following object is masked from 'package:base':
-#> 
-#>     %notin%
 ```
 
 ---
 
 ## Example 1: binary end-of-follow-up outcome
 
-`nonsurvivaldata` (see the overview vignette and `?nonsurvivaldata`) follows
-3 000 subjects over five time points; within each period the data-generating
-ordering is **A → L**: the exposure is decided first and the confounders
-respond to it. The model list mirrors that ordering: exposure model first,
-current `A` in each confounder model. In your own analyses, always match the
-list order and each model's conditioning to *your* assumed data-generating
-process.
+`nonsurvivaldata` follows 3,000 subjects over five time points. Within each
+period the exposure comes first and the confounders respond to it
+(`?nonsurvivaldata`), so the exposure model is listed first and the confounder
+models include the current `A`. The list order should always match the assumed
+data-generating process.
 
 
 ``` r
@@ -130,20 +114,18 @@ fit_bin$estimate
 #> 4:  never_treat / natural      Ratio  0.45400334
 ```
 
-The `effect_size` table gives the estimated mean outcome under each
-intervention. The `estimate` table gives contrasts (risk difference and risk
-ratio) against the reference intervention.
+`effect_size` gives the mean outcome under each intervention; `estimate` gives
+the risk difference and risk ratio against the reference.
 
 ---
 
 ## Example 2: survival (time-to-event) outcome
 
-For survival outcomes use `mod_type = "survival"`. The model estimates the
-discrete-time hazard at each time point; the package accumulates these into a
-cumulative incidence, $1 - \prod_t (1 - h_t)$, so the reported quantities are
-risks of the event by the end of follow-up. The data must contain one row per
-subject per period **at risk**: once the event occurs, no later rows for that
-subject may be present (see `?survivaldata`).
+For a survival outcome, a `mod_type = "survival"` model gives the discrete-time
+hazard, which is accumulated into the cumulative incidence
+$1 - \prod_t (1 - h_t)$: the reported quantities are risks of the event by the
+end of follow-up. The data need one row per subject per period **at risk**,
+with no rows after the event (`?survivaldata`).
 
 
 ``` r
@@ -194,16 +176,15 @@ fit_surv$estimate      # Risk contrasts
 
 ## Dynamic (threshold) interventions
 
-A **dynamic intervention** assigns exposure by a rule evaluated on each
-subject's simulated values. Wrap the rule in `dyn_int()`; the expression is
-evaluated inside the simulated dataset at every time step.
+A **dynamic intervention** sets the exposure by a rule applied to each
+subject's simulated values, written with `dyn_int()` and evaluated in the
+simulated data at every time step.
 
-One scoping rule to keep in mind: the rule runs at the exposure model's
-position in the model list. Variables simulated *earlier* in the list (and the
-exposure's own natural-course draw) hold their current-period values; variables
-simulated *later*, here `L1`, which responds to `A`, still hold the previous
-period's values. A rule for an exposure decided at the start of each period
-therefore conditions on the previous period's covariates:
+The rule runs at the exposure model's position in the list. Variables listed
+*earlier* (and the exposure's own natural-course draw) hold current-period
+values; variables listed *later*, here `L1`, still hold the previous period's
+values. A rule for an exposure decided at the start of each period therefore
+uses the previous period's covariates:
 
 
 ``` r
@@ -239,40 +220,76 @@ fit_dyn$estimate
 #> 2: treat_if_prev_L1_pos / natural      Ratio  0.94648651
 ```
 
-Compound rules work too: any expression over in-scope columns is allowed, e.g.
+Any expression over the columns in scope is allowed, e.g.
 `dyn_int(as.numeric(A > 0 & lag1_L1 > median(lag1_L1)))`, where `A` is the
-natural-course draw the rule can override.
+natural-course draw that the rule overrides.
+
+---
+
+## Custom covariate distributions
+
+`var_type = "custom"` covers distributions without a built-in type, such as a
+zero-inflated normal (a point mass at zero, Gaussian otherwise), here as a
+two-part model. `custom_fit` may return any object that `custom_sim` knows how
+to use, here a list of two fits:
+
+
+``` r
+# Part 1: is the value positive?  Part 2: its level, among the positives.
+zin_fit <- function(formula, data, ...) {
+  y <- model.response(model.frame(formula, data = data))
+  fit_any <- glm(update(formula, I(. > 0) ~ .), family = binomial(), data = data)
+  fit_pos <- lm(formula, data = data[y > 0, ])
+  list(any = fit_any, pos = fit_pos)
+}
+
+zin_sim <- function(model, newdt, ...) {
+  p_any  <- predict(model$any, newdata = newdt, type = "response")
+  m_pos  <- predict(model$pos, newdata = newdt)
+  is_pos <- rbinom(nrow(newdt), 1, p_any)
+  pos    <- pmax(rnorm(nrow(newdt), m_pos, sigma(model$pos)), 0)
+  is_pos * pos
+}
+
+m_zin <- spec_model(
+  X ~ A + L + time,
+  var_type   = "custom",
+  mod_type   = "covariate",
+  custom_fit = zin_fit,
+  custom_sim = zin_sim,
+  truncate   = FALSE   # zin_sim controls its own range
+)
+```
+
+`custom_fit(formula, data, ...)` is called once, when the models are fitted;
+`custom_sim(model, newdata)` is called at every time step and returns one value
+per row. `custom_fit` must be defined at the top level (or be a
+namespace-qualified function) so that it can be found when the models are
+fitted. Choosing and checking the distribution is the analyst's responsibility.
 
 ---
 
 ## A published example: preventing GvHD (Keil et al. 2014)
 
-The toy examples above isolate one feature at a time. A realistic analysis
-usually combines several. The package ships `gvhd`, the person-day bone-marrow
-transplant data used in the parametric g-formula illustration of Keil et al.
-(2014), and the code below reproduces that analysis: the counterfactual risk of
-death by day 1825 had graft-versus-host disease (GvHD) **never** occurred,
-versus the natural course.
+The package ships `gvhd`, the person-day bone marrow transplant data of the
+parametric g-formula illustration of Keil et al. (2014). The code below
+reproduces that analysis: the risk of death by day 1825 had graft-versus-host
+disease (GvHD) **never** occurred, against the natural course. It combines
+several features:
 
-This single example exercises features the toy examples do not:
+- **five models**: relapse → platelet recovery → GvHD (exposure) → censoring →
+  death (hazard). Here the covariates are measured before the day's exposure,
+  so they come first, as in the paper;
+- **absorbing states**: each state is modelled only among those not yet in it
+  (`subset =`), and `out_recode` keeps it at 1 afterwards;
+- a **censoring model**;
+- **restricted cubic splines** of age and day, and day counters, built with
+  the three recode hooks;
+- daily data: 137 subjects over 1,825 days.
 
-- **five models** in temporal order: relapse → platelet recovery → GvHD
-  (exposure) → censoring → death (survival hazard). The covariates here are
-  measured *before* the day's exposure, so they precede it in the list, which
-  is the paper's ordering rather than the A-first ordering of the examples
-  above;
-- **absorbing states** via `subset =` (each state is modelled only among those
-  not yet in it) plus an `out_recode` carry-forward that locks the state at 1
-  afterwards;
-- a **censoring model** (`mod_type = "censor"`);
-- **restricted cubic splines** of age and day, and day counters, built through
-  the three recode hooks working together;
-- real daily-scale survival data (137 subjects, 1 825 days).
-
-The models follow Appendix 2 of the paper (see `?gvhd`). First, the time-fixed
-baseline transforms: restricted cubic splines of age (`agecurs1`/`agecurs2`,
-knots 17, 25.4, 30, 41.4) and of day (`daycurs1`/`daycurs2`, knots 83.6, 401.4,
-947, 1862.2), plus `agesq`/`daysq`:
+The models follow Appendix 2 of the paper (`?gvhd`). First the time-fixed
+transforms: restricted cubic splines of age (knots 17, 25.4, 30, 41.4) and of
+day (knots 83.6, 401.4, 947, 1862.2), and their squares:
 
 
 ``` r
@@ -294,10 +311,9 @@ gvhd <- within(gvhd, {
 })
 ```
 
-The five models, in temporal order. Each time-varying state is absorbing, so
-its model is fitted and simulated only among those not yet in it
-(`subset = ...m1 == 0`); the death hazard interacts the day spline with `gvhd`
-so the direct effect can vary over time:
+The five models. Each state's model applies only among those not yet in it
+(`subset = ...m1 == 0`), and the death hazard interacts the day spline with
+`gvhd`:
 
 
 ``` r
@@ -321,12 +337,10 @@ models_gvhd <- list(
 )
 ```
 
-The three recode hooks cooperate: `init_recode` seeds day 1 (states at 0,
-counters at 0, functions of day computed), `in_recode` refreshes the functions
-of day and the one-day lags at the start of each day, and `out_recode` advances
-the day counters and enforces the absorbing carry-forward at the end of each
-day. The day spline is recomputed each step because the models reference it
-from day one:
+The recode hooks: `init_recode` sets day 1 (states and counters at 0,
+functions of day computed), `in_recode` updates the functions of day and the
+one-day lags at the start of each later day, and `out_recode` advances the
+counters and carries the absorbing states forward at the end of each day:
 
 
 ``` r
@@ -376,37 +390,30 @@ fit_gvhd <- gformula(gvhd,
   mc_sample = 20000, R = 1, quiet = TRUE, seed = 20260703)
 
 fit_gvhd$effect_size
-#>    Intervention      Est
-#>          <fctr>    <num>
-#> 1:      natural 0.611763
-#> 2:        never 0.587719
+#>    Intervention       Est
+#>          <fctr>     <num>
+#> 1:      natural 0.6093279
+#> 2:        never 0.5881213
 fit_gvhd$estimate
 #>       Intervention  Risk_type    Estimate
 #>             <char>     <char>       <num>
-#> 1: never - natural Difference -0.02404395
-#> 2: never / natural      Ratio  0.96069728
+#> 1: never - natural Difference -0.02120662
+#> 2: never / natural      Ratio  0.96519671
 ```
 
-The two rows above are the simulated 5-year risks of death under the natural
-course and under the "never GvHD" strategy, and their contrast. This reproduces
-the analysis specification of Keil et al. (2014). Read that paper for the
-substantive interpretation and for the assumptions it rests on; the purpose
-here is to show the machinery on a published example, not to draw a clinical
-conclusion.
-
-With 1 825 daily time steps this Monte Carlo loop takes a few minutes, which is
-why this vignette is **precomputed**: the code above was run once when the
-vignette was assembled, so its output is real while the shipped vignette builds
-instantly. Set `R > 1` for bootstrap confidence intervals (much slower again on
-this dataset).
+These are the simulated 5-year risks of death under the natural course and
+under "never GvHD", and their contrast, following the specification of Keil et
+al. (2014); see that paper for the interpretation and the assumptions. With
+1,825 daily time steps the simulation takes a few minutes, and bootstrap
+intervals (`R > 1`) take much longer.
 
 ---
 
 ## Bootstrap Confidence Intervals
 
-Set `R > 1` to obtain percentile and normal-approximation confidence
-intervals. The bootstrap resamples whole subjects (all time points together),
-preserving the longitudinal correlation structure.
+Set `R > 1` for percentile and normal-approximation confidence intervals. The
+bootstrap resamples whole subjects, keeping each subject's time points
+together.
 
 
 ``` r
@@ -456,11 +463,8 @@ head(fit_boot$boot_estimates$interventions)
 #> 6:         3       always 0.2498870
 ```
 
-Like the GvHD example, the bootstrap here runs for real at precompute time; on
-CRAN and CI the shipped vignette carries this captured output without re-running
-200 replicates. Enable parallel bootstrap by registering a `future` plan
-(`library(future); plan(multisession)`) before the call; see
-`vignette("causalMed-01-overview")` for the parallel details.
+To run the replicates in parallel, set a plan first, e.g.
+`future::plan(future::multisession)`.
 
 ---
 
@@ -468,8 +472,7 @@ CRAN and CI the shipped vignette carries this captured output without re-running
 
 ### Extracting fitted models
 
-Set `return_fitted = TRUE` to access the full fitted model objects and their
-coefficients:
+`return_fitted = TRUE` returns the full fitted model objects:
 
 
 ``` r
@@ -502,11 +505,10 @@ coef(fit_full$fitted_models$A)
 
 ### Retrieving the simulated data
 
-Set `return_data = TRUE` to retrieve the simulated Monte Carlo dataset (can be
-large). It is the **end-of-follow-up snapshot**: one row per Monte Carlo
-subject per intervention, holding each variable at its final simulated time step
-together with the accumulated `Pred_Y`. It is not a row-per-time-point panel:
-the simulation overwrites each variable in place as it steps through time.
+`return_data = TRUE` returns the simulated data (it can be large) as an
+**end-of-follow-up snapshot**: one row per simulated subject per intervention,
+each variable at its last simulated time step, with the accumulated `Pred_Y`.
+Earlier time steps are not kept.
 
 
 ``` r

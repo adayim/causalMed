@@ -82,15 +82,13 @@ subjects, 1822 have the event, 283 are censored and the remaining 895 reach
 the end of the fifth period.
 
 Censoring depends on \eqn{V} and on the current confounder \eqn{L}, so it is
-informative marginally, but it is conditionally independent of the
-counterfactual event process given that observed history. The target estimand
--- risk with censoring eliminated -- is therefore unchanged by its presence,
-and the true values below are the same as they would be without it. Under
-\code{estimator = "gcomp"} the hazard model fitted among those still at risk
-already identifies that risk, so a censoring model is not required; pass one
-as a \code{mod_type = "censor"} entry in \code{models} to simulate the
-censoring process in the natural course of \code{gformula()}, or for
-\code{estimator = "tmle"}.
+informative marginally but conditionally independent of the counterfactual
+event process given that observed history. The target estimand, the risk
+with censoring eliminated, is therefore unchanged by it, and the true values
+above are the same as they would be without it. With
+\code{estimator = "gcomp"} a censoring model is not required; a
+\code{mod_type = "censor"} model can be supplied to simulate censoring in the
+natural course of \code{gformula()}, or for \code{estimator = "tmle"}.
 }
 \seealso{
 \code{\link{nonsurvivaldata}} for the end-of-follow-up counterpart.

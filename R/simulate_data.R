@@ -109,7 +109,7 @@ simulate_data <- function(data,
         # copy() so we don't modify the caller's data.table in-place;
         # copy() returns a fresh data.table with selfref = 1.
         data     <- data.table::copy(data)
-        vals_nat <- sim_value(model = model, newdt = data[cond])
+        vals_nat <- sim_value(model = model, newdt = model_rows(data, cond, model))
         data[cond, (exposure) := vals_nat]
         vals_dyn <- as.numeric(eval(intervention[[1]], envir = data[cond]))
         data[cond, (exposure) := vals_dyn]
@@ -142,6 +142,10 @@ simulate_data <- function(data,
       }
       has_med_override <- !is.null(mediator_override_value)
 
+      # The rows (and columns) the model is drawn from; the outcome and
+      # survival predictions below reuse it.
+      newdt <- NULL
+
       if (mod_type == "mediator" && has_med_override) {
         if (mediation_type == "N") {
           # Natural effects (Zheng & van der Laan 2017, Eq. 5): evaluate the
@@ -152,8 +156,9 @@ simulate_data <- function(data,
           # no recode is re-run here (re-running an order-dependent recode on
           # the copy shifts its columns), and any other exposure-derived input
           # is rejected up front by check_natural_exposure_history().
-          # data[cond] returns a fresh subset copy, safe to modify in place.
-          swap_dt <- data[cond]
+          # model_rows() returns a fresh copy, safe to modify in place; set()
+          # adds the exposure or a lag column if the model does not read it.
+          swap_dt <- model_rows(data, cond, model)
           set(swap_dt, j = exposure, value = mediator_override_value)
           lag_vals <- med_swap_lags[[resp_var]]
           for (lg in names(lag_vals)) set(swap_dt, j = lg, value = lag_vals[[lg]])
@@ -182,24 +187,25 @@ simulate_data <- function(data,
 
       } else {
         # ── Standard model-based simulation ─────────────────────────────────────
-        vals <- sim_value(model = model, newdt = data[cond])
+        newdt <- model_rows(data, cond, model)
+        vals  <- sim_value(model = model, newdt = newdt)
         data[cond, (resp_var) := vals]
       }
 
       # ── Outcome prediction ───────────────────────────────────────────────────
-      # Use pre-stored Xterms + beta (direct BLAS) instead of predict() to
-      # avoid model.frame() reconstruction overhead on every time step.
+      # From the pre-stored terms and coefficients (lin_pred()) rather than
+      # predict(). `newdt` was taken before this model's own response was
+      # drawn, which the prediction does not read. The fitted mean, probability
+      # or hazard is used as is, as gfoRmula uses predict(type = "response"):
+      # it is not clamped. A clamp to (0, 1) had turned a "normal" outcome's
+      # mean into 1 wherever it exceeded 1, and raised negative means to 0.
       if (mod_type == "outcome") {
-        lp   <- lin_pred(model, data[cond])
-        pred <- model$linkinv(lp)
-        pred <- pmin(pmax(pred, 1e-10), 1 - 1e-10)
+        pred <- model$linkinv(lin_pred(model, newdt))
         data[cond, Pred_Y := pred]
       }
 
       if (mod_type == "survival") {
-        lp <- lin_pred(model, data[cond])
-        h  <- model$linkinv(lp)
-        h  <- pmin(pmax(h, 1e-10), 1 - 1e-10)
+        h <- model$linkinv(lin_pred(model, newdt))
         data[cond, S := h]
 
         # Initialise Sc to 1 on the first call (no Sc column yet), then

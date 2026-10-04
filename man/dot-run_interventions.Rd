@@ -25,59 +25,49 @@
 )
 }
 \arguments{
-\item{data}{A \code{data.frame} (long format): one row per \code{id_var} per \code{time_var}.}
+\item{data}{A \code{data.frame} in long format.}
 
-\item{id_var}{Character scalar. Subject identifier column name.}
+\item{id_var}{Character. Name of the subject identifier.}
 
-\item{base_vars}{Character vector of time-fixed baseline covariates (may be empty).}
+\item{base_vars}{Character vector of time-fixed baseline covariates (may be
+empty), with no missing values. Only these and \code{id_var} are carried
+into the simulated cohort; every other variable a model uses, including
+lags, must be created by the recode hooks.}
 
-\item{time_var}{Character scalar. Time variable column name (ordered; integer/numeric).}
+\item{time_var}{Character. Name of the numeric time variable. Each distinct
+value is one simulated step, in ascending order.}
 
-\item{exposure}{Character scalar. Exposure variable to intervene on (must be in \code{data}).}
+\item{exposure}{Character. Name of the exposure to intervene on.}
 
-\item{models}{A list of model specifications evaluated in temporal order. The order
-appeared in the list should reflect the temporal ordering of the variables, in another
-way data generation process. See \code{\link{spec_model}} for a recommended constructor.}
+\item{models}{List of \code{\link{spec_model}} objects, in the order the
+variables are generated.}
 
-\item{intervention}{A named list specifying exposure interventions. Each
-element is one of:
-\itemize{
-  \item \code{NULL} — the natural course (exposure drawn from its fitted model).
-  \item A numeric/logical scalar or vector (length 1 or equal to the number
-        of \strong{distinct} time points) — a static intervention setting the exposure to that
-        value at every (or each specific) time step.
-  \item A \code{\link{dyn_int}} object — a dynamic (rule-based) intervention
-        whose expression is evaluated inside the simulated dataset at each
-        time step. Column names (including the exposure after its natural-course
-        draw) are in scope, e.g.
-        \code{list(natural = NULL, threshold = dyn_int(as.numeric(A > 0)))}.
-}
-If \code{intervention} is \code{NULL}, only the natural course is
-evaluated. A \code{natural} element is also added automatically when
-\code{ref_int} asks for the natural course and the list contains no
-\code{NULL} element; see \code{ref_int} and Details.}
+\item{intervention}{Named list of interventions. Each element is
+\code{NULL} (the natural course: exposure drawn from its fitted model), a
+0/1 value or vector with one value per distinct time point (a static
+intervention), or a \code{\link{dyn_int}} rule, e.g.
+\code{list(natural = NULL, treat_if_high = dyn_int(as.numeric(L1 > 0)))}.
+\code{NULL} (the default) runs the natural course only.}
 
-\item{in_recode}{Optional expression/function applied at the **start** of each time step
-(e.g., entry-time functional forms). Should be defined with \code{\link{recodes}}. See Details.}
+\item{in_recode}{\code{\link{recodes}} applied at the start of each later
+time step, before the models are evaluated, e.g. to update lags.}
 
-\item{out_recode}{Optional expression/function applied at the **end** of each time step
-(e.g., create lags, cumulative counts). Should be defined with \code{\link{recodes}}. See Details.}
+\item{out_recode}{\code{\link{recodes}} applied at the end of each time
+step, the first included, e.g. to advance cumulative counts or carry an
+absorbing state forward.}
 
-\item{init_recode}{Optional expression/function applied once at time 0 before the Monte Carlo loop
-(e.g., initializing baseline-derived variables). Should be defined with \code{\link{recodes}}. See Details.}
+\item{init_recode}{\code{\link{recodes}} applied at the first time step,
+before the models are evaluated, e.g. to set lags to their baseline value.}
 
 \item{mediation_type}{Type of the mediation analysis, if the value is \code{NA}
 no mediation analysis will be performed (default). It will be ignored if the intervention
  is not \code{NULL}}
 
-\item{mc_sample}{Integer. Size of the Monte Carlo cohort simulated under
-each intervention, counted in subjects. Defaults to \code{NULL}, which
-resolves to 50 times the number of subjects in \code{data} and reports the
-value it chose unless \code{quiet = TRUE}. Monte Carlo error falls as
-\code{1/sqrt(mc_sample)} while sampling error falls with the number of
-subjects, so the two stay in a fixed ratio when \code{mc_sample} is set as
-a multiple of the subject count; a larger multiple buys precision in the
-point estimate and does not change what is being estimated.}
+\item{mc_sample}{Number of subjects in the simulated Monte Carlo cohort.
+The default, \code{NULL}, uses 50 times the number of subjects in
+\code{data} and reports the value unless \code{quiet = TRUE}. A larger
+value reduces Monte Carlo error, which falls as
+\code{1/sqrt(mc_sample)}; it does not change the estimand.}
 
 \item{n_vw}{Integer. Number of independent permutation draws averaged for
 interventional pool-drawing interventions (Vansteelandt-Williamson repetition).
@@ -87,18 +77,12 @@ match the SAS mGFORMULA macro.}
 
 \item{return_fitted}{Return the fitted model (default is FALSE).}
 
-\item{return_data}{Logical. If \code{TRUE}, return the stacked simulated data
-(all interventions) including predicted outcomes; may be large. Default \code{FALSE}.}
+\item{return_data}{Logical. Return the simulated data (default
+\code{FALSE}; can be large).}
 
-\item{seed}{Integer random seed for reproducibility. Default \code{12345}.
-The seed fixes the RNG stream used for the Monte Carlo simulation
-\emph{and} the bootstrap replicates, and the caller's global RNG state is
-saved and restored on exit, so a seeded call does not disturb the ambient
-random stream. Pass \code{NULL} to disable seeding entirely: no
-\code{set.seed()} is called, the Monte Carlo draws consume and advance the
-ambient RNG stream, and repeated calls therefore give \emph{different}
-results (reproducible only via an outer \code{set.seed()}). Use
-\code{seed = NULL} inside simulation loops that manage their own seeds.}
+\item{seed}{Integer random seed (default \code{12345}) for the Monte Carlo
+simulation and the bootstrap replicates; the global RNG state is restored
+on exit. \code{NULL} disables seeding, so repeated calls differ.}
 
 \item{time_seq}{Numeric vector: the sorted distinct time points to simulate,
 as computed by \code{gformula()}/\code{mediation()} from the \emph{input}

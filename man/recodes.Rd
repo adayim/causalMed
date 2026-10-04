@@ -2,16 +2,50 @@
 % Please edit documentation in R/helper.R
 \name{recodes}
 \alias{recodes}
-\title{Define parameters for recoding}
+\title{Recode variables inside the simulation}
 \usage{
 recodes(...)
 }
 \arguments{
-\item{...}{Named expressions (e.g., daysq = day^2).}
+\item{...}{Named expressions, e.g. \code{lag1_A = A} or
+\code{daysq = day^2}.}
 }
 \value{
-A list of expressions with class 'causalMed_recodes'.
+A list of unevaluated expressions of class
+  \code{"causalMed_recodes"}.
 }
 \description{
-Capture expressions for variable assignment.
+Captures named expressions, unevaluated, to be evaluated inside the
+simulated data. They are used for the \code{init_recode}, \code{in_recode}
+and \code{out_recode} hooks of \code{\link{gformula}} and
+\code{\link{mediation}}, and for the \code{recode} argument of
+\code{\link{spec_model}}. Expressions are evaluated in order, so a later one
+can use the result of an earlier one.
+
+The simulated cohort starts with only the subject identifier and the
+baseline covariates, so every lag, counter or other derived variable a model
+uses must be created here, even if it already exists in the data:
+\itemize{
+  \item \code{init_recode}: at the first time step, before the models are
+    evaluated (initial values).
+  \item \code{in_recode}: at the start of every later time step, before the
+    models are evaluated (lags, functions of time).
+  \item \code{out_recode}: at the end of every time step, the first
+    included, after the models are evaluated (cumulative counts, carrying an
+    absorbing state forward). A variable it updates needs a starting value
+    from \code{init_recode}.
+}
+}
+\examples{
+# One-period lags: 0 at the first time step, then the previous value
+init <- recodes(lag1_A = 0, lag1_L = 0)
+upd  <- recodes(lag1_A = A, lag1_L = L)
+
+# A function of the time variable, e.g. for in_recode
+recodes(day_sq = day^2)
+
+# A running count of exposed steps: start at 0 (init_recode), add the
+# current step's exposure at the end of each step (out_recode)
+init <- recodes(cum_A = 0)
+upd  <- recodes(cum_A = cum_A + A)
 }
