@@ -25,3 +25,7 @@ summary(object, digits = max(3, getOption("digits") - 3), ...)
 - ...:
 
   Not used.
+
+## Value
+
+`object`, invisibly. The function is called for its printed output.

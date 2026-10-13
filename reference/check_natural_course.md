@@ -29,3 +29,8 @@ check_natural_course(models, intervention, exposure)
 - exposure:
 
   Character scalar. Name of the exposure variable.
+
+## Value
+
+`NULL`, invisibly, if a natural course can be simulated; otherwise an
+error.

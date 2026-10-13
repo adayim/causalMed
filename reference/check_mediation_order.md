@@ -15,3 +15,7 @@ check_mediation_order(models)
 
   List of model specifications from
   [`spec_model`](https://adayim.github.io/causalMed/reference/spec_model.md).
+
+## Value
+
+Called for its warnings; the return value is not used.

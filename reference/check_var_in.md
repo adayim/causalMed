@@ -18,3 +18,7 @@ check_var_in(vars, data)
 - data:
 
   Data set to be checked
+
+## Value
+
+`NULL`, invisibly, if every variable is present; otherwise an error.

@@ -205,7 +205,7 @@ spec_model(daysgvhd ~ all + cmv + male + age + wait,
 #> {
 #>     rpois(nrow(newdata), predict(fit, newdata = newdata, type = "response"))
 #> }
-#> <environment: 0x55a180016690>
+#> <environment: 0x55db0b207890>
 #> 
 #> $truncate
 #> [1] TRUE

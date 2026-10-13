@@ -30,3 +30,7 @@ print(x, models = FALSE, digits = max(3, getOption("digits") - 3), ...)
 - ...:
 
   Not used.
+
+## Value
+
+`x`, invisibly. The function is called for its printed output.
