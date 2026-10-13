@@ -18,6 +18,9 @@ numeric output. Default \code{max(3, getOption("digits") - 3)}.}
 
 \item{...}{Not used.}
 }
+\value{
+\code{x}, invisibly. The function is called for its printed output.
+}
 \description{
 Prints the estimated mean outcome (or risk) under each intervention, the
 contrasts or mediation decomposition, a legend of the interventions, the

@@ -292,6 +292,8 @@ check_intervention <- function(models, intervention, ref_int, time_len) {
 #' @param models List of model specifications from \code{\link{spec_model}}.
 #' @param intervention The resolved (named, non-\code{NULL}) intervention list.
 #' @param exposure Character scalar. Name of the exposure variable.
+#' @return \code{NULL}, invisibly, if a natural course can be simulated;
+#'   otherwise an error.
 #' @keywords internal
 check_natural_course <- function(models, intervention, exposure) {
   if (!any(vapply(intervention, is.null, logical(1)))) return(invisible(NULL))
@@ -318,6 +320,7 @@ check_natural_course <- function(models, intervention, exposure) {
 #' violate the assumed A(t) -> M(t) -> L(t) -> S(t) ordering.
 #'
 #' @param models List of model specifications from \code{\link{spec_model}}.
+#' @return Called for its warnings; the return value is not used.
 #' @keywords internal
 check_mediation_order <- function(models) {
   mod_types <- sapply(models, function(m) m$mod_type)
@@ -552,6 +555,8 @@ check_natural_exposure_history <- function(models, exposure, init_recode = NULL,
 #'
 #' @param vars Variables to check
 #' @param data Data set to be checked
+#' @return \code{NULL}, invisibly, if every variable is present; otherwise an
+#'   error.
 #'
 #' @keywords internal
 #'

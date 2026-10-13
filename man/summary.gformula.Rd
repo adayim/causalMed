@@ -14,6 +14,10 @@ numeric output. Default \code{max(3, getOption("digits") - 3)}.}
 
 \item{...}{Not used.}
 }
+\value{
+\code{object}, invisibly. The function is called for its printed
+  output.
+}
 \description{
 Prints the same results as \code{\link{print.gformula}}, followed by the
 coefficient table of every fitted model.
