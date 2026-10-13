@@ -10,7 +10,6 @@
 ^pkgdown$
 ^doc$
 ^Meta$
-^references$
 ^LICENSE$
 ^vignettes/.*\.Rmd\.orig$
 ^vignettes/precompute\.R$

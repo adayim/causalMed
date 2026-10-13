@@ -11,6 +11,10 @@ check_var_in(vars, data)
 
 \item{data}{Data set to be checked}
 }
+\value{
+\code{NULL}, invisibly, if every variable is present; otherwise an
+  error.
+}
 \description{
 Check if the variables in the data, throw an error with variable names if not.
 }

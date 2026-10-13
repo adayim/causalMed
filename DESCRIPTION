@@ -2,7 +2,7 @@ Package: causalMed
 Title: Parametric G-Formula for Longitudinal Mediation and Total Effects
 Version: 0.1.3
 Authors@R: c(person("Alimu", "Dayimu", 
-                    email = "alimdayim@hotmail.com", 
+                    email = "ad938@cam.ac.uk", 
                     role = c("aut", "cre")),
              person("Xingling", "Guo", 
                     role = c("aut")))

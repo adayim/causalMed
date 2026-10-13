@@ -77,6 +77,8 @@
 #'   numeric output. Default \code{max(3, getOption("digits") - 3)}.
 #' @param ... Not used.
 #'
+#' @return \code{x}, invisibly. The function is called for its printed output.
+#'
 #' @export
 print.gformula <- function(x,
                            models = FALSE,
@@ -502,6 +504,9 @@ print.gformula <- function(x,
 #' @param digits Integer. Number of decimal places used when rounding
 #'   numeric output. Default \code{max(3, getOption("digits") - 3)}.
 #' @param ... Not used.
+#'
+#' @return \code{object}, invisibly. The function is called for its printed
+#'   output.
 #'
 #' @export
 summary.gformula <- function(object,

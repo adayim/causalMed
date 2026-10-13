@@ -13,6 +13,10 @@ check_natural_course(models, intervention, exposure)
 
 \item{exposure}{Character scalar. Name of the exposure variable.}
 }
+\value{
+\code{NULL}, invisibly, if a natural course can be simulated;
+  otherwise an error.
+}
 \description{
 A natural-course intervention -- a \code{NULL} element of \code{intervention},
 or \code{intervention = NULL} -- draws the exposure from its own fitted model

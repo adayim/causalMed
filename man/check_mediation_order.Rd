@@ -9,6 +9,9 @@ check_mediation_order(models)
 \arguments{
 \item{models}{List of model specifications from \code{\link{spec_model}}.}
 }
+\value{
+Called for its warnings; the return value is not used.
+}
 \description{
 Issues a warning if covariate or exposure models appear in positions that
 violate the assumed A(t) -> M(t) -> L(t) -> S(t) ordering.
