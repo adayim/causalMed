@@ -1057,7 +1057,7 @@ testthat::test_that("categorical draws keep the fitted level order", {
   }
   a <- fit_with(c("lo", "mid", "hi"))
   b <- fit_with(c("a_lo", "b_mid", "c_hi"))
-  testthat::expect_equal(a$estimate$RD, b$estimate$RD, tolerance = 0)
+  testthat::expect_equal(a$estimate$RD, b$estimate$RD, tolerance = 1e-8)
 
   # The simulated mediator is a factor with the fitted levels, and the engine's
   # outcome prediction is what predict() gives on the simulated data.

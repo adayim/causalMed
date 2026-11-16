@@ -1,18 +1,20 @@
 Package: causalMed
 Title: Parametric G-Formula for Longitudinal Mediation and Total Effects
-Version: 0.1.3
+Version: 0.1.4
 Authors@R: c(person("Alimu", "Dayimu", 
                     email = "ad938@cam.ac.uk", 
-                    role = c("aut", "cre")),
+                    role = c("aut", "cre"),
+                    comment = c(ORCID = "0000-0001-9998-7463")),
              person("Xingling", "Guo", 
                     role = c("aut")))
 Description: Causal mediation analysis for longitudinal data with time-varying
     exposures, mediators and confounders, covering both interventional
-    (<doi:10.1002/sim.7426>) and natural (<doi:10.1515/jci-2016-0006>) direct
-    and indirect effects. Estimation uses the parametric g-formula
-    (<doi:10.1016/0270-0255(86)90088-6>), which is also exposed directly so
-    that counterfactual means or risks can be estimated under static, dynamic
-    or time-varying hypothetical interventions.
+    (Lin et al. (2017) <doi:10.1002/sim.7426>) and natural
+    (Zheng and van der Laan (2017) <doi:10.1515/jci-2016-0006>) direct and
+    indirect effects. Estimation uses the parametric g-formula
+    (Robins (1986) <doi:10.1016/0270-0255(86)90088-6>), which is also exposed
+    directly so that counterfactual means or risks can be estimated under
+    static, dynamic or time-varying hypothetical interventions.
 Depends: R (>= 3.5.1)
 License: GPL (>= 2)
 Encoding: UTF-8

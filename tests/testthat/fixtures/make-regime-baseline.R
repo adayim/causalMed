@@ -1,10 +1,10 @@
 # Generates tests/testthat/fixtures/regime-baseline.rds: the per-intervention
 # estimates of mediation() under the DEFAULT regimes (always vs never
-# exposed) for both mediation types, captured from the code as it stood
-# before exposure_regime/reference_regime were added (2026-09-08).
-# test-regressions.R asserts the defaults still reproduce these exactly.
-# Regenerate ONLY when a deliberate engine change is meant to move them:
-#   Rscript tests/testthat/fixtures/make-regime-baseline.R
+# exposed) for both mediation types.
+out_file <- commandArgs(trailingOnly = TRUE)[1]
+if (is.na(out_file) || !nzchar(out_file))
+  stop("Supply the output .rds path as the first argument.", call. = FALSE)
+
 suppressPackageStartupMessages(devtools::load_all(".", quiet = TRUE))
 data("nonsurvivaldata", package = "causalMed")
 
@@ -22,6 +22,5 @@ baseline <- lapply(c(I = "I", N = "N"), function(mtype) {
        estimate    = setNames(fit$estimate$RD, fit$estimate$Effect))
 })
 
-dir.create("tests/testthat/fixtures", showWarnings = FALSE, recursive = TRUE)
-saveRDS(baseline, "tests/testthat/fixtures/regime-baseline.rds")
+saveRDS(baseline, out_file)
 str(baseline)
