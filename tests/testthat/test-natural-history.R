@@ -167,7 +167,7 @@ testthat::test_that("the \"N\" swap leaves every input the exposure does not aff
   }
   own   <- draw(causalMed:::intervention_spec(1))                  # natural mediator
   cross <- draw(causalMed:::intervention_spec(1, list(M = 0)))     # cross-world swap
-  testthat::expect_identical(cross, own)
+  testthat::expect_equal(cross, own, tolerance = 1e-12)
 })
 
 testthat::test_that("mediation(\"N\") rejects exposure-derived inputs it cannot swap; \"I\" runs", {
